@@ -24,10 +24,10 @@ function createInitialState() {
         return {
           language,
           session: parsed.session || null,
-          workOrders: parsed.workOrders || [...seedWorkOrders],
-          organizations: parsed.organizations || [...INITIAL_ORGANIZATIONS],
-          workers: parsed.workers || [...INITIAL_WORKERS],
-          timeEntries: parsed.timeEntries || [...seedTimeEntries],
+          workOrders: (parsed.workOrders && parsed.workOrders.length > 0) ? parsed.workOrders : [...seedWorkOrders],
+          organizations: (parsed.organizations && parsed.organizations.length > 0) ? parsed.organizations : [...INITIAL_ORGANIZATIONS],
+          workers: (parsed.workers && parsed.workers.length > 0) ? parsed.workers : [...INITIAL_WORKERS],
+          timeEntries: (parsed.timeEntries && parsed.timeEntries.length > 0) ? parsed.timeEntries : [...seedTimeEntries],
           auditLogs: parsed.auditLogs || [],
           selectedTab: restoredTab,
           filters: parsed.filters || {
