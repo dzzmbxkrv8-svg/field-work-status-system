@@ -872,21 +872,11 @@ textarea:focus {
 }
 
 .safety-content {
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: 0.85rem;
+  font-weight: 600;
   color: #9a3412;
-  white-space: nowrap;
-  animation: ticker 15s linear infinite;
-}
-
-@keyframes ticker {
-  0% {
-    transform: translateX(100%);
-  }
-
-  100% {
-    transform: translateX(-100%);
-  }
+  white-space: normal;
+  line-height: 1.4;
 }
 
 .timeline-card {
@@ -2342,7 +2332,7 @@ textarea:focus {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  padding-bottom: 8rem;
+  padding-bottom: 10rem;
   /* Space for floating nav */
 }
 

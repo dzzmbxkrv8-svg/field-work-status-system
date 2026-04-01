@@ -370,18 +370,6 @@ export default function WorkerView() {
               </div>
             )}
             <div className="worker-dashboard-top">
-              <section className="greeting-section">
-                <h1 className="greeting-text">{getGreeting()}、{worker.name}さん</h1>
-                <p className="greeting-sub">今日も一日、安全第一で頑張りましょう！</p>
-              </section>
-
-              <section className="safety-ticker">
-                <span className="safety-icon">⚠️</span>
-                <div className="safety-content">
-                  【安全通知】本日、午後から強風の予報が出ています。高所作業の際は十分に注意してください。   【天気】現在は晴れ（24℃）、降水確率10%です。
-                </div>
-              </section>
-
               <section className="worker-card worker-card-profile">
                 <div className="worker-card-header">
                   <label className="worker-avatar editable">
@@ -390,6 +378,7 @@ export default function WorkerView() {
                     <span className="worker-avatar-edit">{text.worker.editAvatar ?? '編集'}</span>
                   </label>
                   <div className="worker-card-header-info">
+                    <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 0.25rem' }}>{getGreeting()}</p>
                     <h2>{worker.name}</h2>
                     <p className="worker-subtext">
                       {text.worker.workerIdLabel}: {worker.workerId}
@@ -448,7 +437,7 @@ export default function WorkerView() {
                   <button
                     type="button"
                     className="worker-action worker-action-success"
-                    style={{ flex: 1, justifyContent: 'center', minHeight: '70px' }}
+                    style={{ flex: 1, justifyContent: 'center', minHeight: '80px' }}
                     onClick={() => handleClockAction(clockIn)}
                     disabled={clockLoading}
                   >
@@ -461,7 +450,7 @@ export default function WorkerView() {
                     <button
                       type="button"
                       className="worker-action worker-action-warning"
-                      style={{ flex: 1, justifyContent: 'center', minHeight: '70px' }}
+                      style={{ flex: 1, justifyContent: 'center', minHeight: '80px' }}
                       onClick={() => handleClockAction(breakStart)}
                       disabled={clockLoading}
                     >
@@ -471,7 +460,7 @@ export default function WorkerView() {
                     <button
                       type="button"
                       className="worker-action worker-action-danger"
-                      style={{ flex: 1, justifyContent: 'center', minHeight: '70px' }}
+                      style={{ flex: 1, justifyContent: 'center', minHeight: '80px' }}
                       onClick={() => handleClockAction(clockOut)}
                       disabled={clockLoading}
                     >
@@ -484,7 +473,7 @@ export default function WorkerView() {
                   <button
                     type="button"
                     className="worker-action worker-action-primary"
-                    style={{ flex: 1, justifyContent: 'center', minHeight: '70px' }}
+                    style={{ flex: 1, justifyContent: 'center', minHeight: '80px' }}
                     onClick={() => handleClockAction(breakEnd)}
                     disabled={clockLoading}
                   >
@@ -536,6 +525,13 @@ export default function WorkerView() {
               )}
             </section>
 
+            <section className="safety-ticker">
+              <span className="safety-icon">⚠️</span>
+              <div className="safety-content">
+                【安全通知】本日、午後から強風の予報が出ています。高所作業の際は十分に注意してください。   【天気】現在は晴れ（24℃）、降水確率10%です。
+              </div>
+            </section>
+
             {primaryAssignment && (
               <section className="worker-card worker-card-actions">
                 <p className="worker-section-label">{text.worker.quickActionHint}</p>
@@ -576,25 +572,6 @@ export default function WorkerView() {
                     </div>
                   ) : (
                     <p className="worker-empty">{text.worker.latestReportEmpty}</p>
-                  )}
-                </div>
-              </section>
-            )}
-
-            {primaryAssignment && (
-              <section className="worker-card worker-photo-report">
-                <h4>📸 現場写真報告</h4>
-                <div className="worker-photo-controls">
-                  <label className="worker-photo-label" htmlFor="photo-upload">
-                    <input id="photo-upload" type="file" accept="image/*" capture="camera" onChange={handleReportPhotoChange} style={{ display: 'none' }} />
-                    <div className="worker-photo-preview-box">
-                      {reportPhoto ? <img src={reportPhoto} alt="Preview" /> : <span>カメラを起動 / 写真を選択</span>}
-                    </div>
-                  </label>
-                  {reportPhoto && (
-                    <button type="button" className="worker-message-send" onClick={handleReportSubmit}>
-                      写真を報告する
-                    </button>
                   )}
                 </div>
               </section>
@@ -918,6 +895,25 @@ export default function WorkerView() {
                   </div>
                 </div>
               </section>
+
+              {primaryAssignment && (
+                <section className="worker-card worker-photo-report">
+                  <h4>📸 現場写真報告</h4>
+                  <div className="worker-photo-controls">
+                    <label className="worker-photo-label" htmlFor="photo-upload">
+                      <input id="photo-upload" type="file" accept="image/*" capture="camera" onChange={handleReportPhotoChange} style={{ display: 'none' }} />
+                      <div className="worker-photo-preview-box">
+                        {reportPhoto ? <img src={reportPhoto} alt="Preview" /> : <span>カメラを起動 / 写真を選択</span>}
+                      </div>
+                    </label>
+                    {reportPhoto && (
+                      <button type="button" className="worker-message-send" onClick={handleReportSubmit}>
+                        写真を報告する
+                      </button>
+                    )}
+                  </div>
+                </section>
+              )}
 
               <section className="worker-card worker-card-daily-report">
                 <header>
