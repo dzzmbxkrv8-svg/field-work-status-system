@@ -225,6 +225,9 @@ export default function LoginDialog({
     <div className="fws-login-shell">
       <div className="fws-login-card">
         <header className="fws-login-header">
+          <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#2563eb', letterSpacing: '0.05em', textTransform: 'uppercase', margin: '0 0 0.5rem' }}>
+            Field Work Status System
+          </p>
           <h1>{text.login.title}</h1>
           <p>{text.login.subtitle}</p>
         </header>
