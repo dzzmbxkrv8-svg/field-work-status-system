@@ -3,6 +3,10 @@ import { useMemo } from 'react'
 const numberFormatters = {
   en: new Intl.NumberFormat('en-US'),
   ja: new Intl.NumberFormat('ja-JP'),
+  vi: new Intl.NumberFormat('vi-VN'),
+  tl: new Intl.NumberFormat('fil-PH'),
+  id: new Intl.NumberFormat('id-ID'),
+  my: new Intl.NumberFormat('my-MM'),
 }
 
 const dateFormatters = {
@@ -16,24 +20,22 @@ const dateFormatters = {
     month: 'short',
     day: 'numeric',
   }),
+  vi: new Intl.DateTimeFormat('vi-VN', { year: 'numeric', month: 'short', day: 'numeric' }),
+  tl: new Intl.DateTimeFormat('fil-PH', { year: 'numeric', month: 'short', day: 'numeric' }),
+  id: new Intl.DateTimeFormat('id-ID', { year: 'numeric', month: 'short', day: 'numeric' }),
+  my: new Intl.DateTimeFormat('my-MM', { year: 'numeric', month: 'short', day: 'numeric' }),
 }
 
 const translationPacks = {
   en: {
     languageLabel: 'Language',
     languages: {
-      en: 'English',
       ja: '日本語',
-      ko: '한국어',
+      en: 'English',
       vi: 'Tiếng Việt',
-      zh: '中文',
-      mn: 'Монгол хэл',
       tl: 'Tagalog',
-      pt: 'Português',
-      my: 'မြန်မာ',
-      ne: 'नेपाली',
       id: 'Bahasa Indonesia',
-      si: 'සිංහල',
+      my: 'မြန်မာ',
     },
     actions: {
       logout: 'Sign out',
@@ -276,18 +278,12 @@ const translationPacks = {
   ja: {
     languageLabel: '言語',
     languages: {
-      en: 'English',
       ja: '日本語',
-      ko: '한국어',
+      en: 'English',
       vi: 'Tiếng Việt',
-      zh: '中文',
-      mn: 'Монгол хэл',
       tl: 'Tagalog',
-      pt: 'Português',
-      my: 'မြန်မာ',
-      ne: 'नेपाली',
       id: 'Bahasa Indonesia',
-      si: 'සිංහල',
+      my: 'မြန်မာ',
     },
     actions: {
       logout: 'ログアウト',
@@ -527,6 +523,134 @@ const translationPacks = {
       Restrictions: '制限あり',
     },
   },
+  vi: {
+    languageLabel: 'Ngôn ngữ',
+    languages: {
+      ja: '日本語',
+      en: 'English',
+      vi: 'Tiếng Việt',
+      tl: 'Tagalog',
+      id: 'Bahasa Indonesia',
+      my: 'မြန်မာ',
+    },
+    actions: { logout: 'Đăng xuất' },
+    header: {
+      title: 'Hệ thống Trạng thái CT',
+      subtitle: 'Giám sát đội ngũ và thống nhất mọi công trường.',
+      roleNavAria: 'Chuyển đổi vai trò',
+    },
+    tabs: { overview: 'Tổng quan', monitoring: 'Giám sát', orders: 'Chỉ định', messages: 'Tin nhắn', reports: 'Báo cáo' },
+    filters: { searchLabel: 'Tìm kiếm', searchPlaceholder: 'Chỉ định, Đội...', statusLabel: 'Trạng thái', priorityLabel: 'Ưu tiên', statusOptions: { All: 'Tất cả', Active: 'Hoạt động' }, priorityOptions: { All: 'Tất cả' } },
+    login: { title: 'Đăng nhập', subtitle: 'Chọn vai trò.', roleLabel: 'Vai trò', roleOptions: { worker: 'Công nhân', admin: 'Quản trị viên' }, workerIdLabel: 'Mã công nhân', workerPasswordLabel: 'Mật khẩu', accessCodeLabel: 'Mã truy cập', adminHint: 'Mã quản trị', workerHint: 'Đăng nhập bằng mã.', forgotPassword: 'Quên mật khẩu?', workerRegisterTitle: 'Tạo tài khoản', workerRegisterInstructions: 'Điền mã quản trị.', workerRegisterSubmit: 'Tạo', adminRegisterTitle: 'Đăng ký tổ chức', adminRegisterInstructions: 'Đăng ký tổ chức.', adminRegisterSubmit: 'Đăng ký', resetTitle: 'Đặt lại mật khẩu', resetInstructions: 'Nhập mã truy cập.', resetSubmit: 'Đặt lại', adminResetTitle: 'Đặt lại mật khẩu quản trị', adminResetInstructions: 'Nhập mã.', adminResetSubmit: 'Đặt lại', backToSignIn: 'Quay lại', workerNameLabel: 'Tên', workerTeamLabel: 'Đội', adminCompanyLabel: 'Tên tổ chức', adminContactLabel: 'Tên quản trị viên', adminPasswordLabel: 'Mật khẩu', adminConfirmPasswordLabel: 'Xác nhận', resetWorkerIdLabel: 'Mã', resetNewPasswordLabel: 'Mật khẩu mới', resetConfirmPasswordLabel: 'Xác nhận', submit: { worker: 'Đăng nhập', admin: 'Tiếp tục' }, errors: { accessCodeRequired: 'Lỗi', workerIdRequired: 'Lỗi', workerPasswordRequired: 'Lỗi', passwordMismatch: 'Lỗi', invalidWorkerCredentials: 'Lỗi', invalidAdmin: 'Lỗi', invalidWorkerCredentialsMessage: 'Lỗi.', invalidAdminMessage: 'Lỗi', organizationNameRequired: 'Lỗi', invalidAdminCredentials: 'Lỗi' }, workerRegisterSuccess: 'Thành công', adminRegisterSuccess: (code) => `Mã là ${code}.`, resetSuccess: 'Thành công' },
+    overview: { title: 'Tóm tắt', activeWorkers: 'Đang làm', openOrders: 'Đang mở', delayedOrders: 'Trễ', completedToday: 'Xong', recentActivity: 'Hoạt động', noActivity: 'Không.', formatPriorityTag: (value) => `Ưu tiên: ${value}`, formatDue: (value) => `Hạn: ${value}` },
+    admin: { title: 'Chỉ định', description: 'Quản lý công việc.', exportExcel: 'Xuất Excel', cancel: 'Hủy', addOrder: 'Thêm', feedEmpty: 'Trống.', feedTitle: 'Hoạt động', feedItemBy: (team) => `Bởi ${team}`, form: { team: 'Đội', supervisor: 'Giám sát', location: 'Địa điểm', status: 'Trạng thái', priority: 'Ưu tiên', crewCount: 'Nhân sự', startDate: 'Bắt đầu', dueDate: 'Hạn', progress: 'Tiến độ', safetyCheck: 'An toàn', notes: 'Ghi chú', submit: 'Lưu' }, panelTitle: 'Quản trị', createOrder: 'Tạo', exportCsv: 'Xuất CSV', exportingCsv: 'Đang xuất...', filtersTitle: 'Lọc', addOrganization: 'Thêm tổ chức', addWorker: 'Thêm công nhân', updateWorker: 'Cập nhật', workerName: 'Tên', workerTeam: 'Đội', workerId: 'Mã', workerPassword: 'Pass', workerOrganizationCode: 'Mã tổ chức', organizationCompanyName: 'Tên cty', organizationAdminName: 'Tên', organizationAdminPassword: 'Pass', organizationCode: 'Mã', dialogSave: 'Lưu', dialogCancel: 'Hủy', dialogClose: 'Đóng', addNewWorker: 'Thêm', updateWorkerTitle: 'Cập nhật', addNewOrganization: 'Thêm', monitoringSubtitle: 'Theo dõi.', messagesSubtitle: 'Tin nhắn.', reportsSubtitle: 'Báo cáo.' },
+    table: { headers: { team: 'Đội' } },
+    summary: { activeOrders: 'Tích cực', completionRate: 'Tiến độ', inProgress: 'Đang làm', delayed: 'Trễ', readyForDispatch: 'Sẵn sàng', outstandingStarts: 'Chưa làm' },
+    reports: { completedOrders: 'Hoàn thành' },
+    monitoring: { statusBoardTitle: 'Trạng thái', noOrders: 'Trống' },
+    worker: { title: 'Công nhân', subtitle: 'Bảng.', quickActionsTitle: 'Nhanh', currentStatus: 'Trạng thái', assignOrder: 'Công việc', sendMessage: 'Gửi', messagePlaceholder: 'Viết...', send: 'Gửi', locationUnavailable: 'Không vị trí', adminMessageTitle: 'Tin', adminMessagePlaceholder: 'Soạn...', adminMessageRecipientLabel: 'Gửi', adminMessageButton: 'Gửi', adminMessageFromLabel: (name) => `Từ: ${name}`, adminMessageToLabel: (name) => `Đến: ${name}`, adminMessageSentTab: 'Đã gửi', adminMessageReceivedTab: 'Đã nhận', adminMessageEmpty: 'Trống', greetingNight: 'Chào', greetingMorning: 'Chào', greetingAfternoon: 'Chào', greetingEvening: 'Chào', editAvatar: 'Sửa', workerIdLabel: 'Mã', quickActionHint: 'Nhanh', latestReportTitle: 'Báo cáo', latestReportEmpty: 'Trống', upcomingHeading: 'Sắp tới', assignmentHeading: 'Công việc', assignmentCount: (count) => `${count} công việc`, empty: 'Trống', assignmentFinishedMessage: 'Xong', assignmentProjectLabel: 'Dự án', assignmentAddressLabel: 'Địa chỉ', assignmentDateLabel: 'Ngày', assignmentCrewLabel: 'Số lượng', assignmentTaskLabel: 'Nhiệm vụ', assignmentMembersLabel: 'Thành viên', assignmentCautionLabel: 'Chú ý', assignmentDocsLabel: 'Tài liệu', assignmentUploadLabel: 'Tải lên', completeAssignmentLabel: 'Hoàn thành' },
+    messages: { title: 'Tin', composeTitle: 'Mới', placeholder: 'Soạn...', send: 'Gửi', historyTitle: 'Lịch sử', emptyState: 'Trống' },
+    attendance: { title: 'Chấm công' },
+    statusLabels: { 'Not Started': 'Chưa', 'Ready for Dispatch': 'Sẵn sàng', 'In Progress': 'Đang làm', Delayed: 'Trễ', Completed: 'Xong' },
+    priorityLabels: { High: 'Cao', Medium: 'Vừa', Low: 'Thấp' },
+    safetyCheckLabels: { Pending: 'Chờ', Cleared: 'Xong', Restrictions: 'Hạn chế' },
+  },
+  tl: {
+    languageLabel: 'Wika',
+    languages: {
+      ja: '日本語',
+      en: 'English',
+      vi: 'Tiếng Việt',
+      tl: 'Tagalog',
+      id: 'Bahasa Indonesia',
+      my: 'မြန်မာ',
+    },
+    actions: { logout: 'Mag-sign out' },
+    header: {
+      title: 'Sistema ng Status ng Trabaho',
+      subtitle: 'Subaybayan ang mga tauhan, at panatilihing naka-align ang bawat site.',
+      roleNavAria: 'Piliin ang role',
+    },
+    tabs: { overview: 'Pangkalahatang-ideya', monitoring: 'Pagsubaybay', orders: 'Mga Order', messages: 'Mga Mensahe', reports: 'Mga Ulat' },
+    filters: { searchLabel: 'Hanapin', searchPlaceholder: 'Order, Team, Pangalan...', statusLabel: 'Status', priorityLabel: 'Prayoridad', statusOptions: { All: 'Lahat', Active: 'Aktibo' }, priorityOptions: { All: 'Lahat' } },
+    login: { title: 'Mag-sign in', subtitle: 'Piliin ang role.', roleLabel: 'Role', roleOptions: { worker: 'Manggagawa', admin: 'Admin' }, workerIdLabel: 'Worker ID', workerPasswordLabel: 'Password', accessCodeLabel: 'Access code', adminHint: 'Gamitin ang admin code.', workerHint: 'Mag-sign in gamit ang code.', forgotPassword: 'Nakalimutan ang password?', workerRegisterTitle: 'Gumawa ng account', workerRegisterInstructions: 'Kumpletuhin ang mga detalye.', workerRegisterSubmit: 'Gumawa', adminRegisterTitle: 'Irehistro ang organisasyon', adminRegisterInstructions: 'Irehistro ang organisasyon.', adminRegisterSubmit: 'Irehistro', resetTitle: 'I-reset ang password', resetInstructions: 'Ipasok ang access code.', resetSubmit: 'I-reset', adminResetTitle: 'I-reset ang admin password', adminResetInstructions: 'Ipasok ang code.', adminResetSubmit: 'I-reset', backToSignIn: 'Bumalik', workerNameLabel: 'Pangalan', workerTeamLabel: 'Team', adminCompanyLabel: 'Kumpanya', adminContactLabel: 'Pangalan', adminPasswordLabel: 'Password', adminConfirmPasswordLabel: 'Kumpirmahin', resetWorkerIdLabel: 'Code', resetNewPasswordLabel: 'Bagong password', resetConfirmPasswordLabel: 'Kumpirmahin', submit: { worker: 'Mag-sign in', admin: 'Magpatuloy' }, errors: { accessCodeRequired: 'Error', workerIdRequired: 'Error', workerPasswordRequired: 'Error', passwordMismatch: 'Error', invalidWorkerCredentials: 'Error', invalidAdmin: 'Error', invalidWorkerCredentialsMessage: 'Error', invalidAdminMessage: 'Error', organizationNameRequired: 'Error', invalidAdminCredentials: 'Error' }, workerRegisterSuccess: 'Tagumpay', adminRegisterSuccess: (code) => `Code mo ay ${code}.`, resetSuccess: 'Tagumpay' },
+    overview: { title: 'Buod', activeWorkers: 'Aktibo', openOrders: 'Bukas', delayedOrders: 'Naantala', completedToday: 'Tapos', recentActivity: 'Aktibidad', noActivity: 'Wala.', formatPriorityTag: (value) => `Urgency: ${value}`, formatDue: (value) => `Due: ${value}` },
+    admin: { title: 'Mga Order', description: 'Pamahalaan.', exportExcel: 'I-export sa Excel', cancel: 'Kanselahin', addOrder: 'Magdagdag', feedEmpty: 'Wala.', feedTitle: 'Pinakabago', feedItemBy: (team) => `Ni ${team}`, form: { team: 'Team', supervisor: 'Bisyo', location: 'Lokasyon', status: 'Status', priority: 'Prayoridad', crewCount: 'Bilang', startDate: 'Simula', dueDate: 'Pagtatapos', progress: 'Progreso', safetyCheck: 'Safety', notes: 'Tala', submit: 'I-save' }, panelTitle: 'Dashboard', createOrder: 'Lumikha', exportCsv: 'I-export CSV', exportingCsv: 'Naghahanda...', filtersTitle: 'Mga Filter', addOrganization: 'Magdagdag', addWorker: 'Magdagdag', updateWorker: 'I-update', workerName: 'Pangalan', workerTeam: 'Team', workerId: 'ID', workerPassword: 'Pass', workerOrganizationCode: 'Code', organizationCompanyName: 'Kumpanya', organizationAdminName: 'Pangalan', organizationAdminPassword: 'Pass', organizationCode: 'Code', dialogSave: 'I-save', dialogCancel: 'Kanselahin', dialogClose: 'Isara', addNewWorker: 'Magdagdag', updateWorkerTitle: 'I-update', addNewOrganization: 'Magdagdag', monitoringSubtitle: 'Subaybayan.', messagesSubtitle: 'Mag-broadcast.', reportsSubtitle: 'Ulat.' },
+    table: { headers: { team: 'Team' } },
+    summary: { activeOrders: 'Aktibo', completionRate: 'Rate', inProgress: 'Ginagawa', delayed: 'Naantala', readyForDispatch: 'Handa', outstandingStarts: 'Hindi' },
+    reports: { completedOrders: 'Mga nakumpletong order' },
+    monitoring: { statusBoardTitle: 'Status board', noOrders: 'Wala' },
+    worker: { title: 'Dashboard', subtitle: 'Update at mensahe.', quickActionsTitle: 'Mabilis', currentStatus: 'Status', assignOrder: 'Order', sendMessage: 'Padala', messagePlaceholder: 'Type...', send: 'Padala', locationUnavailable: 'Walang lokasyon', adminMessageTitle: 'Mensahe', adminMessagePlaceholder: 'Type...', adminMessageRecipientLabel: 'Para', adminMessageButton: 'Padala', adminMessageFromLabel: (name) => `Mula: ${name}`, adminMessageToLabel: (name) => `Para: ${name}`, adminMessageSentTab: 'Naipadala', adminMessageReceivedTab: 'Natanggap', adminMessageEmpty: 'Wala', greetingNight: 'Gandang gabi', greetingMorning: 'Gandang umaga', greetingAfternoon: 'Gandang hapon', greetingEvening: 'Gandang gabi', editAvatar: 'I-edit', workerIdLabel: 'ID', quickActionHint: 'Mabilis', latestReportTitle: 'Ulat', latestReportEmpty: 'Wala', upcomingHeading: 'Nakatakda', assignmentHeading: 'Gawain', assignmentCount: (count) => `${count} gawain`, empty: 'Wala', assignmentFinishedMessage: 'Tapos', assignmentProjectLabel: 'Proyekto', assignmentAddressLabel: 'Address', assignmentDateLabel: 'Petsa', assignmentCrewLabel: 'Tauhan', assignmentTaskLabel: 'Detalye', assignmentMembersLabel: 'Miyembro', assignmentCautionLabel: 'Tala', assignmentDocsLabel: 'Dokumento', assignmentUploadLabel: 'Upload', completeAssignmentLabel: 'Markahan' },
+    messages: { title: 'Mensahe', composeTitle: 'Bago', placeholder: 'Type...', send: 'Padala', historyTitle: 'Kasaysayan', emptyState: 'Wala' },
+    attendance: { title: 'Attendance' },
+    statusLabels: { 'Not Started': 'Hindi ba', 'Ready for Dispatch': 'Handa', 'In Progress': 'Ginagawa', Delayed: 'Naantala', Completed: 'Kumpleto' },
+    priorityLabels: { High: 'Mataas', Medium: 'Gitna', Low: 'Mababa' },
+    safetyCheckLabels: { Pending: 'Paghintay', Cleared: 'Ligtas', Restrictions: 'Pahigpit' },
+  },
+  id: {
+    languageLabel: 'Bahasa',
+    languages: {
+      ja: '日本語',
+      en: 'English',
+      vi: 'Tiếng Việt',
+      tl: 'Tagalog',
+      id: 'Bahasa Indonesia',
+      my: 'မြန်မာ',
+    },
+    actions: { logout: 'Keluar' },
+    header: {
+      title: 'Sistem Status Pekerjaan',
+      subtitle: 'Pantau kru dan bagikan pembaruan.',
+      roleNavAria: 'Pilih peran',
+    },
+    tabs: { overview: 'Ringkasan', monitoring: 'Pemantauan', orders: 'Tugas', messages: 'Pesan', reports: 'Laporan' },
+    filters: { searchLabel: 'Cari', searchPlaceholder: 'Tugas, Tim...', statusLabel: 'Status', priorityLabel: 'Prioritas', statusOptions: { All: 'Semua', Active: 'Aktif' }, priorityOptions: { All: 'Semua' } },
+    login: { title: 'Masuk', subtitle: 'Pilih peran.', roleLabel: 'Peran', roleOptions: { worker: 'Pekerja', admin: 'Admin' }, workerIdLabel: 'ID', workerPasswordLabel: 'Sandi', accessCodeLabel: 'Kode akses', adminHint: 'Kode admin', workerHint: 'Masuk kode', forgotPassword: 'Lupa sandi?', workerRegisterTitle: 'Buat akun', workerRegisterInstructions: 'Lengkapi.', workerRegisterSubmit: 'Buat', adminRegisterTitle: 'Daftar organisasi', adminRegisterInstructions: 'Daftar.', adminRegisterSubmit: 'Daftar', resetTitle: 'Reset sandi', resetInstructions: 'Kode akses', resetSubmit: 'Reset', adminResetTitle: 'Reset sandi admin', adminResetInstructions: 'Kode', adminResetSubmit: 'Reset', backToSignIn: 'Kembali', workerNameLabel: 'Nama', workerTeamLabel: 'Tim', adminCompanyLabel: 'Nama', adminContactLabel: 'Nama Admin', adminPasswordLabel: 'Sandi', adminConfirmPasswordLabel: 'Konfirmasi', resetWorkerIdLabel: 'Kode', resetNewPasswordLabel: 'Sandi baru', resetConfirmPasswordLabel: 'Konfirmasi', submit: { worker: 'Masuk', admin: 'Lanjut' }, errors: { accessCodeRequired: 'Error', workerIdRequired: 'Error', workerPasswordRequired: 'Error', passwordMismatch: 'Error', invalidWorkerCredentials: 'Error', invalidAdmin: 'Error', invalidWorkerCredentialsMessage: 'Error', invalidAdminMessage: 'Error', organizationNameRequired: 'Error', invalidAdminCredentials: 'Error' }, workerRegisterSuccess: 'Sukses', adminRegisterSuccess: (code) => `Kode ${code}`, resetSuccess: 'Sukses' },
+    overview: { title: 'Hari ini', activeWorkers: 'Aktif', openOrders: 'Buka', delayedOrders: 'Tertunda', completedToday: 'Selesai', recentActivity: 'Aktivitas', noActivity: 'Kosong.', formatPriorityTag: (value) => `Prioritas: ${value}`, formatDue: (value) => `Batas: ${value}` },
+    admin: { title: 'Tugas', description: 'Kelola.', exportExcel: 'Ekspor Excel', cancel: 'Batal', addOrder: 'Tambah', feedEmpty: 'Kosong', feedTitle: 'Terbaru', feedItemBy: (team) => `Oleh ${team}`, form: { team: 'Tim', supervisor: 'Pengawas', location: 'Lokasi', status: 'Status', priority: 'Prioritas', crewCount: 'Jumlah', startDate: 'Mulai', dueDate: 'Batas', progress: 'Progres', safetyCheck: 'Aman', notes: 'Catatan', submit: 'Simpan' }, panelTitle: 'Dasbor', createOrder: 'Buat tugas', exportCsv: 'Ekspor CSV', exportingCsv: 'Ekspor...', filtersTitle: 'Filter', addOrganization: 'Tambah', addWorker: 'Tambah', updateWorker: 'Perbarui', workerName: 'Nama', workerTeam: 'Tim', workerId: 'ID', workerPassword: 'Sandi', workerOrganizationCode: 'Kode', organizationCompanyName: 'Perusahaan', organizationAdminName: 'Nama', organizationAdminPassword: 'Sandi', organizationCode: 'Kode', dialogSave: 'Simpan', dialogCancel: 'Batal', dialogClose: 'Tutup', addNewWorker: 'Tambah', updateWorkerTitle: 'Perbarui', addNewOrganization: 'Tambah', monitoringSubtitle: 'Pantau.', messagesSubtitle: 'Pesan.', reportsSubtitle: 'Laporan.' },
+    table: { headers: { team: 'Tim' } },
+    summary: { activeOrders: 'Aktif', completionRate: 'Tingkat', inProgress: 'Sedang dikerjakan', delayed: 'Tertunda', readyForDispatch: 'Siap', outstandingStarts: 'Belum' },
+    reports: { completedOrders: 'Tugas selesai' },
+    monitoring: { statusBoardTitle: 'Papan Status', noOrders: 'Kosong' },
+    worker: { title: 'Dasbor', subtitle: 'Perbarui.', quickActionsTitle: 'Cepat', currentStatus: 'Status', assignOrder: 'Tugas', sendMessage: 'Pesan', messagePlaceholder: 'Ketik...', send: 'Kirim', locationUnavailable: 'Tanpa lokasi', adminMessageTitle: 'Pesan', adminMessagePlaceholder: 'Ketik...', adminMessageRecipientLabel: 'Kepada', adminMessageButton: 'Kirim', adminMessageFromLabel: (name) => `Dari: ${name}`, adminMessageToLabel: (name) => `Ke: ${name}`, adminMessageSentTab: 'Terkirim', adminMessageReceivedTab: 'Diterima', adminMessageEmpty: 'Kosong', greetingNight: 'Malam', greetingMorning: 'Pagi', greetingAfternoon: 'Siang', greetingEvening: 'Sore', editAvatar: 'Edit', workerIdLabel: 'ID', quickActionHint: 'Cepat', latestReportTitle: 'Laporan', latestReportEmpty: 'Kosong', upcomingHeading: 'Jadwal', assignmentHeading: 'Tugas', assignmentCount: (count) => `${count} Tugas`, empty: 'Kosong', assignmentFinishedMessage: 'Selesai', assignmentProjectLabel: 'Proyek', assignmentAddressLabel: 'Alamat', assignmentDateLabel: 'Tanggal', assignmentCrewLabel: 'Pekerja', assignmentTaskLabel: 'Desk', assignmentMembersLabel: 'Anggota', assignmentCautionLabel: 'Catatan', assignmentDocsLabel: 'Dok', assignmentUploadLabel: 'Unggah', completeAssignmentLabel: 'Selesai' },
+    messages: { title: 'Pesan', composeTitle: 'Baru', placeholder: 'Ketik...', send: 'Kirim', historyTitle: 'Riwayat', emptyState: 'Kosong' },
+    attendance: { title: 'Kehadiran' },
+    statusLabels: { 'Not Started': 'Belum', 'Ready for Dispatch': 'Siap', 'In Progress': 'Dikerjakan', Delayed: 'Tertunda', Completed: 'Selesai' },
+    priorityLabels: { High: 'Tinggi', Medium: 'Sedang', Low: 'Rendah' },
+    safetyCheckLabels: { Pending: 'Menunggu', Cleared: 'Aman', Restrictions: 'Batasan' },
+  },
+  my: {
+    languageLabel: 'ဘာသာစကား',
+    languages: {
+      ja: '日本語',
+      en: 'English',
+      vi: 'Tiếng Việt',
+      tl: 'Tagalog',
+      id: 'Bahasa Indonesia',
+      my: 'မြန်မာ',
+    },
+    actions: { logout: 'ထွက်မည်' },
+    header: {
+      title: 'လုပ်ငန်းအခြေအနေ',
+      subtitle: 'လုပ်ငန်းခွင်အားလုံးကိုချိတ်ဆက်ပါ။',
+      roleNavAria: 'အခန်းကဏ္ဍ',
+    },
+    tabs: { overview: 'ခြုံငုံ', monitoring: 'စောင့်ကြည့်', orders: 'လုပ်ငန်းများ', messages: 'စာတိုများ', reports: 'အစီရင်ခံစာများ' },
+    filters: { searchLabel: 'ရှာဖွေ', searchPlaceholder: 'ရှာပါ...', statusLabel: 'အခြေအနေ', priorityLabel: 'ဦးစားပေး', statusOptions: { All: 'အားလုံး', Active: 'လက်ရှိ' }, priorityOptions: { All: 'အားလုံး' } },
+    login: { title: 'အကောင့်ဝင်ရန်', subtitle: 'ရွေးချယ်ပါ။', roleLabel: 'အခန်းကဏ္ဍ', roleOptions: { worker: 'လုပ်သား', admin: 'အက်ဒမင်' }, workerIdLabel: 'ID', workerPasswordLabel: 'စကားဝှက်', accessCodeLabel: 'ကုဒ်', adminHint: 'ကုဒ်', workerHint: 'ကုဒ်', forgotPassword: 'မေ့နေပါသလား?', workerRegisterTitle: 'ဖန်တီးရန်', workerRegisterInstructions: 'ဖြည့်သွင်းပါ။', workerRegisterSubmit: 'ဖန်တီးမည်', adminRegisterTitle: 'မှတ်ပုံတင်ရန်', adminRegisterInstructions: 'ဖြည့်သွင်းပါ။', adminRegisterSubmit: 'မှတ်ပုံတင်မည်', resetTitle: 'စကားဝှက်အသစ်', resetInstructions: 'ဖြည့်သွင်းပါ။', resetSubmit: 'သတ်မှတ်မည်', adminResetTitle: 'စကားဝှက်', adminResetInstructions: 'ဖြည့်သွင်းပါ။', adminResetSubmit: 'သတ်မှတ်မည်', backToSignIn: 'ပြန်သွားမည်', workerNameLabel: 'အမည်', workerTeamLabel: 'အဖွဲ့', adminCompanyLabel: 'ကုမ္ပဏီအမည်', adminContactLabel: 'အမည်', adminPasswordLabel: 'စကားဝှက်', adminConfirmPasswordLabel: 'အတည်ပြု', resetWorkerIdLabel: 'ကုဒ်', resetNewPasswordLabel: 'စကားဝှက်အသစ်', resetConfirmPasswordLabel: 'အတည်ပြု', submit: { worker: 'ဝင်ရန်', admin: 'ဆက်ရန်' }, errors: { accessCodeRequired: 'Error', workerIdRequired: 'Error', workerPasswordRequired: 'Error', passwordMismatch: 'Error', invalidWorkerCredentials: 'Error', invalidAdmin: 'Error', invalidWorkerCredentialsMessage: 'Error', invalidAdminMessage: 'Error', organizationNameRequired: 'Error', invalidAdminCredentials: 'Error' }, workerRegisterSuccess: 'အောင်မြင်ပါသည်', adminRegisterSuccess: (code) => `${code}`, resetSuccess: 'အောင်မြင်ပါသည်' },
+    overview: { title: 'ယနေ့', activeWorkers: 'လုပ်သားများ', openOrders: 'ဖွင့်ထား', delayedOrders: 'ကြန့်ကြာ', completedToday: 'ပြီးစီး', recentActivity: 'လှုပ်ရှားမှု', noActivity: 'မရှိပါ', formatPriorityTag: (value) => `ဦးစားပေး: ${value}`, formatDue: (value) => `ပြီးရမည့်: ${value}` },
+    admin: { title: 'လုပ်ငန်းများ', description: 'စီမံပါ။', exportExcel: 'Excel ထုတ်ရန်', cancel: 'ပယ်ဖျက်', addOrder: 'ထည့်ရန်', feedEmpty: 'မရှိပါ', feedTitle: 'လတ်တလော', feedItemBy: (team) => `${team}`, form: { team: 'အဖွဲ့', supervisor: 'ကြီးကြပ်', location: 'နေရာ', status: 'အခြေအနေ', priority: 'ဦးစားပေး', crewCount: 'လုပ်သား', startDate: 'စတင်', dueDate: 'ပြီးရမည့်', progress: 'ပြီးစီးမှု', safetyCheck: 'လုံခြုံရေး', notes: 'မှတ်ချက်', submit: 'သိမ်းမည်' }, panelTitle: 'အက်ဒမင်', createOrder: 'ဖန်တီး', exportCsv: 'CSV ထုတ်ရန်', exportingCsv: 'ထုတ်နေ...', filtersTitle: 'စစ်ထုတ်', addOrganization: 'ထည့်ရန်', addWorker: 'ထည့်ရန်', updateWorker: 'ပြင်ဆင်ရန်', workerName: 'အမည်', workerTeam: 'အဖွဲ့', workerId: 'ID', workerPassword: 'စကားဝှက်', workerOrganizationCode: 'ကုဒ်', organizationCompanyName: 'ကုမ္ပဏီ', organizationAdminName: 'အမည်', organizationAdminPassword: 'စကားဝှက်', organizationCode: 'ကုဒ်', dialogSave: 'သိမ်းမည်', dialogCancel: 'ပယ်ဖျက်', dialogClose: 'ပိတ်မည်', addNewWorker: 'အသစ်', updateWorkerTitle: 'ပြင်ဆင်ရန်', addNewOrganization: 'အသစ်', monitoringSubtitle: 'စောင့်ကြည့်။', messagesSubtitle: 'စာတိုများ။', reportsSubtitle: 'အစီရင်ခံစာများ။' },
+    table: { headers: { team: 'အဖွဲ့' } },
+    summary: { activeOrders: 'လက်ရှိလုပ်ငန်းများ', completionRate: 'နှုန်း', inProgress: 'ဆောင်ရွက်ဆဲ', delayed: 'ကြန့်ကြာသည်', readyForDispatch: 'အသင့်', outstandingStarts: 'မစတင်' },
+    reports: { completedOrders: 'ပြီးစီးသောလုပ်ငန်းများ' },
+    monitoring: { statusBoardTitle: 'အခြေအနေ', noOrders: 'မရှိပါ' },
+    worker: { title: 'စာမျက်နှာ', subtitle: 'အခြေအနေများပြောင်းလဲရန်။', quickActionsTitle: 'အမြန်', currentStatus: 'အခြေအနေ', assignOrder: 'လုပ်ငန်း', sendMessage: 'စာပို့ရန်', messagePlaceholder: 'စာရိုက်...', send: 'ပို့မည်', locationUnavailable: 'နေရာရှာမရပါ', adminMessageTitle: 'စာတိုများ', adminMessagePlaceholder: 'စာရိုက်...', adminMessageRecipientLabel: 'လက်ခံသူ', adminMessageButton: 'ပို့မည်', adminMessageFromLabel: (name) => `${name} မှ`, adminMessageToLabel: (name) => `${name} သို့`, adminMessageSentTab: 'ပေးပို့ပြီး', adminMessageReceivedTab: 'လက်ခံရရှိ', adminMessageEmpty: 'မရှိပါ', greetingNight: 'ကောင်းသောည', greetingMorning: 'မင်္ဂလာနံနက်ခင်းပါ', greetingAfternoon: 'မင်္ဂလာမွန်းလွဲခင်းပါ', greetingEvening: 'ကောင်းသောညနေခင်းပါ', editAvatar: 'ပြင်ဆင်မည်', workerIdLabel: 'ID', quickActionHint: 'အမြန်', latestReportTitle: 'အစီရင်ခံစာ', latestReportEmpty: 'မရှိပါ', upcomingHeading: 'အစီအစဉ်', assignmentHeading: 'လုပ်ငန်းများ', assignmentCount: (count) => `${count}`, empty: 'မရှိပါ', assignmentFinishedMessage: 'ပြီးစီးပါသည်', assignmentProjectLabel: 'ပရောဂျက်', assignmentAddressLabel: 'လိပ်စာ', assignmentDateLabel: 'ရက်စွဲ', assignmentCrewLabel: 'အဖွဲ့ဝင်များ', assignmentTaskLabel: 'အလုပ်', assignmentMembersLabel: 'အဖွဲ့ဝင်များ', assignmentCautionLabel: 'သတိပြုရန်', assignmentDocsLabel: 'စာတမ်းများ', assignmentUploadLabel: 'ဖိုင်တင်ရန်', completeAssignmentLabel: 'ဆောင်ရွက်ပြီး' },
+    messages: { title: 'စာတိုများ', composeTitle: 'အသစ်', placeholder: 'စာရိုက်...', send: 'ပို့မည်', historyTitle: 'မှတ်တမ်း', emptyState: 'မရှိပါ' },
+    attendance: { title: 'တက်ရောက်မှု' },
+    statusLabels: { 'Not Started': 'မစသေးပါ', 'Ready for Dispatch': 'သွားရန်အသင့်', 'In Progress': 'ဆောင်ရွက်ဆဲ', Delayed: 'ကြန့်ကြာသည်', Completed: 'ပြီးစီးပါသည်' },
+    priorityLabels: { High: 'မြင့်', Medium: 'အလယ်', Low: 'နိမ့်' },
+    safetyCheckLabels: { Pending: 'စောင့်ဆိုင်း', Cleared: 'စစ်ဆေးပြီး', Restrictions: 'ကန့်သတ်ထားသည်' },
+  },
 }
 
 function mergeDeep(base, override) {
@@ -552,8 +676,12 @@ function mergeDeep(base, override) {
 
 let currentLanguage = 'ja'
 
-function resolveLanguage(language) {
-  return translationPacks[language] ? language : 'en'
+function resolveLanguage(lang) {
+  if (translationPacks[lang]) return lang
+  // ブラウザのロケールから言語部分を取得
+  const base = lang?.split('-')[0]
+  if (translationPacks[base]) return base
+  return 'en' // デフォルトは英語
 }
 
 function formatDateValue(value, language) {
