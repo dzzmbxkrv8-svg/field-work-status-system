@@ -49,7 +49,7 @@ body {
 
 .fws-header-brand h1 {
   margin: 0;
-  font-size: 1.6rem;
+  font-size: 1.3rem;
   font-weight: 850;
   letter-spacing: -0.03em;
   color: #0f172a;
@@ -57,10 +57,7 @@ body {
 }
 
 .fws-header-brand p {
-  margin: 0.2rem 0 0;
-  font-size: 0.75rem;
-  color: #64748b;
-  font-weight: 500;
+  display: none;
 }
 
 .fws-header-actions {
@@ -442,8 +439,8 @@ textarea:focus {
 
 .fws-message-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
 }
 
 .worker-card {

@@ -88,9 +88,11 @@ export default function MessagePanel({ workers }) {
 
     return (
         <div className="fws-panel">
-            <div className="fws-panel-header">
-                <h2>{text.worker.adminMessageTitle}</h2>
-                <p>{text.worker.adminMessagePlaceholder}</p>
+            <div className="fws-panel-header" style={{ marginBottom: '1rem' }}>
+                <div>
+                    <h2 style={{ margin: 0 }}>{text.worker.adminMessageTitle}</h2>
+                    <p style={{ margin: '0.25rem 0 0' }}>{text.worker.adminMessagePlaceholder}</p>
+                </div>
             </div>
 
             <div className="fws-grid-layout fws-message-grid">
@@ -110,7 +112,7 @@ export default function MessagePanel({ workers }) {
                     <label>
                         Message
                         <textarea
-                            rows={5}
+                            rows={4}
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                             placeholder={text.worker.adminMessagePlaceholder}
@@ -156,7 +158,7 @@ export default function MessagePanel({ workers }) {
                     </div>
                 </form>
 
-                <div className="fws-card">
+                <div className="fws-card" style={{ minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
                     <div className="fws-tabs-secondary">
                         <button
                             className={`fws-tab-secondary ${activeTab === 'sent' ? 'active' : ''}`}
@@ -173,9 +175,9 @@ export default function MessagePanel({ workers }) {
                     </div>
 
                     {displayedMessages.length === 0 ? (
-                        <p className="fws-empty-state">{text.worker.adminMessageEmpty}</p>
+                        <p className="fws-empty-state" style={{ flexGrow: 1 }}>{text.worker.adminMessageEmpty}</p>
                     ) : (
-                        <ul className="fws-list">
+                        <ul className="fws-list" style={{ flexGrow: 1, overflowY: 'auto' }}>
                             {displayedMessages.map((log) => {
                                 const isReceived = log.type === 'received'
                                 const senderName = isReceived
