@@ -20,7 +20,7 @@ export default function MessagePanel({ workers }) {
             recipient,
             message: message.trim(),
             timestamp: new Date().toISOString(),
-            sender: 'Admin',
+            sender: '管理者',
             type: 'sent',
             attachments: attachments
         }
@@ -91,7 +91,6 @@ export default function MessagePanel({ workers }) {
             <div className="fws-panel-header" style={{ marginBottom: '1rem' }}>
                 <div>
                     <h2 style={{ margin: 0 }}>{text.worker.adminMessageTitle}</h2>
-                    <p style={{ margin: '0.25rem 0 0' }}>{text.worker.adminMessagePlaceholder}</p>
                 </div>
             </div>
 
@@ -100,8 +99,8 @@ export default function MessagePanel({ workers }) {
                     <label>
                         {text.worker.adminMessageRecipientLabel}
                         <select value={recipient} onChange={(e) => setRecipient(e.target.value)} required>
-                            <option value="">Select recipient...</option>
-                            <option value="all">All Workers</option>
+                            <option value="">宛先を選択...</option>
+                            <option value="all">全作業員</option>
                             {workers.map((worker) => (
                                 <option key={worker.id} value={worker.id}>
                                     {worker.name} ({worker.team})
@@ -110,7 +109,6 @@ export default function MessagePanel({ workers }) {
                         </select>
                     </label>
                     <label>
-                        Message
                         <textarea
                             rows={4}
                             value={message}
@@ -129,8 +127,7 @@ export default function MessagePanel({ workers }) {
                                     style={{ display: 'none' }}
                                     disabled={attachments.length >= 8}
                                 />
-                                <span role="img" aria-label="attach">📎</span>
-                                <span>Attach ({attachments.length}/8)</span>
+                                <span>📎 添付 ({attachments.length}/8)</span>
                             </label>
                             {attachments.length > 0 && (
                                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: '0.85rem' }}>
@@ -159,15 +156,15 @@ export default function MessagePanel({ workers }) {
                 </form>
 
                 <div className="fws-card" style={{ minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
-                    <div className="fws-tabs-secondary">
+                    <div className="fws-tabs-secondary" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
                         <button
-                            className={`fws-tab-secondary ${activeTab === 'sent' ? 'active' : ''}`}
+                            className={`fws-filter-chip ${activeTab === 'sent' ? 'active' : ''}`}
                             onClick={() => setActiveTab('sent')}
                         >
                             {text.worker.adminMessageSentTab}
                         </button>
                         <button
-                            className={`fws-tab-secondary ${activeTab === 'received' ? 'active' : ''}`}
+                            className={`fws-filter-chip ${activeTab === 'received' ? 'active' : ''}`}
                             onClick={() => setActiveTab('received')}
                         >
                             {text.worker.adminMessageReceivedTab}
@@ -175,17 +172,17 @@ export default function MessagePanel({ workers }) {
                     </div>
 
                     {displayedMessages.length === 0 ? (
-                        <p className="fws-empty-state" style={{ flexGrow: 1 }}>{text.worker.adminMessageEmpty}</p>
+                        <p className="fws-empty-state" style={{ flexGrow: 1, textAlign: 'center', margin: '2rem 0' }}>{text.worker.adminMessageEmpty}</p>
                     ) : (
                         <ul className="fws-list" style={{ flexGrow: 1, overflowY: 'auto' }}>
                             {displayedMessages.map((log) => {
                                 const isReceived = log.type === 'received'
                                 const senderName = isReceived
                                     ? workers.find(w => w.id === log.sender)?.name || log.sender
-                                    : 'Admin'
+                                    : '管理者'
                                 const recipientName = !isReceived
-                                    ? (log.recipient === 'all' ? 'All Workers' : workers.find(w => w.id === log.recipient)?.name || log.recipient)
-                                    : 'Admin'
+                                    ? (log.recipient === 'all' ? '全作業員' : workers.find(w => w.id === log.recipient)?.name || log.recipient)
+                                    : '管理者'
 
                                 return (
                                     <li key={log.id} className="fws-list-item">
