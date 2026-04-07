@@ -4,7 +4,7 @@ import { useState } from 'react'
 
 export default function AttendancePanel({ workers, orders, timeEntriesHook }) {
     const { state } = useAppContext()
-    const { text } = useI18n(state.language)
+    const { text } = useI18n('ja')
     const [filter, setFilter] = useState('All')
 
     const getClockStatus = timeEntriesHook?.getClockStatus

@@ -9,7 +9,7 @@ export default function WorkOrdersTable({
   onProgressChange,
   onAssignWorkers,
 }) {
-  const { text, formatNumber, getPriorityLabel, getStatusLabel, getSafetyCheckLabel } = useI18n()
+  const { text, formatNumber, getPriorityLabel, getStatusLabel, getSafetyCheckLabel } = useI18n('ja')
 
   if (orders.length === 0) {
     return <p className="fws-empty">{text.table.empty}</p>

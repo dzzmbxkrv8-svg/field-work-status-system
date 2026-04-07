@@ -251,6 +251,7 @@ export default function LoginDialog({
               if (role !== 'admin') {
                 setRole('admin')
                 resetPanels()
+                handleLanguageChange('ja')
               }
             }}
           >
@@ -516,21 +517,23 @@ export default function LoginDialog({
           </div>
         )}
 
-        <div className="fws-login-language">
-          <label htmlFor="fws-login-language">{text.languageLabel}</label>
-          <select
-            id="fws-login-language"
-            value={language}
-            onChange={(event) => handleLanguageChange(event.target.value)}
-            className="fws-login-language-select"
-          >
-            {Object.entries(text.languages).map(([code, label]) => (
-              <option key={code} value={code}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </div>
+        {role === 'worker' && (
+          <div className="fws-login-language">
+            <label htmlFor="fws-login-language">{text.languageLabel}</label>
+            <select
+              id="fws-login-language"
+              value={language}
+              onChange={(event) => handleLanguageChange(event.target.value)}
+              className="fws-login-language-select"
+            >
+              {Object.entries(text.languages).map(([code, label]) => (
+                <option key={code} value={code}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
     </div>
   )

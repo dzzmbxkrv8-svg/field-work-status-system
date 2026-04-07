@@ -3,7 +3,7 @@ import { useI18n } from '@/i18n'
 import { formatAdminDate } from '@/utils/format'
 
 export default function AdminActivityFeed({ orders }) {
-  const { text, getStatusLabel } = useI18n()
+  const { text, getStatusLabel } = useI18n('ja')
 
   const updates = useMemo(() => {
     return [...orders]

@@ -15,7 +15,7 @@ function escapeHtml(value) {
 }
 
 export default function AdminPanel({ orders, onCreateOrder, onAssignWorkers }) {
-  const { text, getStatusLabel, getPriorityLabel, getSafetyCheckLabel } = useI18n()
+  const { text, getStatusLabel, getPriorityLabel, getSafetyCheckLabel } = useI18n('ja')
   const [formState, setFormState] = useState(defaultFormState)
   const [isAdding, setIsAdding] = useState(false)
 

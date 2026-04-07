@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useI18n } from '@/i18n'
 
 export default function WorkerAssignmentDialog({ order, workers, onSave, onClose }) {
-    const { text } = useI18n()
+    const { text } = useI18n('ja')
     // members stores names in the current mock data implementation
     const [selectedMembers, setSelectedMembers] = useState(new Set(order.members || []))
 

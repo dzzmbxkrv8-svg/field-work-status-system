@@ -6,7 +6,7 @@ import WorkOrdersTable from './WorkOrdersTable'
 
 export default function ReportsPanel({ orders, workers, timeEntriesHook }) {
     const { state } = useAppContext()
-    const { text, getStatusLabel, getPriorityLabel } = useI18n(state.language)
+    const { text, getStatusLabel, getPriorityLabel } = useI18n('ja')
     const allEntries = timeEntriesHook?.allEntries || []
     const calculateWorkHours = timeEntriesHook?.calculateWorkHours
 

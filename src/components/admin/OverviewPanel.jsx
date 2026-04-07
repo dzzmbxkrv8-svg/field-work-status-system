@@ -2,7 +2,7 @@ import SummaryCards from './SummaryCards'
 import { useI18n } from '@/i18n'
 
 export default function OverviewPanel({ summary, outstandingStarts, topPriorityOrders }) {
-  const { text, formatNumber, formatDue, formatPriorityTag, getStatusLabel } = useI18n()
+  const { text, formatNumber, formatDue, formatPriorityTag, getStatusLabel } = useI18n('ja')
 
   return (
     <>

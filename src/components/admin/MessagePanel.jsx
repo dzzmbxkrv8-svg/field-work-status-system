@@ -4,7 +4,7 @@ import { useAppContext } from '@/contexts/AppContext'
 
 export default function MessagePanel({ workers }) {
     const { state } = useAppContext()
-    const { text, formatDate } = useI18n(state.language)
+    const { text, formatDate } = useI18n('ja')
     const [recipient, setRecipient] = useState('')
     const [message, setMessage] = useState('')
     const [attachments, setAttachments] = useState([])

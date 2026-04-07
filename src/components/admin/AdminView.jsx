@@ -27,7 +27,7 @@ export default function AdminView() {
   } = useReports()
   const timeEntriesHook = useTimeEntries()
   const { session, selectedTab, language, workers } = state
-  const { text, getStatusLabel, getPriorityLabel } = useI18n(language)
+  const { text, getStatusLabel, getPriorityLabel } = useI18n('ja')
   const [assigningOrder, setAssigningOrder] = useState(null)
 
   const handleAssignWorkers = (order) => {
