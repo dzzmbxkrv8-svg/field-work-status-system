@@ -675,7 +675,7 @@ export default function WorkerView() {
               </div>
             </section>
 
-            <section className="worker-card">
+            <section className="worker-card worker-card-assignments">
               <header>
                 <h3>{text.worker.assignmentHeading}</h3>
                 <p className="worker-assignment-count">{text.worker.assignmentCount(assignments.length)}</p>
