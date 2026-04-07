@@ -173,13 +173,14 @@ export default function WorkerView() {
     }
   }
 
-  const clockStatusLabel =
-    clockStatus === 'working' ? '勤務中' : clockStatus === 'on_break' ? '休憩中' : '退勤済み'
+  const clockStatusText =
+    clockStatus === 'working' ? text.worker.clockStatusWorking : clockStatus === 'on_break' ? text.worker.clockStatusOnBreak : text.worker.clockStatusCompleted
 
   const clockStatusVariant =
     clockStatus === 'working' ? 'success' : clockStatus === 'on_break' ? 'warning' : 'neutral'
 
-  const timeTypeLabels = { clock_in: '出勤', clock_out: '退勤', break_start: '休憩開始', break_end: '休憩終了' }
+  // 打刻種別の表示ラベル
+  const timeTypeLabels = { clock_in: text.worker.clockTypeIn, clock_out: text.worker.clockTypeOut, break_start: text.worker.clockTypeBreakStart, break_end: text.worker.clockTypeBreakEnd }
 
   const primaryAssignment = assignments[0]
   const locationText =
@@ -311,13 +312,13 @@ export default function WorkerView() {
     const remainingSlots = 8 - currentCount
 
     if (remainingSlots <= 0) {
-      alert('ファイルは最大で8つまで添付できます')
+      alert(text.worker.attachmentLimitAlert)
       return
     }
 
     const filesToAdd = files.slice(0, remainingSlots)
     if (files.length > remainingSlots) {
-      alert('ファイルは最大で8つまで添付できます')
+      alert(text.worker.attachmentLimitAlert)
     }
 
     filesToAdd.forEach(file => {
@@ -363,10 +364,10 @@ export default function WorkerView() {
       <div className="worker-app">
         {activeTab === 'home' && (
           <>
-            {!state.online && (
+            {state.pendingActions.length > 0 && (
               <div className="worker-offline-banner">
-                <span className="worker-offline-icon">📶</span>
-                <span>オフライン：送信待機中 ({state.pendingActions.length}件)</span>
+                <span className="worker-offline-indicator"></span>
+                <span>{text.worker.offlinePending(state.pendingActions.length)}</span>
               </div>
             )}
             <div className="worker-dashboard-top">
@@ -403,9 +404,11 @@ export default function WorkerView() {
 
             {/* 打刻カード */}
             <section className="worker-card">
-              <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#0f172a' }}>打刻</h3>
-                <span
+              <header style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                <span style={{ fontSize: '1.25rem' }}>⏱️</span>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#0f172a' }}>{text.worker.clockHeading}</h3>
+              </header>
+              <span
                   className={`worker-chip worker-chip-${clockStatusVariant === 'success'
                     ? 'low'
                     : clockStatusVariant === 'warning'
@@ -413,9 +416,8 @@ export default function WorkerView() {
                       : 'high'
                     }`}
                 >
-                  {clockStatusLabel}
+                  {clockStatusText}
                 </span>
-              </header>
 
               <div
                 style={{
@@ -426,10 +428,10 @@ export default function WorkerView() {
                   borderBottom: '1px solid #e5e7eb',
                 }}
               >
-                <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>本日の勤務時間</span>
-                <span style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1f2937' }}>
-                  {workHours.totalHours}時間{workHours.totalMinutes}分
-                </span>
+                <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>{text.worker.todaysWorkHours}</span>
+                <strong style={{ fontSize: '1.25rem', color: '#2563eb' }}>
+                  {text.worker.workHoursFormat(workHours.totalHours, workHours.totalMinutes)}
+                </strong>
               </div>
 
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
@@ -441,8 +443,8 @@ export default function WorkerView() {
                     onClick={() => handleClockAction(clockIn)}
                     disabled={clockLoading}
                   >
-                    <span className="worker-action-icon">🟢</span>
-                    <span>出勤</span>
+                    <span className="worker-clock-icon">🕒</span>
+                    <span>{text.worker.clockIn}</span>
                   </button>
                 )}
                 {clockStatus === 'working' && (
@@ -454,8 +456,8 @@ export default function WorkerView() {
                       onClick={() => handleClockAction(breakStart)}
                       disabled={clockLoading}
                     >
-                      <span className="worker-action-icon">☕</span>
-                      <span>休憩</span>
+                      <span className="worker-clock-icon">☕</span>
+                      <span>{text.worker.breakStart}</span>
                     </button>
                     <button
                       type="button"
@@ -464,8 +466,8 @@ export default function WorkerView() {
                       onClick={() => handleClockAction(clockOut)}
                       disabled={clockLoading}
                     >
-                      <span className="worker-action-icon">🔴</span>
-                      <span>退勤</span>
+                      <span className="worker-clock-icon">🚪</span>
+                      <span>{text.worker.clockOut}</span>
                     </button>
                   </>
                 )}
@@ -477,8 +479,8 @@ export default function WorkerView() {
                     onClick={() => handleClockAction(breakEnd)}
                     disabled={clockLoading}
                   >
-                    <span className="worker-action-icon">▶️</span>
-                    <span>再開</span>
+                    <span className="worker-clock-icon">▶️</span>
+                    <span>{text.worker.breakEnd}</span>
                   </button>
                 )}
               </div>
@@ -579,13 +581,13 @@ export default function WorkerView() {
 
             {activityLog.length > 0 && (
               <section className="worker-card timeline-card">
-                <h3>本日のアクティビティ</h3>
-                <div className="timeline-list">
+                <h3>{text.worker.todaysActivity}</h3>
+                <div className="worker-timeline">
                   {activityLog.map((log, i) => (
                     <div key={i} className="timeline-item">
-                      <div className="timeline-time">{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      <div className="timeline-time">{new Date(log.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</div>
                       <div className="timeline-dot" />
-                      <div className="timeline-text">{log.icon} {log.label} を報告しました</div>
+                      <div className="timeline-text">{text.worker.activityReported(log.icon, log.label)}</div>
                     </div>
                   ))}
                 </div>
@@ -663,7 +665,7 @@ export default function WorkerView() {
                                   ))}
                                 </ul>
                               ) : (
-                                <p className="worker-calendar-no-events">予定はありません</p>
+                                <p className="worker-calendar-no-events">{text.worker.calendarNoEvents}</p>
                               )}
                             </div>
                           )}
@@ -898,17 +900,17 @@ export default function WorkerView() {
 
               {primaryAssignment && (
                 <section className="worker-card worker-photo-report">
-                  <h4>📸 現場写真報告</h4>
+                  <h4>📸 {text.worker.photoReportHeading}</h4>
                   <div className="worker-photo-controls">
                     <label className="worker-photo-label" htmlFor="photo-upload">
                       <input id="photo-upload" type="file" accept="image/*" capture="camera" onChange={handleReportPhotoChange} style={{ display: 'none' }} />
                       <div className="worker-photo-preview-box">
-                        {reportPhoto ? <img src={reportPhoto} alt="Preview" /> : <span>カメラを起動 / 写真を選択</span>}
+                        {reportPhoto ? <img src={reportPhoto} alt="Preview" /> : <span>{text.worker.photoReportPrompt}</span>}
                       </div>
                     </label>
                     {reportPhoto && (
                       <button type="button" className="worker-message-send" onClick={handleReportSubmit}>
-                        写真を報告する
+                        {text.worker.photoReportSubmit}
                       </button>
                     )}
                   </div>
@@ -949,7 +951,7 @@ export default function WorkerView() {
             onClick={() => setActiveTab('home')}
           >
             <span className="worker-nav-icon">🏠</span>
-            <span className="worker-nav-label">ホーム</span>
+            <span className="worker-nav-label">{text.worker.navHome}</span>
           </button>
           <button
             type="button"
@@ -957,7 +959,7 @@ export default function WorkerView() {
             onClick={() => setActiveTab('calendar')}
           >
             <span className="worker-nav-icon">📅</span>
-            <span className="worker-nav-label">カレンダー</span>
+            <span className="worker-nav-label">{text.worker.navCalendar}</span>
           </button>
           <button
             type="button"
@@ -965,7 +967,7 @@ export default function WorkerView() {
             onClick={() => setActiveTab('report')}
           >
             <span className="worker-nav-icon">✉️</span>
-            <span className="worker-nav-label">連絡・報告</span>
+            <span className="worker-nav-label">{text.worker.navReport}</span>
           </button>
         </nav>
       </div>
