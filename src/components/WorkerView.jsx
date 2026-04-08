@@ -504,12 +504,21 @@ export default function WorkerView() {
                             <h4>{formatDate(day)}</h4>
                             {entries.length > 0 ? (
                               <ul>
-                                {entries.map((entry) => (
-                                  <li key={entry.id}>
-                                    <strong>{entry.projectName || entry.id}</strong>
-                                    <p>{entry.notes || entry.location}</p>
-                                  </li>
-                                ))}
+                                  {entries.map((entry) => {
+                                    const sLabel = entry.raw_status === 'pending' ? '未着手' : 
+                                                   entry.raw_status === 'in_progress' ? '進行中' : 
+                                                   entry.raw_status === 'completed' ? '完了' : 
+                                                   entry.raw_status === 'cancelled' ? 'キャンセル' : entry.status
+                                    return (
+                                      <li key={entry.id}>
+                                        <div className="worker-calendar-bubble-item-header">
+                                          <strong>{entry.projectName || entry.id}</strong>
+                                          <span className="worker-assignment-badge mini">{sLabel}</span>
+                                        </div>
+                                        <p>{entry.notes || entry.location}</p>
+                                      </li>
+                                    )
+                                  })}
                               </ul>
                             ) : (
                               <p className="worker-calendar-no-events">{text.worker.calendarNoEvents}</p>
@@ -540,6 +549,7 @@ export default function WorkerView() {
                     
                     return (
                       <article key={order.id} className="worker-assignment-card">
+                        <div className="worker-assignment-badge">{statusLabel}</div>
                         <div className="worker-assignment-info">
                           {completedAssignments.has(order.id) ? (
                             <p className="worker-assignment-finished">{text.worker.assignmentFinishedMessage}</p>
