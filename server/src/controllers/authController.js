@@ -6,7 +6,12 @@ exports.login = async (req, res, next) => {
   try {
     const { employee_id, password, role } = req.body;
 
-    const { rows } = await db.query('SELECT * FROM users WHERE employee_id = $1', [employee_id]);
+    const { rows } = await db.query(`
+      SELECT u.*, t.name as team_name 
+      FROM users u 
+      LEFT JOIN teams t ON u.team_id = t.id 
+      WHERE u.employee_id = $1
+    `, [employee_id]);
     const user = rows[0];
 
     if (!user) {
@@ -27,7 +32,7 @@ exports.login = async (req, res, next) => {
     }
 
     const token = jwt.sign(
-      { id: user.id, employee_id: user.employee_id, role: user.role, team_id: user.team_id },
+      { id: user.id, employee_id: user.employee_id, role: user.role, team_id: user.team_id, team_name: user.team_name },
       process.env.JWT_SECRET || 'your_jwt_secret_here',
       { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
     );
@@ -40,7 +45,8 @@ exports.login = async (req, res, next) => {
         employee_id: user.employee_id,
         name: user.name,
         role: user.role,
-        team_id: user.team_id
+        team_id: user.team_id,
+        team_name: user.team_name
       }
     });
   } catch (error) {
@@ -58,8 +64,12 @@ exports.logout = async (req, res, next) => {
 
 exports.me = async (req, res, next) => {
   try {
-    const { id } = req.user;
-    const { rows } = await db.query('SELECT id, employee_id, name, role, team_id, is_active FROM users WHERE id = $1', [id]);
+    const { rows } = await db.query(`
+      SELECT u.id, u.employee_id, u.name, u.role, u.team_id, u.is_active, t.name as team_name
+      FROM users u
+      LEFT JOIN teams t ON u.team_id = t.id
+      WHERE u.id = $1
+    `, [id]);
     const user = rows[0];
 
     if (!user) {
@@ -77,7 +87,8 @@ exports.me = async (req, res, next) => {
         employee_id: user.employee_id,
         name: user.name,
         role: user.role,
-        team_id: user.team_id
+        team_id: user.team_id,
+        team_name: user.team_name
       }
     });
   } catch (error) {

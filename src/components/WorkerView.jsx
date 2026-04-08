@@ -12,13 +12,12 @@ export default function WorkerView() {
   const { sortedOrders: assignments, getAssignmentsForTeam } = useReports()
   const { todayAttendance, teamAttendance, updateStatus: updateAttendance, loading: attendanceLoading } = useTimeEntries()
   const { messages: apiMessages, send: sendMessageApi, markRead: markAsReadApi } = useMessages()
-  const { submitReport: submitDailyReport } = useDailyReports()
-  const { text, formatDate, getStatusLabel, formatNumber } = useI18n(state.language)
+  const { reports: dailyReports, submitReport: submitDailyReport } = useDailyReports()
+  const { text, formatDate, formatDateTime, getStatusLabel, formatNumber } = useI18n(state.language)
   
   const [clockLoading, setClockLoading] = useState(false)
   const [reportForm, setReportForm] = useState({ status: '', location: '', note: '' })
   const [avatarPreview, setAvatarPreview] = useState(null)
-  const [latestQuickAction, setLatestQuickAction] = useState(null)
   const [reportPhoto, setReportPhoto] = useState(null)
   const [activityLog, setActivityLog] = useState([])
   const [completedAssignments, setCompletedAssignments] = useState(() => new Set())
@@ -118,22 +117,6 @@ export default function WorkerView() {
     return `${formatDate(timestamp)} ${timeString}`
   }, [state.language, formatDate])
 
-  useEffect(() => {
-    if (todayAttendance && todayAttendance.status !== 'not_reported' && !latestQuickAction) {
-      const status = todayAttendance.status
-      const action = STATUS_QUICK_ACTIONS.find(a => a.status === status)
-      const timestamp = todayAttendance[`${status}_at`] || todayAttendance.updated_at
-      const actionLabel = quickLabels[status] ?? getStatusLabel(status)
-      
-      setLatestQuickAction({
-        label: actionLabel,
-        icon: action?.icon || '✅',
-        status: status,
-        timestamp: timestamp,
-        formatted: formatActionTimestamp(timestamp),
-      })
-    }
-  }, [todayAttendance, quickLabels, getStatusLabel, latestQuickAction, formatActionTimestamp])
 
   if (!worker) {
     return null
@@ -339,7 +322,7 @@ export default function WorkerView() {
                   </div>
                   <div className="worker-info-row">
                     <span className="worker-info-label">{text.table.headers.team || 'Team'}</span>
-                    <span className="worker-info-value">{worker.team || worker.team_id}</span>
+                    <span className="worker-info-value">{worker.team_name || worker.team || worker.team_id}</span>
                   </div>
                 </div>
               </section>
@@ -391,7 +374,7 @@ export default function WorkerView() {
                   teamAttendance.map((attendee) => {
                     if (attendee.worker_id === worker.id) return null;
                     const memberStatus = attendee.status || 'not_reported'
-                    const statusLabel = quickLabels[memberStatus] || getStatusLabel(memberStatus) || (text.worker.teamStatusUnknown ?? '未確認')
+                    const statusLabel = quickLabels[memberStatus] || getStatusLabel(memberStatus)
                     const statusVariant = (() => {
                       switch (memberStatus) {
                         case 'woke_up': return 'warning'
@@ -423,17 +406,30 @@ export default function WorkerView() {
             <section className="worker-card">
               <div className="worker-latest-wrapper">
                 <h4>{text.worker.latestReportTitle}</h4>
-                {latestQuickAction ? (
-                  <div className={`worker-latest-highlight worker-action-${STATUS_QUICK_ACTIONS.find(a => a.status === latestQuickAction.status)?.variant ?? 'primary'}`}>
-                    <div className="worker-latest-icon">{latestQuickAction.icon}</div>
-                    <div className="worker-latest-details">
-                      <p className="worker-latest-label">{latestQuickAction.label}</p>
-                      <p className="worker-latest-time">{latestQuickAction.formatted}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="worker-empty">{text.worker.latestReportEmpty}</p>
-                )}
+                <div className="worker-report-list">
+                  {dailyReports.length > 0 ? (
+                    dailyReports.slice(0, 3).map((report) => (
+                      <div key={report.id} className="worker-latest-highlight worker-action-neutral">
+                        <div className="worker-latest-icon">📝</div>
+                        <div className="worker-latest-details">
+                          <p className="worker-latest-label">
+                            {formatDateTime(report.submitted_at)}
+                            {report.assignment_code && (
+                              <span className="worker-latest-code">
+                                [{report.assignment_code}: {report.assignment_title}]
+                              </span>
+                            )}
+                          </p>
+                          <p className="worker-latest-snippet">
+                            {report.content ? (report.content.length > 30 ? report.content.substring(0, 30) + '...' : report.content) : ''}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="worker-empty">{text.worker.latestReportEmpty}</p>
+                  )}
+                </div>
               </div>
             </section>
           </>

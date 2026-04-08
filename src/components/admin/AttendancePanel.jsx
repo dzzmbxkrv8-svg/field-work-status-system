@@ -77,7 +77,7 @@ export default function AttendancePanel({ workers, orders, timeEntriesHook }) {
                                 </div>
                                 <div className="worker-tile-info">
                                     <h4>{worker.name}</h4>
-                                    <p>{worker.team || `Team ${worker.team_id}`}</p>
+                                    <p>{worker.team_name || worker.team || `Team ${worker.team_id}`}</p>
                                 </div>
                             </div>
 

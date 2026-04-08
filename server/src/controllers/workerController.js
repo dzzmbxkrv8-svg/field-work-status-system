@@ -2,7 +2,12 @@ const db = require('../config/db');
 
 exports.getWorkers = async (req, res, next) => {
   try {
-    const { rows } = await db.query("SELECT id, employee_id, name, role, team_id FROM users WHERE role='worker' AND is_active=true");
+    const { rows } = await db.query(`
+      SELECT u.id, u.employee_id, u.name, u.role, u.team_id, t.name as team_name 
+      FROM users u
+      LEFT JOIN teams t ON u.team_id = t.id
+      WHERE u.role = 'worker' AND u.is_active = true
+    `);
     res.status(200).json({ success: true, data: rows, total: rows.length });
   } catch (err) {
     next(err);

@@ -17,7 +17,7 @@ export function useDailyReports() {
   }, [dispatch])
 
   useEffect(() => {
-    if (state.session && state.session.role === 'admin') {
+    if (state.session) {
       fetchReports()
     }
   }, [state.session, fetchReports])
@@ -28,11 +28,11 @@ export function useDailyReports() {
       content: reportData.note || reportData.content,
       photo_url: reportData.photo || reportData.photo_url
     })
-    if (result.success && state.session.role === 'admin') {
+    if (result.success) {
       fetchReports()
     }
     return result
-  }, [state.session, fetchReports])
+  }, [fetchReports])
 
   return {
     reports,

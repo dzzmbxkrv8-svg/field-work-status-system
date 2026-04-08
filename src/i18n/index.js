@@ -307,6 +307,7 @@ const translationPacks = {
       'In Progress': 'In Progress',
       Delayed: 'Delayed',
       Completed: 'Completed',
+      not_reported: 'Not reported',
     },
     priorityLabels: {
       High: 'High',
@@ -599,6 +600,7 @@ const translationPacks = {
       'In Progress': '進行中',
       Delayed: '遅延',
       Completed: '完了',
+      not_reported: '未報告',
     },
     priorityLabels: {
       High: '高',

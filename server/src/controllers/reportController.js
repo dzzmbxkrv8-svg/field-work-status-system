@@ -7,7 +7,13 @@ exports.getReports = async (req, res, next) => {
       query = 'SELECT r.*, u.name as worker_name FROM reports r JOIN users u ON r.worker_id=u.id ORDER BY submitted_at DESC';
       params = [];
     } else {
-      query = 'SELECT * FROM reports WHERE worker_id=$1 ORDER BY submitted_at DESC';
+      query = `
+        SELECT r.*, a.title as assignment_title, a.assignment_code 
+        FROM reports r 
+        LEFT JOIN assignments a ON r.assignment_id = a.id 
+        WHERE r.worker_id = $1 
+        ORDER BY r.submitted_at DESC
+      `;
       params = [req.user.id];
     }
     const { rows } = await db.query(query, params);
