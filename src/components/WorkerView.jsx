@@ -137,6 +137,13 @@ export default function WorkerView() {
   }
 
   const primaryAssignment = assignments[0]
+  
+  useEffect(() => {
+    if (primaryAssignment && !reportForm.assignment_id) {
+      setReportForm(prev => ({ ...prev, assignment_id: String(primaryAssignment.db_id) }))
+    }
+  }, [primaryAssignment, reportForm.assignment_id])
+
   const locationText = primaryAssignment?.location || text.worker.locationUnavailable
   const messageSentLabel = text.worker.adminMessageSentTab ?? 'Sent'
   const messageReceivedLabel = text.worker.adminMessageReceivedTab ?? 'Received'
@@ -292,11 +299,7 @@ export default function WorkerView() {
   const formatFromLabel = (label) => (text.worker.adminMessageFromLabel ? text.worker.adminMessageFromLabel(label) : label)
 
   const getGreeting = () => {
-    const hour = new Date().getHours()
-    if (hour < 5) return text.worker.greetingNight ?? 'お疲れ様です'
-    if (hour < 11) return text.worker.greetingMorning ?? 'おはようございます'
-    if (hour < 17) return text.worker.greetingAfternoon ?? 'こんにちは'
-    return text.worker.greetingEvening ?? 'お疲れ様です'
+    return text.worker.greetingNight ?? 'お疲れ様です'
   }
 
   return (
@@ -341,6 +344,8 @@ export default function WorkerView() {
                 </div>
               </section>
             </div>
+
+
 
             <section className="safety-ticker">
               <span className="safety-icon">⚠️</span>
@@ -461,14 +466,56 @@ export default function WorkerView() {
               </div>
               {calendarData.weeks.map((week, idx) => (
                 <div key={idx} className="worker-calendar-row">
-                  {week.map(day => {
+                  {week.map((day, dayIndex) => {
                     const key = day.toDateString()
+                    const isCurrentMonth = day.getMonth() === calendarData.month
                     const entries = calendarData.assignmentByDate[key] ?? []
                     const isToday = day.toDateString() === calendarData.today.toDateString()
+                    const isSelected = selectedSchedule.date && day.toDateString() === selectedSchedule.date.toDateString()
+
+                    let bubbleClass = 'bubble-center'
+                    if (dayIndex < 2) bubbleClass = 'bubble-left'
+                    if (dayIndex > 4) bubbleClass = 'bubble-right'
+
                     return (
-                      <button key={key} type="button" className={`worker-calendar-cell ${day.getMonth() === calendarData.month ? '' : 'muted'} ${isToday ? 'today' : ''} ${entries.length > 0 ? 'has-event' : ''}`} onClick={() => setSelectedSchedule({ date: new Date(day), entries })}>
+                      <button
+                        type="button"
+                        key={key}
+                        className={`worker-calendar-cell ${isCurrentMonth ? '' : 'muted'} ${isToday ? 'today' : ''} ${entries.length > 0 ? 'has-event' : ''}`}
+                        onClick={() => setSelectedSchedule({ date: new Date(day), entries })}
+                      >
                         <span className="worker-calendar-day">{day.getDate()}</span>
-                        {entries.map(a => <span key={a.id} className="worker-calendar-tag">{a.projectName || a.id}</span>)}
+                        {entries.map((a) => (
+                          <span key={a.id} className="worker-calendar-tag">
+                            {a.projectName || a.id}
+                          </span>
+                        ))}
+                        {isSelected && (
+                          <div className={`worker-calendar-bubble ${bubbleClass}`} onClick={(e) => e.stopPropagation()}>
+                            <button
+                              className="worker-calendar-bubble-close"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setSelectedSchedule({ date: null, entries: [] })
+                              }}
+                            >
+                              ×
+                            </button>
+                            <h4>{formatDate(day)}</h4>
+                            {entries.length > 0 ? (
+                              <ul>
+                                {entries.map((entry) => (
+                                  <li key={entry.id}>
+                                    <strong>{entry.projectName || entry.id}</strong>
+                                    <p>{entry.notes || entry.location}</p>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="worker-calendar-no-events">{text.worker.calendarNoEvents}</p>
+                            )}
+                          </div>
+                        )}
                       </button>
                     )
                   })}
@@ -476,107 +523,79 @@ export default function WorkerView() {
               ))}
             </div>
 
-            <div className="worker-selected-schedule">
+            <section className="worker-card worker-card-assignments">
               <header>
-                <h4>
-                  {selectedSchedule.date 
-                    ? formatDate(selectedSchedule.date) 
-                    : text.worker.upcomingHeading}
-                </h4>
+                <h3>{text.worker.assignmentHeading}</h3>
+                <p className="worker-assignment-count">{text.worker.assignmentCount ? text.worker.assignmentCount(assignments.length) : `${assignments.length}件`}</p>
               </header>
-              <div className="worker-assignment-list">
-                {(selectedSchedule.entries && selectedSchedule.entries.length > 0) ? (
-                  selectedSchedule.entries.map((order) => (
-                    <div key={order.id} className="worker-card worker-assignment-item">
-                      <div className="worker-assignment-badge">{order.status}</div>
-                      <div className="worker-assignment-main">
-                        <span className="worker-assignment-code">{order.assignment_code || order.id}</span>
-                        <h5>{order.projectName || order.title}</h5>
-                        <p className="worker-assignment-loc">📍 {order.location}</p>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="worker-empty">{text.worker.calendarNoEvents || 'この日の担当作業はありません'}</p>
-                )}
-              </div>
-            </div>
+              {assignments.length === 0 ? (
+                <p className="worker-empty">{text.worker.empty}</p>
+              ) : (
+                <div className="worker-assignment-grid">
+                  {assignments.map((order) => {
+                    const statusLabel = order.raw_status === 'pending' ? '未着手' : 
+                                       order.raw_status === 'in_progress' ? '進行中' : 
+                                       order.raw_status === 'completed' ? '完了' : 
+                                       order.raw_status === 'cancelled' ? 'キャンセル' : order.status
+                    
+                    return (
+                      <article key={order.id} className="worker-assignment-card">
+                        <div className="worker-assignment-info">
+                          {completedAssignments.has(order.id) ? (
+                            <p className="worker-assignment-finished">{text.worker.assignmentFinishedMessage}</p>
+                          ) : (
+                            <>
+                              <div>
+                                <span className="worker-meta-label">{text.worker.assignmentProjectLabel}:</span>
+                                <span>{order.projectName || order.id}</span>
+                              </div>
+                              <div>
+                                <span className="worker-meta-label">{text.worker.assignmentAddressLabel}:</span>
+                                <span>{order.location || text.worker.locationUnavailable}</span>
+                              </div>
+                              <div>
+                                <span className="worker-meta-label">{text.worker.assignmentDateLabel}:</span>
+                                <span>{formatDate(order.startDate)}</span>
+                              </div>
+                              <div>
+                                <span className="worker-meta-label">{text.worker.assignmentTaskLabel}:</span>
+                                <span>{order.notes || '—'}</span>
+                              </div>
+                              {order.cautionNote && (
+                                <div>
+                                  <span className="worker-meta-label">{text.worker.assignmentCautionLabel}:</span>
+                                  <span>{order.cautionNote}</span>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                        {!completedAssignments.has(order.id) && (
+                          <div className="worker-assignment-actions">
+                            <button
+                              type="button"
+                              className="worker-assignment-complete"
+                              onClick={() => handleAssignmentComplete(order.db_id)}
+                            >
+                              {text.worker.completeAssignmentLabel || '完了にする'}
+                            </button>
+                          </div>
+                        )}
+                      </article>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
           </section>
         )}
 
         {activeTab === 'report' && (
           <div className="worker-report-container">
-            <section className="worker-card">
-              <h3>{text.worker.reportTitle}</h3>
-              <div className="worker-report-form">
-                <div className="worker-form-group">
-                  <label>{text.worker.assignmentHeading || '担当作業'}</label>
-                  <select
-                    value={reportForm.assignment_id}
-                    onChange={(e) => handleReportChange('assignment_id', e.target.value)}
-                  >
-                    <option value="">{text.worker.selectAssignment || '-- 選択してください --'}</option>
-                    {assignments.length > 0 ? (
-                      assignments.map(a => (
-                        <option key={a.id} value={a.db_id}>
-                          {a.assignment_code || a.id}: {a.projectName || a.title}
-                        </option>
-                      ))
-                    ) : (
-                      <option disabled>{text.worker.empty || '作業指示がありません'}</option>
-                    )}
-                  </select>
-                </div>
-                <div className="worker-form-group">
-                  <label>{text.worker.statusLabel}</label>
-                  <select 
-                    value={reportForm.status} 
-                    onChange={(e) => handleReportChange('status', e.target.value)}
-                  >
-                    <option value="">{text.worker.selectStatus || '-- 選択してください --'}</option>
-                    {STATUS_QUICK_ACTIONS.map(a => (
-                      <option key={a.status} value={a.status}>
-                        {quickLabels[a.status] || getStatusLabel(a.status)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="worker-form-group">
-                  <label>{text.worker.reportNoteLabel}</label>
-                  <textarea
-                    value={reportForm.note}
-                    onChange={(e) => handleReportChange('note', e.target.value)}
-                    placeholder={text.worker.reportNotePlaceholder}
-                  />
-                </div>
-                <div className="worker-form-group">
-                  <label>{text.worker.reportPhotoLabel}</label>
-                  <div className="worker-photo-upload">
-                    <input type="file" accept="image/*" onChange={(e) => {
-                      const file = e.target.files[0]
-                      if (file) {
-                        const reader = new FileReader()
-                        reader.onload = () => setReportPhoto(reader.result)
-                        reader.readAsDataURL(file)
-                      }
-                    }} />
-                    {reportPhoto && <img src={reportPhoto} alt="Upload preview" className="worker-photo-preview" />}
-                  </div>
-                </div>
-                <button 
-                  type="button" 
-                  className="worker-button" 
-                  onClick={handleReportSubmit}
-                  disabled={!primaryAssignment}
-                >
-                  {text.worker.reportSubmitButton}
-                </button>
-                {!primaryAssignment && <p className="worker-error-text">{text.worker.locationUnavailable}</p>}
-              </div>
-            </section>
-
             <section className="worker-card worker-card-message">
-              <h3>{text.worker.adminMessageTitle}</h3>
+              <header>
+                <h3>{text.worker.adminMessageTitle}</h3>
+              </header>
               <form className="worker-message-form" onSubmit={handleAdminMessageSubmit}>
                  <select value={adminMessageRecipient} onChange={(e) => setAdminMessageRecipient(e.target.value)}>
                    {recipientOptions.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
@@ -604,6 +623,63 @@ export default function WorkerView() {
                       <p className="worker-empty">{messageEmptyLabel}</p>
                     )}
                   </ul>
+                </div>
+              </div>
+            </section>
+
+            {primaryAssignment && (
+              <section className="worker-card worker-photo-report">
+                <h4>📸 {text.worker.photoReportHeading || '写真報告'}</h4>
+                <div className="worker-photo-controls">
+                  <label className="worker-photo-label">
+                    <input type="file" accept="image/*" capture="camera" onChange={handleReportPhotoChange} style={{ display: 'none' }} />
+                    <div className="worker-photo-preview-box">
+                      {reportPhoto ? <img src={reportPhoto} alt="Preview" /> : <span>{text.worker.photoReportPrompt || 'カメラ起動 / 写真選択'}</span>}
+                    </div>
+                  </label>
+                  {reportPhoto && (
+                    <button type="button" className="worker-message-send" onClick={handleReportSubmit}>
+                      {text.worker.photoReportSubmit || '写真を提出'}
+                    </button>
+                  )}
+                </div>
+              </section>
+            )}
+
+            <section className="worker-card worker-card-daily-report">
+              <header>
+                <h3>{text.worker.dailyReportTitle || '日報'}</h3>
+              </header>
+              <div className="worker-report-form">
+                <div className="worker-form-group">
+                  <label>{text.worker.assignmentHeading || '担当作業'}</label>
+                  <select
+                    value={reportForm.assignment_id}
+                    onChange={(e) => handleReportChange('assignment_id', e.target.value)}
+                  >
+                    <option value="">{text.worker.selectAssignment || '-- 選択してください --'}</option>
+                    {assignments.map(a => (
+                      <option key={a.id} value={a.db_id}>
+                        {a.assignment_code || a.id}: {a.projectName || a.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <textarea
+                  rows={4}
+                  value={reportForm.note}
+                  onChange={(e) => handleReportChange('note', e.target.value)}
+                  placeholder={text.worker.dailyReportPlaceholder || '本日の作業内容を記入してください。'}
+                />
+                <div className="worker-report-actions">
+                  <button
+                    type="button"
+                    className="worker-button"
+                    onClick={handleReportSubmit}
+                    disabled={!reportForm.assignment_id || !reportForm.note}
+                  >
+                    {text.worker.dailyReportSubmit || '日報を提出'}
+                  </button>
                 </div>
               </div>
             </section>

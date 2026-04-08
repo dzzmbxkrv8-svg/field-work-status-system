@@ -52,8 +52,11 @@ export function useReports() {
           id: o.assignment_code || o.id,
           projectName: o.title,
           location: o.location,
+          startDate: o.start_date,
+          endDate: o.end_date,
           dueDate: o.end_date || o.start_date,
-          status: o.status === 'pending' ? 'Not Started' : (o.status === 'in_progress' ? 'In Progress' : (o.status === 'completed' ? 'Completed' : 'Delayed')),
+          raw_status: o.status,
+          status: o.status,
           priority: o.priority ? o.priority.charAt(0).toUpperCase() + o.priority.slice(1) : 'Medium',
           progress: o.status === 'completed' ? 100 : (o.status === 'in_progress' ? 50 : 0)
         }))
