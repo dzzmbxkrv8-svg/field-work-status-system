@@ -48,6 +48,7 @@ export function useReports() {
         type: 'SET_WORK_ORDERS', 
         payload: result.data.map(o => ({
           ...o,
+          db_id: o.id,
           id: o.assignment_code || o.id,
           projectName: o.title,
           location: o.location,

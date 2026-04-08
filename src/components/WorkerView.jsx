@@ -16,7 +16,7 @@ export default function WorkerView() {
   const { text, formatDate, formatDateTime, getStatusLabel, formatNumber } = useI18n(state.language)
   
   const [clockLoading, setClockLoading] = useState(false)
-  const [reportForm, setReportForm] = useState({ status: '', location: '', note: '' })
+  const [reportForm, setReportForm] = useState({ status: '', assignment_id: '', location: '', note: '' })
   const [avatarPreview, setAvatarPreview] = useState(null)
   const [reportPhoto, setReportPhoto] = useState(null)
   const [activityLog, setActivityLog] = useState([])
@@ -97,12 +97,26 @@ export default function WorkerView() {
       }
       weeks.push(days)
     }
-    const assignmentByDate = assignments.reduce((acc, order) => {
-      const key = new Date(order.startDate).toDateString()
-      if (!acc[key]) acc[key] = []
-      acc[key].push(order)
-      return acc
-    }, {})
+    const assignmentByDate = {}
+    assignments.forEach(order => {
+      const start = new Date(order.startDate)
+      const end = new Date(order.dueDate || order.endDate || order.startDate)
+      
+      // For each day in the calendar grid, check if the assignment covers it
+      weeks.forEach(week => {
+        week.forEach(day => {
+          const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate())
+          const orderStart = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+          const orderEnd = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+          
+          if (dayStart >= orderStart && dayStart <= orderEnd) {
+            const key = day.toDateString()
+            if (!assignmentByDate[key]) assignmentByDate[key] = []
+            assignmentByDate[key].push(order)
+          }
+        })
+      })
+    })
     return { year, month, weeks, assignmentByDate, today }
   }, [assignments])
 
@@ -461,6 +475,32 @@ export default function WorkerView() {
                 </div>
               ))}
             </div>
+
+            <div className="worker-selected-schedule">
+              <header>
+                <h4>
+                  {selectedSchedule.date 
+                    ? formatDate(selectedSchedule.date) 
+                    : text.worker.upcomingHeading}
+                </h4>
+              </header>
+              <div className="worker-assignment-list">
+                {(selectedSchedule.entries && selectedSchedule.entries.length > 0) ? (
+                  selectedSchedule.entries.map((order) => (
+                    <div key={order.id} className="worker-card worker-assignment-item">
+                      <div className="worker-assignment-badge">{order.status}</div>
+                      <div className="worker-assignment-main">
+                        <span className="worker-assignment-code">{order.assignment_code || order.id}</span>
+                        <h5>{order.projectName || order.title}</h5>
+                        <p className="worker-assignment-loc">📍 {order.location}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="worker-empty">{text.worker.calendarNoEvents || 'この日の担当作業はありません'}</p>
+                )}
+              </div>
+            </div>
           </section>
         )}
 
@@ -469,6 +509,24 @@ export default function WorkerView() {
             <section className="worker-card">
               <h3>{text.worker.reportTitle}</h3>
               <div className="worker-report-form">
+                <div className="worker-form-group">
+                  <label>{text.worker.assignmentHeading || '担当作業'}</label>
+                  <select
+                    value={reportForm.assignment_id}
+                    onChange={(e) => handleReportChange('assignment_id', e.target.value)}
+                  >
+                    <option value="">{text.worker.selectAssignment || '-- 選択してください --'}</option>
+                    {assignments.length > 0 ? (
+                      assignments.map(a => (
+                        <option key={a.id} value={a.db_id}>
+                          {a.assignment_code || a.id}: {a.projectName || a.title}
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled>{text.worker.empty || '作業指示がありません'}</option>
+                    )}
+                  </select>
+                </div>
                 <div className="worker-form-group">
                   <label>{text.worker.statusLabel}</label>
                   <select 
