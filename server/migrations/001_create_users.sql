@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  employee_id VARCHAR(20) UNIQUE NOT NULL,  -- W001, ABCD1234 等
+  name VARCHAR(100) NOT NULL,
+  role VARCHAR(10) NOT NULL CHECK (role IN ('worker', 'admin')),
+  team_id INTEGER,
+  password_hash VARCHAR(255) NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
