@@ -138,7 +138,7 @@ export default function AdminView() {
         <AdminPanel orders={filteredOrders} onCreateOrder={createOrder} onAssignWorkers={handleAssignWorkers} />
       )}
       {selectedTab === 'messages' && <MessagePanel workers={workers} />}
-      {selectedTab === 'reports' && <ReportsPanel orders={sortedOrders} workers={workers} timeEntriesHook={timeEntriesHook} />}
+      {selectedTab === 'reports' && <ReportsPanel orders={sortedOrders} workers={workers} />}
 
       {assigningOrder && (
         <WorkerAssignmentDialog

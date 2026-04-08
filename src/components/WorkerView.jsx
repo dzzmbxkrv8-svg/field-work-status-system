@@ -9,8 +9,6 @@ export default function WorkerView() {
   const { state, logout } = useAppContext()
   const { submitWorkerReport, getAssignmentsForTeam } = useReports()
   const { text, formatDate, getStatusLabel, formatNumber } = useI18n(state.language)
-  const { clockIn, clockOut, breakStart, breakEnd, getClockStatus, getTodayEntries, calculateWorkHours } =
-    useTimeEntries()
   const [clockLoading, setClockLoading] = useState(false)
   const [reportForm, setReportForm] = useState({ status: '', location: '', note: '' })
   const [avatarPreview, setAvatarPreview] = useState(null)
@@ -148,39 +146,13 @@ export default function WorkerView() {
     }, {})
     return { year, month, weeks, assignmentByDate, today }
   }, [assignments])
-
   if (!worker) {
     return null
   }
 
-  // 打刻ステータス
-  const clockStatus = getClockStatus(worker.workerId || worker.id)
-  const todayTimeEntries = getTodayEntries(worker.workerId || worker.id)
-  const todayStart = new Date()
-  todayStart.setHours(0, 0, 0, 0)
-  const todayEnd = new Date()
-  todayEnd.setHours(23, 59, 59, 999)
-  const workHours = calculateWorkHours(worker.workerId || worker.id, todayStart, todayEnd)
-
-  const primaryOrderId = assignments.length > 0 ? assignments[0].id : null
-
-  const handleClockAction = async (action) => {
-    setClockLoading(true)
-    try {
-      await action(worker.workerId || worker.id, primaryOrderId, '')
-    } finally {
-      setClockLoading(false)
-    }
-  }
-
-  const clockStatusText =
-    clockStatus === 'working' ? text.worker.clockStatusWorking : clockStatus === 'on_break' ? text.worker.clockStatusOnBreak : text.worker.clockStatusCompleted
-
-  const clockStatusVariant =
-    clockStatus === 'working' ? 'success' : clockStatus === 'on_break' ? 'warning' : 'neutral'
-
-  // 打刻種別の表示ラベル
-  const timeTypeLabels = { clock_in: text.worker.clockTypeIn, clock_out: text.worker.clockTypeOut, break_start: text.worker.clockTypeBreakStart, break_end: text.worker.clockTypeBreakEnd }
+  const teamMembers = useMemo(() => {
+    return state.workers.filter((w) => w.team === worker.team && w.id !== worker.id)
+  }, [state.workers, worker.team, worker.id])
 
   const primaryAssignment = assignments[0]
   const locationText =
@@ -402,130 +374,6 @@ export default function WorkerView() {
               </section>
             </div>
 
-            {/* 打刻カード */}
-            <section className="worker-card">
-              <header style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                <span style={{ fontSize: '1.25rem' }}>⏱️</span>
-                <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#0f172a' }}>{text.worker.clockHeading}</h3>
-              </header>
-              <span
-                  className={`worker-chip worker-chip-${clockStatusVariant === 'success'
-                    ? 'low'
-                    : clockStatusVariant === 'warning'
-                      ? 'medium'
-                      : 'high'
-                    }`}
-                >
-                  {clockStatusText}
-                </span>
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'baseline',
-                  padding: '0.75rem 0',
-                  borderBottom: '1px solid #e5e7eb',
-                }}
-              >
-                <span style={{ fontSize: '0.85rem', color: '#6b7280' }}>{text.worker.todaysWorkHours}</span>
-                <strong style={{ fontSize: '1.25rem', color: '#2563eb' }}>
-                  {text.worker.workHoursFormat(workHours.totalHours, workHours.totalMinutes)}
-                </strong>
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-                {clockStatus === 'off' && (
-                  <button
-                    type="button"
-                    className="worker-action worker-action-success"
-                    style={{ flex: 1, justifyContent: 'center', minHeight: '80px' }}
-                    onClick={() => handleClockAction(clockIn)}
-                    disabled={clockLoading}
-                  >
-                    <span className="worker-clock-icon">🕒</span>
-                    <span>{text.worker.clockIn}</span>
-                  </button>
-                )}
-                {clockStatus === 'working' && (
-                  <>
-                    <button
-                      type="button"
-                      className="worker-action worker-action-warning"
-                      style={{ flex: 1, justifyContent: 'center', minHeight: '80px' }}
-                      onClick={() => handleClockAction(breakStart)}
-                      disabled={clockLoading}
-                    >
-                      <span className="worker-clock-icon">☕</span>
-                      <span>{text.worker.breakStart}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="worker-action worker-action-danger"
-                      style={{ flex: 1, justifyContent: 'center', minHeight: '80px' }}
-                      onClick={() => handleClockAction(clockOut)}
-                      disabled={clockLoading}
-                    >
-                      <span className="worker-clock-icon">🚪</span>
-                      <span>{text.worker.clockOut}</span>
-                    </button>
-                  </>
-                )}
-                {clockStatus === 'on_break' && (
-                  <button
-                    type="button"
-                    className="worker-action worker-action-primary"
-                    style={{ flex: 1, justifyContent: 'center', minHeight: '80px' }}
-                    onClick={() => handleClockAction(breakEnd)}
-                    disabled={clockLoading}
-                  >
-                    <span className="worker-clock-icon">▶️</span>
-                    <span>{text.worker.breakEnd}</span>
-                  </button>
-                )}
-              </div>
-
-              {todayTimeEntries.length > 0 && (
-                <div style={{ marginTop: '0.75rem', borderTop: '1px solid #f3f4f6', paddingTop: '0.75rem' }}>
-                  <div
-                    style={{
-                      fontSize: '0.78rem',
-                      fontWeight: 600,
-                      color: '#9ca3af',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                      marginBottom: '0.5rem',
-                    }}
-                  >
-                    本日の打刻履歴
-                  </div>
-                  {todayTimeEntries.map((entry) => (
-                    <div
-                      key={entry.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.75rem',
-                        padding: '0.4rem 0',
-                        borderBottom: '1px solid #f9fafb',
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      <span style={{ fontWeight: 600, minWidth: '5rem' }}>
-                        {timeTypeLabels[entry.type] ?? entry.type}
-                      </span>
-                      <span style={{ color: '#6b7280' }}>
-                        {new Date(entry.timestamp).toLocaleTimeString('ja-JP', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                      {entry.latitude && <span style={{ fontSize: '0.75rem', marginLeft: 'auto' }}>📍</span>}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
 
             <section className="safety-ticker">
               <span className="safety-icon">⚠️</span>
@@ -535,7 +383,8 @@ export default function WorkerView() {
             </section>
 
             {primaryAssignment && (
-              <section className="worker-card worker-card-actions">
+              <>
+                <section className="worker-card worker-card-actions">
                 <p className="worker-section-label">{text.worker.quickActionHint}</p>
                 <div className="worker-actions-grid">
                   {STATUS_QUICK_ACTIONS.map((action) => {
@@ -555,7 +404,61 @@ export default function WorkerView() {
                     )
                   })}
                 </div>
+              </section>
 
+              <section className="worker-card worker-card-team">
+                <header>
+                  <h3>{text.worker.teamStatusTitle ?? 'チームメンバー'}</h3>
+                  <p className="worker-team-count">
+                    {text.worker.teamStatusCount
+                      ? text.worker.teamStatusCount(teamMembers.length)
+                      : `${teamMembers.length}名`}
+                  </p>
+                </header>
+                <div className="worker-team-grid">
+                  {teamMembers.length === 0 ? (
+                    <p className="worker-empty">{text.worker.teamStatusEmpty ?? 'メンバーがいません'}</p>
+                  ) : (
+                    teamMembers.map((member) => {
+                      const memberOrders = state.workOrders.filter(
+                        (o) => o.members?.includes(member.id) && o.team === worker.team
+                      )
+                      const latestOrder = memberOrders.sort(
+                        (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0)
+                      )[0]
+                      const memberStatus = latestOrder?.status || 'unknown'
+                      const statusLabel = quickLabels[memberStatus] || getStatusLabel(memberStatus) || (text.worker.teamStatusUnknown ?? '未確認')
+                      const statusVariant = (() => {
+                        switch (memberStatus) {
+                          case 'Wakeup': return 'warning'
+                          case 'Departed': return 'primary'
+                          case 'Arrived': return 'success'
+                          case 'Finished': return 'completed'
+                          default: return 'neutral'
+                        }
+                      })()
+
+                      return (
+                        <div key={member.id} className="worker-team-member">
+                          <div className="worker-team-avatar">
+                            <span>{member.name.slice(0, 1)}</span>
+                          </div>
+                          <div className="worker-team-info">
+                            <span className="worker-team-name">
+                              {member.name}
+                            </span>
+                            <span className={`worker-team-status worker-team-status-${statusVariant}`}>
+                              {statusLabel}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </section>
+
+              <section className="worker-card">
                 <div className="worker-latest-wrapper">
                   <h4>{text.worker.latestReportTitle}</h4>
                   {latestQuickAction ? (
@@ -577,6 +480,7 @@ export default function WorkerView() {
                   )}
                 </div>
               </section>
+              </>
             )}
 
             {activityLog.length > 0 && (
