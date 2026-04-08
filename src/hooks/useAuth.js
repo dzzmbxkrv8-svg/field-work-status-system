@@ -1,52 +1,48 @@
 import { useCallback } from 'react'
 import { useAppContext } from '@/contexts/AppContext'
 import { generateAccessCode, generateWorkerId } from '@/utils/access'
+import * as authApi from '@/api/auth'
 
 export function useAuth() {
   const { state, dispatch, login, logout } = useAppContext()
   const { organizations, workers } = state
 
   const loginWorker = useCallback(
-    ({ code, password }) => {
-      const normalized = code.trim().toUpperCase()
-      // Check if it's a Worker ID (e.g., W001) or Organization Code
-      const account = workers.find(
-        (entry) =>
-          (entry.id === normalized || entry.organizationCode === normalized) &&
-          entry.password === password
-      )
-      if (!account) {
-        const error = new Error('invalidWorkerCredentials')
-        error.code = 'invalidWorkerCredentials'
-        throw error
+    async ({ code, password }) => {
+      const result = await authApi.login({ employee_id: code, password, role: 'worker' });
+      if (!result.success) {
+        const error = new Error(result.message || 'invalidWorkerCredentials');
+        error.code = 'invalidWorkerCredentials';
+        throw error;
       }
-      login({
-        role: 'worker',
-        name: account.name,
-        team: account.team,
-        workerId: account.id,
-        organizationCode: account.organizationCode,
-      })
-      return account
+      
+      localStorage.setItem('token', result.token);
+      localStorage.setItem('user', JSON.stringify(result.user));
+      
+      login(result.user);
+      return result.user;
     },
-    [workers, login]
-  )
+    [login]
+  );
 
   const loginAdmin = useCallback(
-    ({ code, password }) => {
-      const normalized = code.trim().toUpperCase()
-      const organization = organizations.find((org) => org.code === normalized)
-      if (!organization || organization.adminPassword !== password) {
-        const error = new Error('invalidAdmin')
-        error.code = 'invalidAdmin'
-        throw error
+    async ({ code, password }) => {
+      const result = await authApi.login({ employee_id: code, password, role: 'admin' });
+      if (!result.success) {
+        const error = new Error(result.message || 'invalidAdmin');
+        error.code = 'invalidAdmin';
+        throw error;
       }
-      login({ role: 'admin', name: organization.adminName, code: organization.code })
-      dispatch({ type: 'SET_TAB', payload: 'overview' })
-      return organization
+
+      localStorage.setItem('token', result.token);
+      localStorage.setItem('user', JSON.stringify(result.user));
+
+      login(result.user);
+      dispatch({ type: 'SET_TAB', payload: 'overview' });
+      return result.user;
     },
-    [organizations, login, dispatch]
-  )
+    [login, dispatch]
+  );
 
   const registerOrganization = useCallback(
     ({ companyName, adminName, password }) => {

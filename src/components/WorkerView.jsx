@@ -1,14 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useAppContext } from '@/contexts/AppContext'
 import { useReports } from '@/hooks/useReports'
 import { useTimeEntries } from '@/hooks/useTimeEntries'
+import { useMessages } from '@/hooks/useMessages'
+import { useDailyReports } from '@/hooks/useDailyReports'
 import { useI18n } from '@/i18n'
-import { STATUS_OPTIONS, STATUS_QUICK_ACTIONS } from '@/utils/constants'
+import { STATUS_QUICK_ACTIONS } from '@/utils/constants'
 
 export default function WorkerView() {
   const { state, logout } = useAppContext()
-  const { submitWorkerReport, getAssignmentsForTeam } = useReports()
+  const { sortedOrders: assignments, getAssignmentsForTeam } = useReports()
+  const { todayAttendance, teamAttendance, updateStatus: updateAttendance, loading: attendanceLoading } = useTimeEntries()
+  const { messages: apiMessages, send: sendMessageApi, markRead: markAsReadApi } = useMessages()
+  const { submitReport: submitDailyReport } = useDailyReports()
   const { text, formatDate, getStatusLabel, formatNumber } = useI18n(state.language)
+  
   const [clockLoading, setClockLoading] = useState(false)
   const [reportForm, setReportForm] = useState({ status: '', location: '', note: '' })
   const [avatarPreview, setAvatarPreview] = useState(null)
@@ -24,65 +30,20 @@ export default function WorkerView() {
   const fileInputRef = useRef(null)
   const [selectedSchedule, setSelectedSchedule] = useState({ date: null, entries: [] })
   const [activeTab, setActiveTab] = useState('home')
-  const [incomingMessages] = useState(() => [
-    {
-      id: 'incoming-1',
-      sender: '管理本部',
-      senderCode: 'ABCD1234',
-      message: '明日の集合時間が30分早まりました。8:00に現地集合でお願いします。',
-      timestamp: new Date().toISOString(),
-    },
-    {
-      id: 'incoming-2',
-      sender: '配車担当',
-      senderCode: 'ABCD1234',
-      message: '車両Bの整備が完了しました。必要であれば利用申請をしてください。',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
-    },
-    {
-      id: 'incoming-3',
-      sender: '安全管理',
-      senderCode: 'ABCD1234',
-      message: '強風が予測されています。必要に応じて一時待機を検討してください。',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
-    },
-    {
-      id: 'incoming-4',
-      sender: '管理本部',
-      senderCode: 'ABCD1234',
-      message: '今日の作業は計画通りに進めてください。進捗を15時に共有してください。',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
-    },
-    {
-      id: 'incoming-5',
-      sender: '配車担当',
-      senderCode: 'ABCD1234',
-      message: '搬入ルートが変更になりました。添付図面を参照してください。',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    },
-    {
-      id: 'incoming-6',
-      sender: '安全管理',
-      senderCode: 'ABCD1234',
-      message: '午前中に安全ミーティングを実施してください。資料を共有済みです。',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 30).toISOString(),
-    },
-    {
-      id: 'incoming-7',
-      sender: '管理本部',
-      senderCode: 'ABCD1234',
-      message: '資材搬入が遅れています。新しいスケジュールを後ほど共有します。',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 36).toISOString(),
-    },
-    {
-      id: 'incoming-8',
-      sender: '配車担当',
-      senderCode: 'ABCD1234',
-      message: '来週の現場配置についてヒアリングをしたいので、空いている時間を返答ください。',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
-    },
-  ])
-  const [messageView, setMessageView] = useState('sent')
+  const [messageView, setMessageView] = useState('received')
+
+  const worker = state.session
+
+  const incomingMessages = useMemo(() => {
+    return apiMessages.map(msg => ({
+      id: msg.id,
+      sender: msg.sender_name || 'Admin',
+      message: msg.content,
+      timestamp: msg.created_at,
+      isRead: msg.is_read
+    })).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+  }, [apiMessages])
+
   const recipientOptions = useMemo(() => {
     const organizationRecipients = state.organizations.map((org) => ({
       value: `org:${org.code}`,
@@ -119,8 +80,7 @@ export default function WorkerView() {
     }
   }, [recipientOptions, adminMessageRecipient])
 
-  const worker = state.session
-  const assignments = useMemo(() => worker ? getAssignmentsForTeam(worker.team) : [], [getAssignmentsForTeam, worker?.team])
+  // assignments is now from useReports() directly
   const calendarData = useMemo(() => {
     const today = new Date()
     const year = today.getFullYear()
@@ -146,18 +106,41 @@ export default function WorkerView() {
     }, {})
     return { year, month, weeks, assignmentByDate, today }
   }, [assignments])
+
+  const quickLabels = text.worker.statusQuickLabels ?? {}
+
+  const formatActionTimestamp = useCallback((timestamp) => {
+    const locale = state.language === 'ja' ? 'ja-JP' : 'en-US'
+    const timeString = new Date(timestamp).toLocaleTimeString(locale, {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    return `${formatDate(timestamp)} ${timeString}`
+  }, [state.language, formatDate])
+
+  useEffect(() => {
+    if (todayAttendance && todayAttendance.status !== 'not_reported' && !latestQuickAction) {
+      const status = todayAttendance.status
+      const action = STATUS_QUICK_ACTIONS.find(a => a.status === status)
+      const timestamp = todayAttendance[`${status}_at`] || todayAttendance.updated_at
+      const actionLabel = quickLabels[status] ?? getStatusLabel(status)
+      
+      setLatestQuickAction({
+        label: actionLabel,
+        icon: action?.icon || '✅',
+        status: status,
+        timestamp: timestamp,
+        formatted: formatActionTimestamp(timestamp),
+      })
+    }
+  }, [todayAttendance, quickLabels, getStatusLabel, latestQuickAction, formatActionTimestamp])
+
   if (!worker) {
     return null
   }
 
-  const teamMembers = useMemo(() => {
-    return state.workers.filter((w) => w.team === worker.team && w.id !== worker.id)
-  }, [state.workers, worker.team, worker.id])
-
   const primaryAssignment = assignments[0]
-  const locationText =
-    primaryAssignment && primaryAssignment.location ? primaryAssignment.location : text.worker.locationUnavailable
-  const quickLabels = text.worker.statusQuickLabels ?? {}
+  const locationText = primaryAssignment?.location || text.worker.locationUnavailable
   const messageSentLabel = text.worker.adminMessageSentTab ?? 'Sent'
   const messageReceivedLabel = text.worker.adminMessageReceivedTab ?? 'Received'
   const messageEmptyLabel = text.worker.adminMessageEmpty ?? 'No messages yet.'
@@ -166,55 +149,49 @@ export default function WorkerView() {
     setReportForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleReportSubmit = () => {
-    const statusToSend = reportForm.status || primaryAssignment?.status
-    if (!primaryAssignment || !statusToSend) return
-    submitWorkerReport(primaryAssignment.id, {
-      status: statusToSend,
-      location: reportForm.location || text.worker.locationUnavailable,
+  const handleReportSubmit = async () => {
+    if (!primaryAssignment) return
+    const result = await submitDailyReport({
+      assignment_id: primaryAssignment.id,
       note: reportForm.note,
-      photo: reportPhoto,
-      timestamp: new Date().toISOString(),
+      photo: reportPhoto
     })
-    setReportForm((prev) => ({ ...prev, note: '' }))
-    setReportPhoto(null)
+    
+    if (result.success) {
+      setReportForm((prev) => ({ ...prev, note: '' }))
+      setReportPhoto(null)
+      alert(text.worker.reportSubmittedSuccess || 'Report submitted!')
+    } else {
+      alert(result.message || 'Error submitting report')
+    }
   }
 
-  const formatActionTimestamp = (timestamp) => {
-    const locale = state.language === 'ja' ? 'ja-JP' : 'en-US'
-    const timeString = new Date(timestamp).toLocaleTimeString(locale, {
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-    return `${formatDate(timestamp)} ${timeString}`
-  }
+  const handleQuickAction = async (orderId, action) => {
+    setClockLoading(true)
+    const result = await updateAttendance(action.status)
+    setClockLoading(false)
 
-  const handleQuickAction = (orderId, action) => {
-    const timestamp = new Date().toISOString()
-    const actionLabel = quickLabels[action.status] ?? getStatusLabel(action.status)
-    const payload = {
-      status: action.status,
-      location: locationText,
-      note: actionLabel,
-      timestamp,
+    if (result.success) {
+      const timestamp = new Date().toISOString()
+      const actionLabel = quickLabels[action.status] ?? getStatusLabel(action.status)
+      const newAction = {
+        label: actionLabel,
+        icon: action.icon,
+        status: action.status,
+        timestamp,
+        formatted: formatActionTimestamp(timestamp),
+      }
+      setLatestQuickAction(newAction)
+      setActivityLog((prev) => [newAction, ...prev].slice(0, 5))
+    } else {
+      alert(result.message || 'Error updating status')
     }
-    submitWorkerReport(orderId, payload)
-    const newAction = {
-      label: actionLabel,
-      icon: action.icon,
-      status: action.status,
-      timestamp,
-      formatted: formatActionTimestamp(timestamp),
-    }
-    setLatestQuickAction(newAction)
-    setActivityLog((prev) => [newAction, ...prev].slice(0, 5))
   }
 
   const handleAssignmentComplete = (orderId) => {
-    handleQuickAction(orderId, {
-      status: 'Completed',
+    handleQuickAction(orderId, STATUS_QUICK_ACTIONS.find(a => a.status === 'finished') || {
+      status: 'finished',
       icon: '🏁',
-      label: text.worker.statusQuickLabels?.Completed ?? getStatusLabel('Completed'),
       variant: 'danger',
     })
     setCompletedAssignments((prev) => {
@@ -222,7 +199,6 @@ export default function WorkerView() {
       next.add(orderId)
       return next
     })
-    // 10秒後に元の表示に戻す
     window.setTimeout(() => {
       setCompletedAssignments((prev) => {
         const next = new Set(prev)
@@ -256,43 +232,40 @@ export default function WorkerView() {
     <span>{worker.name.slice(0, 1).toUpperCase()}</span>
   )
 
-  const handleAdminMessageSubmit = (event) => {
+  const handleAdminMessageSubmit = async (event) => {
     event.preventDefault()
     if (!adminMessage.trim()) return
     if (!adminMessageRecipient) return
-    setAdminMessageLog((prev) => [
-      {
-        message: adminMessage.trim(),
-        timestamp: new Date().toISOString(),
-        recipient: adminMessageRecipient,
-        attachments: messageAttachments
-      },
-      ...prev.slice(0, 3),
-    ])
-    setAdminMessage('')
-    setMessageAttachments([])
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''
+
+    const [type, id] = adminMessageRecipient.split(':')
+    const payload = {
+      content: adminMessage.trim(),
+      team_id: type === 'worker' ? null : id,
+      receiver_id: type === 'worker' ? parseInt(id) : null
+    }
+
+    const result = await sendMessageApi(payload)
+    if (result.success) {
+      setAdminMessage('')
+      setMessageAttachments([])
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    } else {
+      alert(result.message || 'Error sending message')
     }
   }
 
   const handleMessageFileChange = (event) => {
     const files = Array.from(event.target.files || [])
     if (files.length === 0) return
-
     const currentCount = messageAttachments.length
     const remainingSlots = 8 - currentCount
-
     if (remainingSlots <= 0) {
       alert(text.worker.attachmentLimitAlert)
       return
     }
-
     const filesToAdd = files.slice(0, remainingSlots)
-    if (files.length > remainingSlots) {
-      alert(text.worker.attachmentLimitAlert)
-    }
-
     filesToAdd.forEach(file => {
       const reader = new FileReader()
       reader.onload = () => {
@@ -318,10 +291,8 @@ export default function WorkerView() {
     }
   }
 
-  const formatToLabel = (label) =>
-    (text.worker.adminMessageToLabel ? text.worker.adminMessageToLabel(label) : label)
-  const formatFromLabel = (label) =>
-    (text.worker.adminMessageFromLabel ? text.worker.adminMessageFromLabel(label) : label)
+  const formatToLabel = (label) => (text.worker.adminMessageToLabel ? text.worker.adminMessageToLabel(label) : label)
+  const formatFromLabel = (label) => (text.worker.adminMessageFromLabel ? text.worker.adminMessageFromLabel(label) : label)
 
   const getGreeting = () => {
     const hour = new Date().getHours()
@@ -354,7 +325,7 @@ export default function WorkerView() {
                     <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 0.25rem' }}>{getGreeting()}</p>
                     <h2>{worker.name}</h2>
                     <p className="worker-subtext">
-                      {text.worker.workerIdLabel}: {worker.workerId}
+                      {text.worker.workerIdLabel}: {worker.employee_id || worker.workerId}
                     </p>
                   </div>
                   <button type="button" className="worker-logout" onClick={logout}>
@@ -364,16 +335,15 @@ export default function WorkerView() {
                 <div className="worker-info-block">
                   <div className="worker-info-row">
                     <span className="worker-info-label">{text.login.accessCodeLabel}</span>
-                    <span className="worker-info-value">{worker.organizationCode}</span>
+                    <span className="worker-info-value">{worker.organizationCode || worker.employee_id}</span>
                   </div>
                   <div className="worker-info-row">
-                    <span className="worker-info-label">{text.table.headers.team}</span>
-                    <span className="worker-info-value">{worker.team}</span>
+                    <span className="worker-info-label">{text.table.headers.team || 'Team'}</span>
+                    <span className="worker-info-value">{worker.team || worker.team_id}</span>
                   </div>
                 </div>
               </section>
             </div>
-
 
             <section className="safety-ticker">
               <span className="safety-icon">⚠️</span>
@@ -382,497 +352,214 @@ export default function WorkerView() {
               </div>
             </section>
 
-            {primaryAssignment && (
-              <>
-                <section className="worker-card worker-card-actions">
-                <p className="worker-section-label">{text.worker.quickActionHint}</p>
-                <div className="worker-actions-grid">
-                  {STATUS_QUICK_ACTIONS.map((action) => {
-                    const actionLabel = quickLabels[action.status] ?? getStatusLabel(action.status)
-                    return (
-                      <button
-                        key={action.status}
-                        type="button"
-                        className={`worker-action worker-action-${action.variant}`}
-                        onClick={() => handleQuickAction(primaryAssignment.id, action)}
-                      >
-                        <span className="worker-action-icon" aria-hidden="true">
-                          {action.icon}
-                        </span>
-                        <span>{actionLabel}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </section>
-
-              <section className="worker-card worker-card-team">
-                <header>
-                  <h3>{text.worker.teamStatusTitle ?? 'チームメンバー'}</h3>
-                  <p className="worker-team-count">
-                    {text.worker.teamStatusCount
-                      ? text.worker.teamStatusCount(teamMembers.length)
-                      : `${teamMembers.length}名`}
-                  </p>
-                </header>
-                <div className="worker-team-grid">
-                  {teamMembers.length === 0 ? (
-                    <p className="worker-empty">{text.worker.teamStatusEmpty ?? 'メンバーがいません'}</p>
-                  ) : (
-                    teamMembers.map((member) => {
-                      const memberOrders = state.workOrders.filter(
-                        (o) => o.members?.includes(member.id) && o.team === worker.team
-                      )
-                      const latestOrder = memberOrders.sort(
-                        (a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0)
-                      )[0]
-                      const memberStatus = latestOrder?.status || 'unknown'
-                      const statusLabel = quickLabels[memberStatus] || getStatusLabel(memberStatus) || (text.worker.teamStatusUnknown ?? '未確認')
-                      const statusVariant = (() => {
-                        switch (memberStatus) {
-                          case 'Wakeup': return 'warning'
-                          case 'Departed': return 'primary'
-                          case 'Arrived': return 'success'
-                          case 'Finished': return 'completed'
-                          default: return 'neutral'
-                        }
-                      })()
-
-                      return (
-                        <div key={member.id} className="worker-team-member">
-                          <div className="worker-team-avatar">
-                            <span>{member.name.slice(0, 1)}</span>
-                          </div>
-                          <div className="worker-team-info">
-                            <span className="worker-team-name">
-                              {member.name}
-                            </span>
-                            <span className={`worker-team-status worker-team-status-${statusVariant}`}>
-                              {statusLabel}
-                            </span>
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-              </section>
-
-              <section className="worker-card">
-                <div className="worker-latest-wrapper">
-                  <h4>{text.worker.latestReportTitle}</h4>
-                  {latestQuickAction ? (
-                    <div
-                      className={`worker-latest-highlight worker-action-${STATUS_QUICK_ACTIONS.find(
-                        (item) => item.status === latestQuickAction.status
-                      )?.variant ?? 'primary'}`}
+            <section className="worker-card worker-card-actions">
+              <p className="worker-section-label">{text.worker.quickActionHint}</p>
+              <div className="worker-actions-grid">
+                {STATUS_QUICK_ACTIONS.map((action) => {
+                  const actionLabel = quickLabels[action.status] ?? getStatusLabel(action.status)
+                  return (
+                    <button
+                      key={action.status}
+                      type="button"
+                      className={`worker-action worker-action-${action.variant}`}
+                      onClick={() => handleQuickAction(primaryAssignment?.id || 'general', action)}
+                      disabled={clockLoading}
                     >
-                      <div className="worker-latest-icon">
-                        {STATUS_QUICK_ACTIONS.find((item) => item.status === latestQuickAction.status)?.icon ?? '✅'}
-                      </div>
-                      <div className="worker-latest-details">
-                        <p className="worker-latest-label">{latestQuickAction.label}</p>
-                        <p className="worker-latest-time">{latestQuickAction.formatted}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="worker-empty">{text.worker.latestReportEmpty}</p>
-                  )}
-                </div>
-              </section>
-              </>
-            )}
+                      <span className="worker-action-icon" aria-hidden="true">
+                        {action.icon}
+                      </span>
+                      <span>{actionLabel}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
 
-            {activityLog.length > 0 && (
-              <section className="worker-card timeline-card">
-                <h3>{text.worker.todaysActivity}</h3>
-                <div className="worker-timeline">
-                  {activityLog.map((log, i) => (
-                    <div key={i} className="timeline-item">
-                      <div className="timeline-time">{new Date(log.timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</div>
-                      <div className="timeline-dot" />
-                      <div className="timeline-text">{text.worker.activityReported(log.icon, log.label)}</div>
+            <section className="worker-card worker-card-team">
+              <header>
+                <h3>{text.worker.teamStatusTitle ?? 'チームメンバー'}</h3>
+                <p className="worker-team-count">
+                  {text.worker.teamStatusCount
+                    ? text.worker.teamStatusCount(teamAttendance.length)
+                    : `${teamAttendance.length}名`}
+                </p>
+              </header>
+              <div className="worker-team-grid">
+                {teamAttendance.length === 0 ? (
+                  <p className="worker-empty">{text.worker.teamStatusEmpty ?? 'メンバーがいません'}</p>
+                ) : (
+                  teamAttendance.map((attendee) => {
+                    if (attendee.worker_id === worker.id) return null;
+                    const memberStatus = attendee.status || 'not_reported'
+                    const statusLabel = quickLabels[memberStatus] || getStatusLabel(memberStatus) || (text.worker.teamStatusUnknown ?? '未確認')
+                    const statusVariant = (() => {
+                      switch (memberStatus) {
+                        case 'woke_up': return 'warning'
+                        case 'departed': return 'primary'
+                        case 'arrived': return 'success'
+                        case 'finished': return 'completed'
+                        default: return 'neutral'
+                      }
+                    })()
+
+                    return (
+                      <div key={attendee.worker_id} className="worker-team-member">
+                        <div className="worker-team-avatar">
+                          <span>{attendee.name.slice(0, 1)}</span>
+                        </div>
+                        <div className="worker-team-info">
+                          <span className="worker-team-name">{attendee.name}</span>
+                          <span className={`worker-team-status worker-team-status-${statusVariant}`}>
+                            {statusLabel}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </section>
+
+            <section className="worker-card">
+              <div className="worker-latest-wrapper">
+                <h4>{text.worker.latestReportTitle}</h4>
+                {latestQuickAction ? (
+                  <div className={`worker-latest-highlight worker-action-${STATUS_QUICK_ACTIONS.find(a => a.status === latestQuickAction.status)?.variant ?? 'primary'}`}>
+                    <div className="worker-latest-icon">{latestQuickAction.icon}</div>
+                    <div className="worker-latest-details">
+                      <p className="worker-latest-label">{latestQuickAction.label}</p>
+                      <p className="worker-latest-time">{latestQuickAction.formatted}</p>
                     </div>
-                  ))}
-                </div>
-              </section>
-            )}
+                  </div>
+                ) : (
+                  <p className="worker-empty">{text.worker.latestReportEmpty}</p>
+                )}
+              </div>
+            </section>
           </>
         )}
 
         {activeTab === 'calendar' && (
-          <>
-            <section className="worker-card worker-card-upcoming">
-              <header>
-                <h3>{text.worker.upcomingHeading}</h3>
-                <p className="worker-upcoming-month">
-                  {new Date(calendarData.year, calendarData.month).toLocaleString(
-                    state.language === 'ja' ? 'ja-JP' : 'en-US',
-                    { month: 'long', year: 'numeric' }
-                  )}
-                </p>
-              </header>
-              <div className="worker-calendar">
-                <div className="worker-calendar-row worker-calendar-head">
-                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((label) => (
-                    <span key={label}>{label}</span>
-                  ))}
-                </div>
-                {calendarData.weeks.map((week, index) => (
-                  <div key={String(index)} className="worker-calendar-row">
-                    {week.map((day, dayIndex) => {
-                      const key = day.toDateString()
-                      const isCurrentMonth = day.getMonth() === calendarData.month
-                      const entries = calendarData.assignmentByDate[key] ?? []
-                      const isToday = day.toDateString() === calendarData.today.toDateString()
-                      const isSelected = selectedSchedule.date && day.toDateString() === selectedSchedule.date.toDateString()
-
-                      let bubbleClass = 'bubble-center'
-                      if (dayIndex < 2) bubbleClass = 'bubble-left'
-                      if (dayIndex > 4) bubbleClass = 'bubble-right'
-
-                      return (
-                        <button
-                          type="button"
-                          key={key}
-                          className={`worker-calendar-cell ${isCurrentMonth ? '' : 'muted'} ${isToday ? 'today' : ''
-                            } ${entries.length > 0 ? 'has-event' : ''}`}
-                          onClick={() =>
-                            setSelectedSchedule({ date: new Date(day), entries })
-                          }
-                        >
-                          <span className="worker-calendar-day">{day.getDate()}</span>
-                          {entries.map((assignment) => (
-                            <span key={assignment.id} className="worker-calendar-tag">
-                              {assignment.projectName || assignment.id}
-                            </span>
-                          ))}
-                          {isSelected && (
-                            <div className={`worker-calendar-bubble ${bubbleClass}`} onClick={(e) => e.stopPropagation()}>
-                              <button
-                                className="worker-calendar-bubble-close"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setSelectedSchedule({ date: null, entries: [] })
-                                }}
-                              >
-                                ×
-                              </button>
-                              <h4>{formatDate(day)}</h4>
-                              {entries.length > 0 ? (
-                                <ul>
-                                  {entries.map((entry) => (
-                                    <li key={entry.id}>
-                                      <strong>{entry.projectName || entry.id}</strong>
-                                      <p>{entry.upcomingNotes || entry.address || entry.location}</p>
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <p className="worker-calendar-no-events">{text.worker.calendarNoEvents}</p>
-                              )}
-                            </div>
-                          )}
-                        </button>
-                      )
-                    })}
-                  </div>
-                ))}
+          <section className="worker-card worker-card-upcoming">
+            <header>
+              <h3>{text.worker.upcomingHeading}</h3>
+              <p className="worker-upcoming-month">{new Date(calendarData.year, calendarData.month).toLocaleString(state.language === 'ja' ? 'ja-JP' : 'en-US', { month: 'long', year: 'numeric' })}</p>
+            </header>
+            <div className="worker-calendar">
+              <div className="worker-calendar-row worker-calendar-head">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(l => <span key={l}>{l}</span>)}
               </div>
-            </section>
-
-            <section className="worker-card worker-card-assignments">
-              <header>
-                <h3>{text.worker.assignmentHeading}</h3>
-                <p className="worker-assignment-count">{text.worker.assignmentCount(assignments.length)}</p>
-              </header>
-              {assignments.length === 0 ? (
-                <p className="worker-empty">{text.worker.empty}</p>
-              ) : (
-                <div className="worker-assignment-grid">
-                  {assignments.map((order) => (
-                    <article key={order.id} className="worker-assignment-card">
-                      <div className="worker-assignment-info">
-                        {completedAssignments.has(order.id) ? (
-                          <p className="worker-assignment-finished">{text.worker.assignmentFinishedMessage}</p>
-                        ) : (
-                          <>
-                            <div>
-                              <span className="worker-meta-label">{text.worker.assignmentProjectLabel}:</span>
-                              <span>{order.projectName || order.id}</span>
-                            </div>
-                            <div>
-                              <span className="worker-meta-label">{text.worker.assignmentAddressLabel}:</span>
-                              <span>{order.address || order.location || text.worker.locationUnavailable}</span>
-                              {order.mapUrl && (
-                                <a
-                                  className="worker-assignment-map"
-                                  href={order.mapUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  [MAP]
-                                </a>
-                              )}
-                            </div>
-                            <div>
-                              <span className="worker-meta-label">{text.worker.assignmentDateLabel}:</span>
-                              <span>{formatDate(order.startDate)}</span>
-                            </div>
-                            <div>
-                              <span className="worker-meta-label">{text.worker.assignmentCrewLabel}:</span>
-                              <span>{formatNumber(order.crewCount)}</span>
-                            </div>
-                            <div>
-                              <span className="worker-meta-label">{text.worker.assignmentTaskLabel}:</span>
-                              <span>{order.taskDescription || order.notes || '—'}</span>
-                            </div>
-                            {order.members && order.members.length > 0 && (
-                              <div>
-                                <span className="worker-meta-label">{text.worker.assignmentMembersLabel}:</span>
-                                <span>
-                                  {order.members
-                                    .map((id) => state.workers.find((w) => w.id === id)?.name || id)
-                                    .join(', ')}
-                                </span>
-                              </div>
-                            )}
-                            {order.cautionNote && (
-                              <div>
-                                <span className="worker-meta-label">{text.worker.assignmentCautionLabel}:</span>
-                                <span>{order.cautionNote}</span>
-                              </div>
-                            )}
-                            {order.resourceUrl && (
-                              <a
-                                className="worker-assignment-download"
-                                href={order.resourceUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                {text.worker.assignmentDocsLabel}
-                              </a>
-                            )}
-                            {order.uploadUrl && (
-                              <a
-                                className="worker-assignment-upload"
-                                href={order.uploadUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                {text.worker.assignmentUploadLabel}
-                              </a>
-                            )}
-                          </>
-                        )}
-                      </div>
-                      {!completedAssignments.has(order.id) && (
-                        <div className="worker-assignment-actions">
-                          <button
-                            type="button"
-                            className="worker-assignment-complete"
-                            onClick={() => handleAssignmentComplete(order.id)}
-                          >
-                            {text.worker.completeAssignmentLabel}
-                          </button>
-                        </div>
-                      )}
-                    </article>
-                  ))}
+              {calendarData.weeks.map((week, idx) => (
+                <div key={idx} className="worker-calendar-row">
+                  {week.map(day => {
+                    const key = day.toDateString()
+                    const entries = calendarData.assignmentByDate[key] ?? []
+                    const isToday = day.toDateString() === calendarData.today.toDateString()
+                    return (
+                      <button key={key} type="button" className={`worker-calendar-cell ${day.getMonth() === calendarData.month ? '' : 'muted'} ${isToday ? 'today' : ''} ${entries.length > 0 ? 'has-event' : ''}`} onClick={() => setSelectedSchedule({ date: new Date(day), entries })}>
+                        <span className="worker-calendar-day">{day.getDate()}</span>
+                        {entries.map(a => <span key={a.id} className="worker-calendar-tag">{a.projectName || a.id}</span>)}
+                      </button>
+                    )
+                  })}
                 </div>
-              )}
-            </section>
-          </>
+              ))}
+            </div>
+          </section>
         )}
 
         {activeTab === 'report' && (
-          <>
-            <div className="worker-report-container">
-              <section className="worker-card worker-card-message">
-                <header>
-                  <h3>{text.worker.adminMessageTitle}</h3>
-                </header>
-                <form className="worker-message-form" onSubmit={handleAdminMessageSubmit}>
-                  <div className="worker-form-row-side">
-                    <label>
-                      {text.worker.adminMessageRecipientLabel}
-                      <select
-                        value={adminMessageRecipient}
-                        onChange={(event) => setAdminMessageRecipient(event.target.value)}
-                        disabled={recipientOptions.length === 0}
-                      >
-                        {recipientOptions.length === 0 ? (
-                          <option value="">{text.worker.adminMessageNoRecipients ?? '宛先がありません'}</option>
-                        ) : (
-                          recipientOptions.map((recipient) => (
-                            <option key={recipient.value} value={recipient.value}>
-                              {recipient.label}
-                            </option>
-                          ))
-                        )}
-                      </select>
-                    </label>
-                  </div>
-                  <textarea
-                    rows={2}
-                    value={adminMessage}
-                    placeholder={text.worker.adminMessagePlaceholder}
-                    ref={messageTextareaRef}
-                    onChange={handleAdminMessageChange}
-                  />
-                  <div className="worker-message-actions">
-                    <div className="worker-attach-list">
-                      <label className="worker-message-attach">
-                        <input
-                          type="file"
-                          multiple
-                          ref={fileInputRef}
-                          onChange={handleMessageFileChange}
-                          style={{ display: 'none' }}
-                          disabled={messageAttachments.length >= 8}
-                        />
-                        <span role="img" aria-label="attach">📎</span>
-                        <span>{text.worker.attachFile ?? '添付'}</span>
-                      </label>
-                      {messageAttachments.length > 0 && (
-                        <div className="worker-attachment-previews">
-                          {messageAttachments.map((file, index) => (
-                            <div key={index} className="worker-attachment-tag">
-                              <span className="worker-tag-text">{file.name}</span>
-                              <button type="button" onClick={() => removeAttachment(index)}>×</button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <button type="submit" className="worker-message-send">{text.worker.adminMessageButton}</button>
-                  </div>
-                </form>
-
-                <div className="worker-message-box">
-                  <div className="worker-message-tabs">
-                    <button
-                      type="button"
-                      className={messageView === 'sent' ? 'active' : ''}
-                      onClick={() => setMessageView('sent')}
-                    >
-                      {messageSentLabel}
-                    </button>
-                    <button
-                      type="button"
-                      className={messageView === 'received' ? 'active' : ''}
-                      onClick={() => setMessageView('received')}
-                    >
-                      {messageReceivedLabel}
-                    </button>
-                  </div>
-                  <div className="worker-message-log">
-                    <ul>
-                      {(messageView === 'sent' ? adminMessageLog : incomingMessages).map((entry, index) => (
-                        <li key={entry.id ?? `${entry.timestamp}-${index}-${messageView}`}>
-                          <div className="worker-log-meta">
-                            <span className="worker-log-time">{formatDate(entry.timestamp)}</span>
-                            <span className="worker-log-sender">
-                              {messageView === 'sent'
-                                ? formatToLabel(recipientLabelLookup[entry.recipient] ?? entry.recipient)
-                                : formatFromLabel(entry.sender)}
-                            </span>
-                          </div>
-                          <p className="worker-log-text">{entry.message}</p>
-                          {entry.attachments && entry.attachments.length > 0 && (
-                            <div className="worker-log-attachments">
-                              {entry.attachments.map((att, i) => (
-                                <div key={i} className="worker-log-att-item">
-                                  {att.type.startsWith('image/') ? (
-                                    <img src={att.data} alt={att.name} />
-                                  ) : (
-                                    <a href={att.data} download={att.name}>📎 {att.name.slice(0, 10)}...</a>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                      {(messageView === 'sent' ? adminMessageLog : incomingMessages).length === 0 && (
-                        <li className="worker-empty-log">{messageEmptyLabel}</li>
-                      )}
-                    </ul>
-                  </div>
+          <div className="worker-report-container">
+            <section className="worker-card">
+              <h3>{text.worker.reportTitle}</h3>
+              <div className="worker-report-form">
+                <div className="worker-form-group">
+                  <label>{text.worker.statusLabel}</label>
+                  <select 
+                    value={reportForm.status} 
+                    onChange={(e) => handleReportChange('status', e.target.value)}
+                  >
+                    <option value="">{text.worker.selectStatus || '-- 選択してください --'}</option>
+                    {STATUS_QUICK_ACTIONS.map(a => (
+                      <option key={a.status} value={a.status}>
+                        {quickLabels[a.status] || getStatusLabel(a.status)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </section>
-
-              {primaryAssignment && (
-                <section className="worker-card worker-photo-report">
-                  <h4>📸 {text.worker.photoReportHeading}</h4>
-                  <div className="worker-photo-controls">
-                    <label className="worker-photo-label" htmlFor="photo-upload">
-                      <input id="photo-upload" type="file" accept="image/*" capture="camera" onChange={handleReportPhotoChange} style={{ display: 'none' }} />
-                      <div className="worker-photo-preview-box">
-                        {reportPhoto ? <img src={reportPhoto} alt="Preview" /> : <span>{text.worker.photoReportPrompt}</span>}
-                      </div>
-                    </label>
-                    {reportPhoto && (
-                      <button type="button" className="worker-message-send" onClick={handleReportSubmit}>
-                        {text.worker.photoReportSubmit}
-                      </button>
-                    )}
-                  </div>
-                </section>
-              )}
-
-              <section className="worker-card worker-card-daily-report">
-                <header>
-                  <h3>{text.worker.dailyReportTitle ?? '日報'}</h3>
-                </header>
-                <div className="worker-report-form">
+                <div className="worker-form-group">
+                  <label>{text.worker.reportNoteLabel}</label>
                   <textarea
-                    rows={4}
                     value={reportForm.note}
                     onChange={(e) => handleReportChange('note', e.target.value)}
-                    placeholder={text.worker.dailyReportPlaceholder ?? '本日の作業内容を記入してください。'}
+                    placeholder={text.worker.reportNotePlaceholder}
                   />
-                  <div className="worker-report-actions">
-                    <button
-                      type="button"
-                      className="worker-assignment-complete"
-                      onClick={handleReportSubmit}
-                      disabled={!reportForm.note}
-                    >
-                      {text.worker.dailyReportSubmit ?? '日報を提出'}
-                    </button>
+                </div>
+                <div className="worker-form-group">
+                  <label>{text.worker.reportPhotoLabel}</label>
+                  <div className="worker-photo-upload">
+                    <input type="file" accept="image/*" onChange={(e) => {
+                      const file = e.target.files[0]
+                      if (file) {
+                        const reader = new FileReader()
+                        reader.onload = () => setReportPhoto(reader.result)
+                        reader.readAsDataURL(file)
+                      }
+                    }} />
+                    {reportPhoto && <img src={reportPhoto} alt="Upload preview" className="worker-photo-preview" />}
                   </div>
                 </div>
-              </section>
-            </div>
-          </>
+                <button 
+                  type="button" 
+                  className="worker-button" 
+                  onClick={handleReportSubmit}
+                  disabled={!primaryAssignment}
+                >
+                  {text.worker.reportSubmitButton}
+                </button>
+                {!primaryAssignment && <p className="worker-error-text">{text.worker.locationUnavailable}</p>}
+              </div>
+            </section>
+
+            <section className="worker-card worker-card-message">
+              <h3>{text.worker.adminMessageTitle}</h3>
+              <form className="worker-message-form" onSubmit={handleAdminMessageSubmit}>
+                 <select value={adminMessageRecipient} onChange={(e) => setAdminMessageRecipient(e.target.value)}>
+                   {recipientOptions.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                 </select>
+                <textarea value={adminMessage} onChange={handleAdminMessageChange} placeholder={text.worker.adminMessagePlaceholder} />
+                <button type="submit" className="worker-message-send">{text.worker.adminMessageButton}</button>
+              </form>
+              <div className="worker-message-box">
+                <div className="worker-message-tabs">
+                  <button type="button" className={messageView === 'received' ? 'active' : ''} onClick={() => setMessageView('received')}>{messageReceivedLabel}</button>
+                  <button type="button" className={messageView === 'sent' ? 'active' : ''} onClick={() => setMessageView('sent')}>{messageSentLabel}</button>
+                </div>
+                <div className="worker-message-log">
+                  <ul>
+                    {((messageView === 'received' ? incomingMessages : adminMessageLog) || []).map((entry, idx) => (
+                      <li key={entry.id || idx}>
+                        <div className="worker-log-meta">
+                          <span className="worker-log-time">{formatDate(entry.timestamp)}</span>
+                          <span>{messageView === 'received' ? entry.sender : (recipientLabelLookup[entry.recipient] || entry.recipient)}</span>
+                        </div>
+                        <p>{entry.message || entry.content}</p>
+                      </li>
+                    ))}
+                    {((messageView === 'received' ? incomingMessages : adminMessageLog) || []).length === 0 && (
+                      <p className="worker-empty">{messageEmptyLabel}</p>
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </section>
+          </div>
         )}
 
         <nav className="worker-bottom-nav">
-          <button
-            type="button"
-            className={`worker-nav-item ${activeTab === 'home' ? 'active' : ''}`}
-            onClick={() => setActiveTab('home')}
-          >
-            <span className="worker-nav-icon">🏠</span>
-            <span className="worker-nav-label">{text.worker.navHome}</span>
-          </button>
-          <button
-            type="button"
-            className={`worker-nav-item ${activeTab === 'calendar' ? 'active' : ''}`}
-            onClick={() => setActiveTab('calendar')}
-          >
-            <span className="worker-nav-icon">📅</span>
-            <span className="worker-nav-label">{text.worker.navCalendar}</span>
-          </button>
-          <button
-            type="button"
-            className={`worker-nav-item ${activeTab === 'report' ? 'active' : ''}`}
-            onClick={() => setActiveTab('report')}
-          >
-            <span className="worker-nav-icon">✉️</span>
-            <span className="worker-nav-label">{text.worker.navReport}</span>
-          </button>
+          <button type="button" className={`worker-nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}>🏠<span>{text.worker.navHome}</span></button>
+          <button type="button" className={`worker-nav-item ${activeTab === 'calendar' ? 'active' : ''}`} onClick={() => setActiveTab('calendar')}>📅<span>{text.worker.navCalendar}</span></button>
+          <button type="button" className={`worker-nav-item ${activeTab === 'report' ? 'active' : ''}`} onClick={() => setActiveTab('report')}>✉️<span>{text.worker.navReport}</span></button>
         </nav>
       </div>
     </div>

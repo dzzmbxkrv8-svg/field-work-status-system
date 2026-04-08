@@ -50,21 +50,20 @@ exports.updateStatus = async (req, res, next) => {
 
 exports.getTeamToday = async (req, res, next) => {
   try {
-    let query, params;
     if (req.user.role === 'admin') {
       query = `
-        SELECT a.*, u.name, u.employee_id, u.team_id 
-        FROM attendance a 
-        JOIN users u ON a.worker_id = u.id 
-        WHERE a.date=CURRENT_DATE
+        SELECT u.id as worker_id, u.name, u.employee_id, u.team_id, a.status, a.woke_up_at, a.departed_at, a.arrived_at, a.finished_at, a.updated_at
+        FROM users u
+        LEFT JOIN attendance a ON u.id = a.worker_id AND a.date = CURRENT_DATE
+        WHERE u.role = 'worker'
       `;
       params = [];
     } else {
       query = `
-        SELECT a.*, u.name, u.employee_id, u.team_id 
-        FROM attendance a 
-        JOIN users u ON a.worker_id = u.id 
-        WHERE a.date=CURRENT_DATE AND u.team_id=$1
+        SELECT u.id as worker_id, u.name, u.employee_id, u.team_id, a.status, a.woke_up_at, a.departed_at, a.arrived_at, a.finished_at, a.updated_at
+        FROM users u
+        LEFT JOIN attendance a ON u.id = a.worker_id AND a.date = CURRENT_DATE
+        WHERE u.role = 'worker' AND u.team_id = $1
       `;
       params = [req.user.team_id];
     }

@@ -55,7 +55,7 @@ export default function LoginDialog({
     onLanguageChange(nextLanguage)
   }
 
-  const handleWorkerSubmit = () => {
+  const handleWorkerSubmit = async () => {
     if (workerCode.trim().length === 0) {
       setError(text.login.errors.workerIdRequired)
       return
@@ -65,7 +65,7 @@ export default function LoginDialog({
       return
     }
     try {
-      onWorkerLogin({ code: workerCode, password: workerPassword })
+      await onWorkerLogin({ code: workerCode, password: workerPassword })
       setWorkerPassword('')
     } catch (exception) {
       const messageKey = exception.code ?? 'invalidWorkerCredentials'
@@ -73,7 +73,7 @@ export default function LoginDialog({
     }
   }
 
-  const handleAdminSubmit = () => {
+  const handleAdminSubmit = async () => {
     if (adminCode.trim().length === 0) {
       setError(text.login.errors.accessCodeRequired)
       return
@@ -83,7 +83,7 @@ export default function LoginDialog({
       return
     }
     try {
-      onAdminLogin({ code: adminCode, password: adminPassword })
+      await onAdminLogin({ code: adminCode, password: adminPassword })
       setAdminPassword('')
     } catch (exception) {
       const messageKey = exception.code ?? 'invalidAdmin'

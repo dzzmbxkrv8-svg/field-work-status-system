@@ -7,27 +7,28 @@ export default function AttendancePanel({ workers, orders, timeEntriesHook }) {
     const { text } = useI18n('ja')
     const [filter, setFilter] = useState('All')
 
-    const getClockStatus = timeEntriesHook?.getClockStatus
-    const getLatestEntry = timeEntriesHook?.getLatestEntry
-    const calculateWorkHours = timeEntriesHook?.calculateWorkHours
-
-    const todayStart = new Date()
-    todayStart.setHours(0, 0, 0, 0)
-    const todayEnd = new Date()
-    todayEnd.setHours(23, 59, 59, 999)
+    const { teamAttendance = [] } = timeEntriesHook || {}
 
     const statusLabels = {
-        working: '勤務中',
-        on_break: '休憩中',
-        off: '退勤済み',
+        woke_up: '起床済み',
+        departed: '出発済み',
+        arrived: '現場到着',
+        finished: '作業終了',
+        not_reported: '未報告',
     }
 
-    const filteredWorkers = workers.filter((worker) => {
+    // Combine workers with their attendance
+    const workersWithAttendance = workers.map(w => {
+        const attendance = teamAttendance.find(a => a.worker_id === w.id || a.employee_id === w.employee_id)
+        return { ...w, attendance }
+    })
+
+    const filteredWorkers = workersWithAttendance.filter((worker) => {
         if (filter === 'All') return true
         return worker.team === filter
     })
 
-    const teams = Array.from(new Set(workers.map((w) => w.team)))
+    const teams = Array.from(new Set(workers.map((w) => w.team || w.team_id)))
 
     return (
         <div className="fws-panel">
@@ -54,11 +55,18 @@ export default function AttendancePanel({ workers, orders, timeEntriesHook }) {
 
             <div className="fws-grid worker-grid">
                 {filteredWorkers.map((worker) => {
-                    const activeOrder = orders.find(
-                        (order) => order.members?.includes(worker.id) && order.status !== 'Completed'
-                    )
-                    const clockStatus = getClockStatus ? getClockStatus(worker.id) : null
-                    const badgeClass = clockStatus === 'working' ? 'active' : clockStatus === 'on_break' ? 'active' : 'idle'
+                    const attendance = worker.attendance
+                    const status = attendance?.status || 'not_reported'
+                    const badgeClass = status !== 'not_reported' ? 'active' : 'idle'
+                    const statusVariant = (() => {
+                        switch (status) {
+                          case 'woke_up': return 'warning'
+                          case 'departed': return 'primary'
+                          case 'arrived': return 'success'
+                          case 'finished': return 'completed'
+                          default: return 'neutral'
+                        }
+                    })()
 
                     return (
                         <div key={worker.id} className="fws-card worker-tile">
@@ -69,49 +77,44 @@ export default function AttendancePanel({ workers, orders, timeEntriesHook }) {
                                 </div>
                                 <div className="worker-tile-info">
                                     <h4>{worker.name}</h4>
-                                    <p>{worker.team}</p>
+                                    <p>{worker.team || `Team ${worker.team_id}`}</p>
                                 </div>
                             </div>
 
                             <div className="worker-tile-body">
                                 <div className="worker-tile-status">
-                                    <span className={`status-pill ${clockStatus === 'working' || clockStatus === 'on_break' ? 'active' : 'idle'}`}>
-                                        {clockStatus ? (statusLabels[clockStatus] || '未打刻') : (activeOrder ? activeOrder.status : 'Available')}
+                                    <span className={`status-pill ${statusVariant}`}>
+                                        {statusLabels[status] || status}
                                     </span>
                                 </div>
 
-                                {activeOrder && (
-                                    <div className="worker-tile-project">
-                                        <p className="project-label">Current Project</p>
-                                        <p className="project-title">{activeOrder.projectName}</p>
-                                    </div>
-                                )}
-
-                                {getClockStatus && (
-                                    <div className="worker-tile-project">
-                                        <p className="project-label">打刻ステータス</p>
-                                        <p className="project-title">
-                                            {statusLabels[getClockStatus(worker.id)] || '未打刻'}
-                                        </p>
-                                        {getLatestEntry && getLatestEntry(worker.id) && (
-                                            <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: '#64748b' }}>
-                                                最終打刻: {new Date(getLatestEntry(worker.id).timestamp).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
-                                            </p>
-                                        )}
-                                        {calculateWorkHours && (
-                                            <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: '#64748b' }}>
-                                                本日の勤務: {(() => {
-                                                    const h = calculateWorkHours(worker.id, todayStart, todayEnd)
-                                                    return `${h.totalHours}時間${h.totalMinutes}分`
-                                                })()}
-                                            </p>
+                                <div className="worker-tile-project">
+                                    <p className="project-label">今日のアクティビティ</p>
+                                    <div style={{ fontSize: '0.85rem', color: '#475569' }}>
+                                        {status === 'not_reported' ? (
+                                            <p>{text.worker.teamStatusUnknown ?? '報告なし'}</p>
+                                        ) : (
+                                            <ul style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0' }}>
+                                                {attendance.woke_up_at && <li>⏰ 起床: {new Date(attendance.woke_up_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</li>}
+                                                {attendance.departed_at && <li>🚗 出発: {new Date(attendance.departed_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</li>}
+                                                {attendance.arrived_at && <li>📍 到着: {new Date(attendance.arrived_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</li>}
+                                                {attendance.finished_at && <li>🏁 終了: {new Date(attendance.finished_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</li>}
+                                            </ul>
                                         )}
                                     </div>
-                                )}
+                                </div>
 
-                                {activeOrder && activeOrder.photo && (
-                                    <div className="worker-tile-photo">
-                                        <img src={activeOrder.photo} alt="Field report" />
+                                {attendance?.location_lat && (
+                                    <div className="worker-tile-project">
+                                        <p className="project-label">最終報告場所</p>
+                                        <a 
+                                            href={`https://www.google.com/maps?q=${attendance.location_lat},${attendance.location_lng}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            style={{ fontSize: '0.8rem', color: '#2563eb', textDecoration: 'underline' }}
+                                        >
+                                            MAPを表示
+                                        </a>
                                     </div>
                                 )}
                             </div>
@@ -121,4 +124,5 @@ export default function AttendancePanel({ workers, orders, timeEntriesHook }) {
             </div>
         </div>
     )
+
 }

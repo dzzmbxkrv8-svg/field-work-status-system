@@ -1,5 +1,4 @@
-/** @type {readonly string[]} Field status options shared across UI. */
-export const STATUS_OPTIONS = ['Not Started', 'Ready for Dispatch', 'In Progress', 'Delayed', 'Completed', 'Wakeup', 'Departed', 'Arrived', 'Finished']
+export const STATUS_OPTIONS = ['Not Started', 'Ready for Dispatch', 'In Progress', 'Delayed', 'Completed', 'woke_up', 'departed', 'arrived', 'finished']
 
 /** @type {readonly string[]} Priority options ordered from highest to lowest urgency. */
 export const PRIORITY_OPTIONS = ['High', 'Medium', 'Low']
@@ -9,10 +8,10 @@ export const ADMIN_ACCESS_LENGTH = 8
 
 /** Quick action presets for the worker dashboard. */
 export const STATUS_QUICK_ACTIONS = [
-  { status: 'Wakeup', icon: '⏰', variant: 'primary' },
-  { status: 'Departed', icon: '🚗', variant: 'success' },
-  { status: 'Arrived', icon: '📍', variant: 'warning' },
-  { status: 'Finished', icon: '🏁', variant: 'danger' },
+  { status: 'woke_up', icon: '⏰', variant: 'primary' },
+  { status: 'departed', icon: '🚗', variant: 'success' },
+  { status: 'arrived', icon: '📍', variant: 'warning' },
+  { status: 'finished', icon: '🏁', variant: 'danger' },
 ]
 
 /** Role tabs rendered on the admin dashboard header. */

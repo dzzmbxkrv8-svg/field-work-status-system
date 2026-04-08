@@ -1,6 +1,7 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useEffect } from 'react'
 import { useAppContext } from '@/contexts/AppContext'
 import { PRIORITY_OPTIONS, STATUS_ORDER } from '@/utils/constants'
+import * as assignmentsApi from '@/api/assignments'
 
 function summarizeWorkOrders(orders) {
   const summary = {
@@ -39,9 +40,35 @@ export function useReports() {
   const { state, dispatch } = useAppContext()
   const { workOrders, filters } = state
 
+  const fetchAssignments = useCallback(async () => {
+    if (!localStorage.getItem('token')) return;
+    const result = await assignmentsApi.getAssignments()
+    if (result.success) {
+      dispatch({ 
+        type: 'SET_WORK_ORDERS', 
+        payload: result.data.map(o => ({
+          ...o,
+          id: o.assignment_code || o.id,
+          projectName: o.title,
+          location: o.location,
+          dueDate: o.end_date || o.start_date,
+          status: o.status === 'pending' ? 'Not Started' : (o.status === 'in_progress' ? 'In Progress' : (o.status === 'completed' ? 'Completed' : 'Delayed')),
+          priority: o.priority ? o.priority.charAt(0).toUpperCase() + o.priority.slice(1) : 'Medium',
+          progress: o.status === 'completed' ? 100 : (o.status === 'in_progress' ? 50 : 0)
+        }))
+      })
+    }
+  }, [dispatch])
+
+  useEffect(() => {
+    if (state.session) {
+      fetchAssignments()
+    }
+  }, [state.session, fetchAssignments])
+
   const sortedOrders = useMemo(() => {
     return [...workOrders].sort((a, b) => {
-      const statusComparison = STATUS_ORDER[a.status] - STATUS_ORDER[b.status]
+      const statusComparison = (STATUS_ORDER[a.status] || 99) - (STATUS_ORDER[b.status] || 99)
       if (statusComparison !== 0) return statusComparison
       if (a.priority !== b.priority) {
         return PRIORITY_OPTIONS.indexOf(a.priority) - PRIORITY_OPTIONS.indexOf(b.priority)
@@ -66,67 +93,61 @@ export function useReports() {
   }, [sortedOrders, filters])
 
   const updateStatus = useCallback(
-    (orderId, status) => {
-      dispatch({
-        type: 'UPDATE_WORK_ORDER',
-        payload: { id: orderId, updates: { status, updatedAt: new Date().toISOString() } },
-      })
+    async (orderId, status) => {
+      const result = await assignmentsApi.updateAssignmentStatus(orderId, status)
+      if (result.success) {
+        fetchAssignments()
+      }
+      return result
     },
-    [dispatch]
+    [fetchAssignments]
   )
 
   const updateProgress = useCallback(
-    (orderId, progress) => {
-      dispatch({
-        type: 'UPDATE_WORK_ORDER',
-        payload: { id: orderId, updates: { progress, updatedAt: new Date().toISOString() } },
-      })
+    async (orderId, progress) => {
+      // Backend assignment doesn't have progress yet, but we'll simulate if needed or just skip
+      return { success: true }
     },
-    [dispatch]
+    []
   )
 
   const submitWorkerReport = useCallback(
-    (orderId, report) => {
-      const action = {
-        type: 'UPDATE_WORK_ORDER',
-        payload: {
-          id: orderId,
-          updates: {
-            status: report.status,
-            location: report.location,
-            notes: report.note,
-            updatedAt: report.timestamp,
-            // 現場写真（ Base64 ）があればここに追加（ WorkerView から渡す予定 ）
-            photo: report.photo || null,
-          },
-        },
-      }
-
-      if (state.online) {
-        dispatch(action)
-      } else {
-        console.log('Offline: Adding action to queue', action)
-        dispatch({ type: 'ADD_PENDING_ACTION', payload: action })
-      }
+    async (orderId, report) => {
+      const result = await updateStatus(orderId, report.status);
+      return result;
     },
-    [dispatch, state.online]
+    [updateStatus]
   )
 
   const updateOrder = useCallback(
-    (orderId, updates) => {
-      dispatch({
-        type: 'UPDATE_WORK_ORDER',
-        payload: { id: orderId, updates: { ...updates, updatedAt: new Date().toISOString() } },
-      })
+    async (orderId, updates) => {
+       // Limited update in backend for now
+       if (updates.status) {
+         return updateStatus(orderId, updates.status)
+       }
+       return { success: true }
     },
-    [dispatch]
+    [updateStatus]
   )
 
   const createOrder = useCallback(
-    (order) => {
-      dispatch({ type: 'ADD_WORK_ORDER', payload: order })
+    async (order) => {
+      if (!localStorage.getItem('token')) return { success: false, message: 'Unauthorized' };
+      const result = await assignmentsApi.createAssignment({
+        assignment_code: `FW-${Date.now().toString().slice(-4)}`,
+        title: order.projectName || order.location,
+        location: order.location,
+        team_id: order.team_id || 1, // mapping team string to id if needed
+        start_date: order.startDate,
+        end_date: order.dueDate,
+        notes: order.notes
+      })
+      if (result.success) {
+        fetchAssignments()
+      }
+      return result
     },
-    [dispatch]
+    [fetchAssignments]
   )
 
   const getAssignmentsForTeam = useCallback(
@@ -144,7 +165,7 @@ export function useReports() {
     return sortedOrders.filter((order) => {
       if (!order.startDate) return false
       const start = new Date(order.startDate)
-      return start <= today && STATUS_ORDER[order.status] <= STATUS_ORDER['Ready for Dispatch']
+      return start <= today && (STATUS_ORDER[order.status] || 0) <= STATUS_ORDER['Ready for Dispatch']
     }).length
   }, [sortedOrders])
 
@@ -173,5 +194,7 @@ export function useReports() {
     createOrder,
     updateOrder,
     getAssignmentsForTeam,
+    refresh: fetchAssignments
   }
 }
+

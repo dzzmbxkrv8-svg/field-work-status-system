@@ -12,18 +12,27 @@ function createInitialState() {
   const language = getCurrentLanguage() || 'ja'
   changeLanguage(language)
 
-  // Try to load from localStorage
   if (typeof window !== 'undefined') {
     try {
+      const token = localStorage.getItem('token')
+      const userStr = localStorage.getItem('user')
+      let validatedSession = null
+      if (token && userStr) {
+        try { validatedSession = JSON.parse(userStr) } catch (e) { validatedSession = null }
+      }
+
+      // Restore from main state storage
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
         const parsed = JSON.parse(saved)
         const allowedTabs = new Set(ROLE_TABS.map((tab) => tab.id))
         const restoredTab =
           parsed.selectedTab && allowedTabs.has(parsed.selectedTab) ? parsed.selectedTab : ROLE_TABS[0].id
+        
         return {
           language,
-          session: parsed.session || null,
+          // トークンがない場合は以前のセッション（parsed.session）があったとしても null にする
+          session: validatedSession, 
           workOrders: (parsed.workOrders && parsed.workOrders.length > 0) ? parsed.workOrders : [...seedWorkOrders],
           organizations: (parsed.organizations && parsed.organizations.length > 0) ? parsed.organizations : [...INITIAL_ORGANIZATIONS],
           workers: (parsed.workers && parsed.workers.length > 0) ? parsed.workers : [...INITIAL_WORKERS],
@@ -37,6 +46,23 @@ function createInitialState() {
           },
           online: true,
           pendingActions: parsed.pendingActions || [],
+        }
+      }
+      
+      // Fallback if validatedSession exists but main storage does not
+      if (validatedSession) {
+        return {
+          language,
+          session,
+          workOrders: [...seedWorkOrders],
+          organizations: [...INITIAL_ORGANIZATIONS],
+          workers: [...INITIAL_WORKERS],
+          timeEntries: [...seedTimeEntries],
+          auditLogs: [],
+          selectedTab: ROLE_TABS[0].id,
+          filters: { status: 'All', priority: 'All', search: '' },
+          online: true,
+          pendingActions: [],
         }
       }
     } catch (e) {
@@ -110,6 +136,12 @@ function reducer(state, action) {
       return { ...state, workOrders: [action.payload, ...state.workOrders] }
     case 'ADD_TIME_ENTRY':
       return { ...state, timeEntries: [action.payload, ...state.timeEntries] }
+    case 'SET_WORK_ORDERS':
+      return { ...state, workOrders: action.payload }
+    case 'SET_MESSAGES':
+      return { ...state, messages: action.payload }
+    case 'SET_REPORTS':
+      return { ...state, reports: action.payload }
     case 'ADD_AUDIT_LOG':
       return { ...state, auditLogs: [action.payload, ...state.auditLogs] }
     default:
@@ -181,7 +213,13 @@ export function AppProvider({ children }) {
   }, [])
 
   const login = useCallback((session) => dispatch({ type: 'SET_SESSION', payload: session }), [])
-  const logout = useCallback(() => dispatch({ type: 'SET_SESSION', payload: null }), [])
+  const logout = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+    }
+    dispatch({ type: 'SET_SESSION', payload: null })
+  }, [])
 
   const value = useMemo(
     () => ({

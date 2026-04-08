@@ -131,18 +131,21 @@ export default function AdminPanel({ orders, onCreateOrder, onAssignWorkers }) {
     setFormState((previous) => ({ ...previous, [field]: value }))
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
-    const identifier = `FW-${Math.floor(Math.random() * 9000 + 1000)}`
-    onCreateOrder({
-      id: identifier,
+    const result = await onCreateOrder({
       ...formState,
       crewCount: Number.parseInt(formState.crewCount, 10) || 0,
       progress: Number.parseInt(formState.progress, 10) || 0,
       updatedAt: new Date().toISOString(),
     })
-    setFormState(defaultFormState)
-    setIsAdding(false)
+    
+    if (result.success) {
+      setFormState(defaultFormState)
+      setIsAdding(false)
+    } else {
+      alert(result.message || 'Error creating order')
+    }
   }
 
   return (
