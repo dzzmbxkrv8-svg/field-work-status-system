@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
+const db = require('../config/db');
 
-const auth = (req, res, next) => {
+const auth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -10,6 +11,18 @@ const auth = (req, res, next) => {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_here');
     
+    // DBからユーザーの存在確認もする（is_active: trueのみ許可）
+    const { rows } = await db.query('SELECT * FROM users WHERE id = $1', [decoded.id]);
+    const user = rows[0];
+
+    if (!user) {
+      return res.status(401).json({ success: false, message: '無効なユーザーです' });
+    }
+
+    if (!user.is_active) {
+      return res.status(401).json({ success: false, message: 'アカウントが無効化されています' });
+    }
+
     req.user = decoded;
     next();
   } catch (err) {
