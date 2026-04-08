@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-// const workerController = require('../controllers/workerController');
+const requireAdmin = require('../middleware/role');
+const workerController = require('../controllers/workerController');
 
-// Define routes here, e.g., router.get('/', auth, workerController.getAll);
+router.get('/', auth, requireAdmin, workerController.getWorkers);
+router.get('/:id', auth, workerController.getWorker);
 
 module.exports = router;
