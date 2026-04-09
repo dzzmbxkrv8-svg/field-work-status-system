@@ -1,21 +1,60 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useI18n } from '@/i18n'
-import { useAppContext } from '@/contexts/AppContext'
 import { downloadBlob, escapeForCsv, formatAdminDate } from '@/utils/format'
 import WorkOrdersTable from './WorkOrdersTable'
+import { getReports } from '@/api/reports'
+import { getWorkers } from '@/api/workers'
+import { getAssignments } from '@/api/assignments'
 
-export default function ReportsPanel({ orders, workers }) {
-    const { state } = useAppContext()
+export default function ReportsPanel() {
     const { text, getStatusLabel, getPriorityLabel } = useI18n('ja')
 
     const today = new Date()
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
     const [startDate, setStartDate] = useState(monthStart.toISOString().split('T')[0])
     const [endDate, setEndDate] = useState(today.toISOString().split('T')[0])
-    const [activeTab, setActiveTab] = useState('completed')
+    const [activeTab, setActiveTab] = useState('daily_reports')
+    const [reports, setReports] = useState([])
+    const [workers, setWorkers] = useState([])
+    const [orders, setOrders] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState(null)
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true)
+            try {
+                const [reportsRes, workersRes, assignmentsRes] = await Promise.all([
+                    getReports(),
+                    getWorkers(),
+                    getAssignments()
+                ])
+
+                if (reportsRes.success) setReports(reportsRes.data || [])
+                if (workersRes.success) setWorkers(workersRes.data || [])
+                if (assignmentsRes.success) {
+                    setOrders(assignmentsRes.data.map(o => ({
+                        ...o,
+                        id: o.assignment_code || o.id,
+                        status: o.status,
+                        priority: o.priority ? o.priority.charAt(0).toUpperCase() + o.priority.slice(1) : 'Medium',
+                        progress: o.status === 'completed' ? 100 : (o.status === 'in_progress' ? 50 : 0),
+                        startDate: o.start_date,
+                        dueDate: o.end_date || o.start_date
+                    })))
+                }
+            } catch (err) {
+                console.error('Failed to fetch reports data:', err)
+                setError('データを取得できませんでした')
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchData()
+    }, [])
 
     const completedOrders = useMemo(
-        () => orders.filter((order) => order.status === 'Completed'),
+        () => orders.filter((order) => order.status?.toLowerCase() === 'completed'),
         [orders]
     )
 
@@ -25,7 +64,7 @@ export default function ReportsPanel({ orders, workers }) {
             '進捗', '開始日', '期限', 'メモ',
         ]
         const rows = orders.map((o) => [
-            o.id, o.team, o.location,
+            o.id, o.team_name || o.team, o.location,
             getStatusLabel(o.status), getPriorityLabel(o.priority),
             `${o.progress}%`, formatAdminDate(o.startDate),
             formatAdminDate(o.dueDate), o.notes || '',
@@ -37,18 +76,8 @@ export default function ReportsPanel({ orders, workers }) {
         downloadBlob(`orders-${startDate}-${endDate}.csv`, blob)
     }
 
-    const auditLogs = state.auditLogs || []
-    const sortedLogs = useMemo(
-        () => [...auditLogs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 50),
-        [auditLogs]
-    )
-
-    const actionLabels = {
-        clock_in: '出勤', clock_out: '退勤',
-        break_start: '休憩開始', break_end: '休憩終了',
-        status_update: 'ステータス更新', order_create: '案件作成',
-        order_update: '案件更新', message_send: 'メッセージ送信',
-    }
+    if (loading) return <div className="fws-panel"><p>読み込み中...</p></div>
+    if (error) return <div className="fws-panel"><p className="fws-accent">{error}</p></div>
 
     return (
         <div className="fws-panel">
@@ -66,7 +95,6 @@ export default function ReportsPanel({ orders, workers }) {
                     <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
                 </label>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-
                     <button type="button" className="fws-button secondary" onClick={handleExportOrdersCsv}>
                         案件CSV出力
                     </button>
@@ -74,53 +102,44 @@ export default function ReportsPanel({ orders, workers }) {
             </div>
 
             <div className="fws-tabs-secondary" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-
+                <button
+                    className={`fws-filter-chip ${activeTab === 'daily_reports' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('daily_reports')}
+                >
+                    日報一覧
+                </button>
                 <button
                     className={`fws-filter-chip ${activeTab === 'completed' ? 'active' : ''}`}
                     onClick={() => setActiveTab('completed')}
                 >
                     {text.reports?.completedOrders ?? '完了済み案件'}
                 </button>
-                <button
-                    className={`fws-filter-chip ${activeTab === 'audit' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('audit')}
-                >
-                    監査ログ
-                </button>
             </div>
 
-            {activeTab === 'completed' && (
+            {activeTab === 'daily_reports' && (
                 <div className="fws-card">
-                    <WorkOrdersTable orders={completedOrders} readOnly />
-                </div>
-            )}
-
-            {activeTab === 'audit' && (
-                <div className="fws-card">
-                    {sortedLogs.length === 0 ? (
-                        <p className="fws-empty">監査ログはまだありません。</p>
+                    {reports.length === 0 ? (
+                        <p className="fws-empty">日報はまだありません。</p>
                     ) : (
                         <div className="fws-table-wrapper">
                             <table className="fws-table">
                                 <thead>
                                     <tr>
-                                        <th>日時</th>
-                                        <th>ユーザー</th>
-                                        <th>操作</th>
-                                        <th>対象</th>
+                                        <th>提出日時</th>
+                                        <th>作業員名</th>
+                                        <th>内容</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {sortedLogs.map((log) => {
-                                        const worker = (workers || []).find((w) => w.id === log.userId)
+                                    {reports.map((report) => {
+                                        const worker = workers.find(w => w.id === report.worker_id)
                                         return (
-                                            <tr key={log.id}>
-                                                <td data-label="日時">
-                                                    {new Date(log.timestamp).toLocaleString('ja-JP')}
+                                            <tr key={report.id}>
+                                                <td data-label="提出日時">{new Date(report.created_at).toLocaleString('ja-JP')}</td>
+                                                <td data-label="作業員名">{worker?.name || `ID: ${report.worker_id}`}</td>
+                                                <td data-label="内容" style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {report.content}
                                                 </td>
-                                                <td data-label="ユーザー">{worker?.name ?? log.userId}</td>
-                                                <td data-label="操作">{actionLabels[log.action] ?? log.action}</td>
-                                                <td data-label="対象">{log.targetId}</td>
                                             </tr>
                                         )
                                     })}
@@ -128,6 +147,12 @@ export default function ReportsPanel({ orders, workers }) {
                             </table>
                         </div>
                     )}
+                </div>
+            )}
+
+            {activeTab === 'completed' && (
+                <div className="fws-card">
+                    <WorkOrdersTable orders={completedOrders} readOnly />
                 </div>
             )}
         </div>

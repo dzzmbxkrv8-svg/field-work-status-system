@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS attendance (
   worker_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   date DATE NOT NULL DEFAULT CURRENT_DATE,
   status VARCHAR(20) NOT NULL DEFAULT 'not_reported'
-    CHECK (status IN ('woke_up', 'departed', 'arrived', 'finished', 'not_reported')),
+    CHECK (status IN ('woke_up', 'departed', 'arrived', 'finished', 'not_reported', 'clock_in', 'clock_out', 'break_start', 'break_end')),
   woke_up_at TIMESTAMP,
   departed_at TIMESTAMP,
   arrived_at TIMESTAMP,

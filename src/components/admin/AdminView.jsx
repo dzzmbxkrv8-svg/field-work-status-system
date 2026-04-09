@@ -128,17 +128,13 @@ export default function AdminView() {
         </section>
       )}
 
-      {selectedTab === 'overview' && (
-        <OverviewPanel summary={summary} outstandingStarts={outstandingStarts} topPriorityOrders={topPriorityOrders} />
-      )}
-      {selectedTab === 'monitoring' && (
-        <AttendancePanel workers={workers} orders={sortedOrders} timeEntriesHook={timeEntriesHook} />
-      )}
+      {selectedTab === 'overview' && <OverviewPanel />}
+      {selectedTab === 'monitoring' && <AttendancePanel />}
       {selectedTab === 'orders' && (
-        <AdminPanel orders={filteredOrders} onCreateOrder={createOrder} onAssignWorkers={handleAssignWorkers} />
+        <AdminPanel onAssignWorkers={handleAssignWorkers} />
       )}
-      {selectedTab === 'messages' && <MessagePanel workers={workers} />}
-      {selectedTab === 'reports' && <ReportsPanel orders={sortedOrders} workers={workers} />}
+      {selectedTab === 'messages' && <MessagePanel />}
+      {selectedTab === 'reports' && <ReportsPanel />}
 
       {assigningOrder && (
         <WorkerAssignmentDialog

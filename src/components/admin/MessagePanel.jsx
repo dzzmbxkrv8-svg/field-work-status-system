@@ -1,15 +1,36 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useI18n } from '@/i18n'
 import { useAppContext } from '@/contexts/AppContext'
 import { useMessages } from '@/hooks/useMessages'
+import { getWorkers } from '@/api/workers'
 
-export default function MessagePanel({ workers }) {
+export default function MessagePanel() {
     const { state } = useAppContext()
     const { text, formatDate } = useI18n('ja')
-    const { messages: apiMessages, send: sendMessageApi, loading } = useMessages()
+    const { messages: apiMessages, send: sendMessageApi, loading: messagesLoading } = useMessages()
+    const [workers, setWorkers] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState(null)
     const [recipient, setRecipient] = useState('')
     const [message, setMessage] = useState('')
     const [activeTab, setActiveTab] = useState('received')
+
+    useEffect(() => {
+        const fetchWorkers = async () => {
+            try {
+                const result = await getWorkers()
+                if (result.success) {
+                    setWorkers(result.data || [])
+                }
+            } catch (err) {
+                console.error('Failed to fetch workers for messaging:', err)
+                setError('データを取得できませんでした')
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchWorkers()
+    }, [])
 
     const handleSend = async (e) => {
         e.preventDefault()
@@ -43,6 +64,9 @@ export default function MessagePanel({ workers }) {
 
     const displayedMessages = messages.filter(m => m.type === activeTab)
 
+    if (loading || messagesLoading) return <div className="fws-panel"><p>読み込み中...</p></div>
+    if (error) return <div className="fws-panel"><p className="fws-accent">{error}</p></div>
+
     return (
         <div className="fws-panel">
             <div className="fws-panel-header" style={{ marginBottom: '1rem' }}>
@@ -58,7 +82,7 @@ export default function MessagePanel({ workers }) {
                             <option value="all">全作業員</option>
                             {workers.map((worker) => (
                                 <option key={worker.id} value={worker.id}>
-                                    {worker.name} ({worker.team || `Team ${worker.team_id}`})
+                                    {worker.name} ({worker.team_name || worker.team || `Team ${worker.team_id}`})
                                 </option>
                             ))}
                         </select>
@@ -73,7 +97,7 @@ export default function MessagePanel({ workers }) {
                         />
                     </label>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                        <button type="submit" className="fws-button primary" disabled={loading}>
+                        <button type="submit" className="fws-button primary" disabled={messagesLoading}>
                             {text.worker.adminMessageButton}
                         </button>
                     </div>

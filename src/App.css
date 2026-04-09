@@ -3096,3 +3096,267 @@ textarea:focus {
   background: #f8fafc;
   color: #94a3b8;
 }
+
+.worker-team-status-working {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+/* Clock Card Styles */
+.worker-card-clock {
+  background: #ffffff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.worker-card-clock header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.worker-clock-status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.worker-clock-status-badge.working {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.worker-clock-status-badge.break {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.worker-clock-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 0.5rem 0;
+}
+
+.worker-clock-timer-group {
+  text-align: center;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 1rem;
+}
+
+.worker-clock-label {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+}
+
+.worker-clock-timer {
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.worker-clock-main-action {
+  display: flex;
+  justify-content: center;
+}
+
+.worker-clock-button {
+  width: 100%;
+  padding: 1rem;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 1.1rem;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  transition: transform 0.1s, background 0.2s;
+}
+
+.worker-clock-button:active {
+  transform: scale(0.98);
+}
+
+.worker-clock-button.primary {
+  background: #2563eb;
+  color: white;
+  box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.39);
+}
+
+.worker-clock-button.secondary {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.worker-clock-btn-icon {
+  font-size: 1.25rem;
+}
+
+.worker-clock-history {
+  margin-top: 0.5rem;
+}
+
+.worker-clock-history-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.worker-clock-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.worker-clock-history-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #475569;
+  padding: 0.25rem 0;
+}
+
+.worker-empty-mini {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* Assignment Card Details */
+.worker-info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.worker-map-link {
+  color: #ef4444;
+  font-weight: 700;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.worker-assignment-links {
+  display: flex;
+  gap: 1.25rem;
+  margin-top: 0.75rem;
+}
+
+.worker-assignment-link {
+  color: #2563eb;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Report Tab Styles */
+.worker-message-tabs-pill {
+  display: flex;
+  gap: 0.5rem;
+  background: #f1f5f9;
+  padding: 0.35rem;
+  border-radius: 999px;
+  margin-bottom: 1.25rem;
+}
+
+.worker-message-tabs-pill button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0.5rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.worker-message-tabs-pill button.active {
+  background: #2563eb;
+  color: white;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+}
+
+.worker-message-textarea-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.worker-message-send-btn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.worker-message-log-simple ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.worker-message-log-simple li {
+  background: #ffffff;
+  padding: 0.85rem 1rem;
+  border-radius: 16px;
+  border: 1px solid #f1f5f9;
+}
+
+.worker-message-log-simple li p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #1e293b;
+}
+
+.worker-photo-preview-box-large {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #f1f5f9;
+  border: 2px dashed #cbd5e1;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.worker-photo-preview-box-large img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.worker-report-form-simple textarea {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 1rem;
+  font-size: 0.95rem;
+  resize: vertical;
+}

@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useI18n } from '@/i18n'
+import { useAppContext } from '@/contexts/AppContext'
 import { defaultFormState, PRIORITY_OPTIONS, STATUS_OPTIONS } from '@/utils/constants'
 import { downloadBlob, escapeForCsv, formatAdminDate } from '@/utils/format'
 import AdminActivityFeed from './AdminActivityFeed'
 import WorkOrdersTable from './WorkOrdersTable'
+import { getAssignments, createAssignment, updateAssignmentStatus } from '@/api/assignments'
 
 function escapeHtml(value) {
   if (value === null || value === undefined) return ''
@@ -14,10 +16,68 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;')
 }
 
-export default function AdminPanel({ orders, onCreateOrder, onAssignWorkers }) {
+export default function AdminPanel({ onAssignWorkers }) {
+  const { state } = useAppContext()
+  const { filters } = state
   const { text, getStatusLabel, getPriorityLabel, getSafetyCheckLabel } = useI18n('ja')
+  const [orders, setOrders] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [formState, setFormState] = useState(defaultFormState)
   const [isAdding, setIsAdding] = useState(false)
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true)
+    try {
+      const result = await getAssignments()
+      if (result.success) {
+        setOrders(result.data.map(o => ({
+          ...o,
+          id: o.assignment_code || o.id,
+          db_id: o.id,
+          projectName: o.title,
+          location: o.location,
+          team: o.team_name || `Team ${o.team_id}`,
+          supervisor: o.supervisor_name || '—',
+          status: o.status,
+          priority: o.priority ? o.priority.charAt(0).toUpperCase() + o.priority.slice(1) : 'Medium',
+          crewCount: o.crew_count || 1,
+          startDate: o.start_date,
+          endDate: o.end_date,
+          dueDate: o.end_date || o.start_date,
+          progress: o.status === 'completed' ? 100 : (o.status === 'in_progress' ? 50 : 0),
+          updatedAt: o.updated_at || o.created_at
+        })))
+      } else {
+        setOrders([])
+      }
+    } catch (err) {
+      console.error('Failed to fetch assignments:', err)
+      setError('データを取得できませんでした')
+      setOrders([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchOrders()
+  }, [fetchOrders])
+
+  const filteredOrders = useMemo(() => {
+    const searchTerm = filters.search.trim().toLowerCase()
+    return orders.filter((order) => {
+      const matchesStatus = filters.status === 'All' || order.status === filters.status.toLowerCase()
+      const matchesPriority = filters.priority === 'All' || order.priority === filters.priority
+      const matchesSearch =
+        searchTerm.length === 0 ||
+        [order.id, order.team, order.supervisor, order.location, order.notes]
+          .join(' ')
+          .toLowerCase()
+          .includes(searchTerm)
+      return matchesStatus && matchesPriority && matchesSearch
+    })
+  }, [orders, filters])
 
   const formatDateForExport = (value) => {
     const formatted = formatAdminDate(value)
@@ -43,7 +103,7 @@ export default function AdminPanel({ orders, onCreateOrder, onAssignWorkers }) {
 
     const csvRows = [
       headers.join(','),
-      ...orders.map((order) =>
+      ...filteredOrders.map((order) =>
         [
           order.id,
           order.team,
@@ -85,7 +145,7 @@ export default function AdminPanel({ orders, onCreateOrder, onAssignWorkers }) {
       text.table.headers.updated,
     ]
 
-    const bodyRows = orders
+    const bodyRows = filteredOrders
       .map(
         (order) => `<tr>${[
           order.id,
@@ -133,20 +193,41 @@ export default function AdminPanel({ orders, onCreateOrder, onAssignWorkers }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault()
-    const result = await onCreateOrder({
-      ...formState,
-      crewCount: Number.parseInt(formState.crewCount, 10) || 0,
-      progress: Number.parseInt(formState.progress, 10) || 0,
-      updatedAt: new Date().toISOString(),
+    const result = await createAssignment({
+      assignment_code: `FW-${Date.now().toString().slice(-4)}`,
+      title: formState.location, 
+      location: formState.location,
+      team_id: 1, 
+      start_date: formState.startDate,
+      end_date: formState.dueDate,
+      notes: formState.notes,
+      priority: formState.priority.toLowerCase(),
+      status: formState.status.toLowerCase()
     })
     
     if (result.success) {
       setFormState(defaultFormState)
       setIsAdding(false)
+      fetchOrders()
     } else {
       alert(result.message || 'Error creating order')
     }
   }
+
+  const handleStatusChange = async (orderId, newStatus) => {
+    const order = orders.find(o => o.id === orderId)
+    if (!order) return
+    
+    const result = await updateAssignmentStatus(order.db_id, newStatus.toLowerCase())
+    if (result.success) {
+      fetchOrders()
+    } else {
+      alert(result.message || 'Error updating status')
+    }
+  }
+
+  if (loading && orders.length === 0) return <div className="fws-panel"><p>読み込み中...</p></div>
+  if (error && orders.length === 0) return <div className="fws-panel"><p className="fws-accent">{error}</p></div>
 
   return (
     <section className="fws-panel">
@@ -168,7 +249,7 @@ export default function AdminPanel({ orders, onCreateOrder, onAssignWorkers }) {
         </div>
       </header>
 
-      <AdminActivityFeed orders={orders} />
+      <AdminActivityFeed orders={filteredOrders} />
 
       {isAdding && (
         <form className="fws-form" onSubmit={handleSubmit}>
@@ -259,9 +340,8 @@ export default function AdminPanel({ orders, onCreateOrder, onAssignWorkers }) {
       )}
 
       <WorkOrdersTable
-        orders={orders}
-        readOnly
-        onStatusChange={() => { }}
+        orders={filteredOrders}
+        onStatusChange={handleStatusChange}
         onProgressChange={() => { }}
         onAssignWorkers={onAssignWorkers}
       />

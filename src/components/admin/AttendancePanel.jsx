@@ -1,34 +1,83 @@
 import { useI18n } from '@/i18n'
+import { useState, useEffect, useMemo } from 'react'
 import { useAppContext } from '@/contexts/AppContext'
-import { useState } from 'react'
+import { getWorkers } from '@/api/workers'
+import { getTeamTodayAttendance } from '@/api/attendance'
 
-export default function AttendancePanel({ workers, orders, timeEntriesHook }) {
+export default function AttendancePanel() {
     const { state } = useAppContext()
+    const { filters } = state
     const { text } = useI18n('ja')
-    const [filter, setFilter] = useState('All')
-
-    const { teamAttendance = [] } = timeEntriesHook || {}
+    const [workers, setWorkers] = useState([])
+    const [teamAttendance, setTeamAttendance] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState(null)
+    const [teamFilter, setTeamFilter] = useState('All')
 
     const statusLabels = {
+        not_reported: '未報告',
         woke_up: '起床済み',
         departed: '出発済み',
         arrived: '現場到着',
-        finished: '作業終了',
-        not_reported: '未報告',
+        finished: '作業終了'
     }
 
-    // Combine workers with their attendance
-    const workersWithAttendance = workers.map(w => {
-        const attendance = teamAttendance.find(a => a.worker_id === w.id || a.employee_id === w.employee_id)
-        return { ...w, attendance }
-    })
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true)
+            try {
+                const [workersRes, attendanceRes] = await Promise.all([
+                    getWorkers(),
+                    getTeamTodayAttendance()
+                ])
 
-    const filteredWorkers = workersWithAttendance.filter((worker) => {
-        if (filter === 'All') return true
-        return worker.team === filter
-    })
+                if (workersRes.success) {
+                    setWorkers(workersRes.data || [])
+                }
+                if (attendanceRes.success) {
+                    setTeamAttendance(attendanceRes.data || [])
+                }
+            } catch (err) {
+                console.error('Failed to fetch attendance data:', err)
+                setError('データを取得できませんでした')
+                setWorkers([])
+                setTeamAttendance([])
+            } finally {
+                setLoading(false)
+            }
+        }
 
-    const teams = Array.from(new Set(workers.map((w) => w.team || w.team_id)))
+        fetchData()
+    }, [])
+
+    const workersWithAttendance = useMemo(() => {
+        return workers.map(w => {
+            const attendance = teamAttendance.find(a => a.worker_id === w.id || a.employee_id === w.employee_id)
+            return { ...w, attendance }
+        })
+    }, [workers, teamAttendance])
+
+    const filteredWorkers = useMemo(() => {
+        const searchTerm = filters.search.trim().toLowerCase()
+        return workersWithAttendance.filter((worker) => {
+            const teamVal = worker.team_name || worker.team || `Team ${worker.team_id}`
+            const matchesTeamChip = teamFilter === 'All' || teamVal === teamFilter
+            
+            const matchesSearch =
+              searchTerm.length === 0 ||
+              [worker.name, teamVal, worker.employee_id]
+                .join(' ')
+                .toLowerCase()
+                .includes(searchTerm)
+                
+            return matchesTeamChip && matchesSearch
+        })
+    }, [workersWithAttendance, teamFilter, filters.search])
+
+    const teams = Array.from(new Set(workers.map((w) => w.team_name || w.team || `Team ${w.team_id}`)))
+
+    if (loading) return <div className="fws-panel"><p>読み込み中...</p></div>
+    if (error) return <div className="fws-panel"><p className="fws-accent">{error}</p></div>
 
     return (
         <div className="fws-panel">
@@ -36,16 +85,16 @@ export default function AttendancePanel({ workers, orders, timeEntriesHook }) {
                 <h2>{text.tabs.monitoring}</h2>
                 <div className="fws-filter-group">
                     <button
-                        className={`fws-filter-chip ${filter === 'All' ? 'active' : ''}`}
-                        onClick={() => setFilter('All')}
+                        className={`fws-filter-chip ${teamFilter === 'All' ? 'active' : ''}`}
+                        onClick={() => setTeamFilter('All')}
                     >
                         All Teams
                     </button>
                     {teams.map((team) => (
                         <button
                             key={team}
-                            className={`fws-filter-chip ${filter === team ? 'active' : ''}`}
-                            onClick={() => setFilter(team)}
+                            className={`fws-filter-chip ${teamFilter === team ? 'active' : ''}`}
+                            onClick={() => setTeamFilter(team)}
                         >
                             {team}
                         </button>
@@ -54,7 +103,9 @@ export default function AttendancePanel({ workers, orders, timeEntriesHook }) {
             </div>
 
             <div className="fws-grid worker-grid">
-                {filteredWorkers.map((worker) => {
+                {filteredWorkers.length === 0 ? (
+                   <p className="fws-empty-state" style={{ gridColumn: '1/-1', textAlign: 'center', margin: '2rem 0' }}>作業員が見つかりません</p>
+                ) : filteredWorkers.map((worker) => {
                     const attendance = worker.attendance
                     const status = attendance?.status || 'not_reported'
                     const badgeClass = status !== 'not_reported' ? 'active' : 'idle'
@@ -124,5 +175,4 @@ export default function AttendancePanel({ workers, orders, timeEntriesHook }) {
             </div>
         </div>
     )
-
 }
