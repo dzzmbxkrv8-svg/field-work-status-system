@@ -14,3 +14,12 @@ services:
         sync: false
       - key: JWT_EXPIRES_IN
         value: 24h
+
+  - type: static
+    name: field-work-app
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
