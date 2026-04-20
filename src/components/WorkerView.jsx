@@ -10,7 +10,7 @@ import { STATUS_QUICK_ACTIONS } from '@/utils/constants'
 export default function WorkerView() {
   const { state, logout } = useAppContext()
   const { sortedOrders: assignments } = useReports()
-  const { todayAttendance, updateStatus: updateAttendance, loading: attendanceLoading, refreshToday } = useTimeEntries()
+  const { todayAttendance, updateStatus: updateAttendance, refreshToday } = useTimeEntries()
   const { messages: apiMessages, send: sendMessageApi } = useMessages()
   const { submitReport: submitDailyReport } = useDailyReports()
   const { text, formatDate, getStatusLabel } = useI18n(state.language)
@@ -53,14 +53,6 @@ export default function WorkerView() {
     return [...organizationRecipients, ...workerRecipients]
   }, [state.organizations, state.workers, text.login.adminCompanyLabel])
 
-  const recipientLabelLookup = useMemo(
-    () =>
-      recipientOptions.reduce((acc, option) => {
-        acc[option.value] = option.label
-        return acc
-      }, {}),
-    [recipientOptions]
-  )
 
   useEffect(() => {
     if (recipientOptions.length === 0) {
@@ -128,9 +120,6 @@ export default function WorkerView() {
   }, [state.language, formatDate])
 
 
-  if (!worker) {
-    return null
-  }
 
   const primaryAssignment = assignments[0]
   
@@ -264,6 +253,10 @@ export default function WorkerView() {
     if (hour < 11) return text.worker.greetingMorning
     if (hour < 17) return text.worker.greetingAfternoon
     return text.worker.greetingEvening
+  }
+
+  if (!worker) {
+    return null
   }
 
   return (
@@ -401,17 +394,11 @@ export default function WorkerView() {
               </div>
               {calendarData.weeks.map((week, idx) => (
                 <div key={idx} className="worker-calendar-row">
-                  {week.map((day, dayIndex) => {
+                  {week.map((day) => {
                     const key = day.toDateString()
                     const isCurrentMonth = day.getMonth() === calendarData.month
                     const entries = calendarData.assignmentByDate[key] ?? []
                     const isToday = day.toDateString() === calendarData.today.toDateString()
-                    const isSelected = selectedSchedule.date && day.toDateString() === selectedSchedule.date.toDateString()
-
-                    let bubbleClass = 'bubble-center'
-                    if (dayIndex < 2) bubbleClass = 'bubble-left'
-                    if (dayIndex > 4) bubbleClass = 'bubble-right'
-
                     return (
                       <button
                         type="button"
@@ -496,11 +483,6 @@ export default function WorkerView() {
               ) : (
                 <div className="worker-assignment-grid">
                   {assignments.map((order) => {
-                    const statusLabel = order.raw_status === 'pending' ? '未着手' : 
-                                       order.raw_status === 'in_progress' ? '進行中' : 
-                                       order.raw_status === 'completed' ? '完了' : 
-                                       order.raw_status === 'cancelled' ? 'キャンセル' : order.status
-                    
                     return (
                       <article key={order.id} className="worker-assignment-card">
                         <div className="worker-assignment-info">
