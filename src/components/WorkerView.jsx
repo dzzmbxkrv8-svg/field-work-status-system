@@ -16,16 +16,13 @@ export default function WorkerView() {
   const { text, formatDate, getStatusLabel } = useI18n(state.language)
   
   const [clockLoading, setClockLoading] = useState(false)
-  const [reportForm, setReportForm] = useState({ status: '', assignment_id: '', location: '', note: '' })
-  const [avatarPreview, setAvatarPreview] = useState(null)
+  const [reportForm, setReportForm] = useState({ assignment_id: '', note: '' })
+  const [avatarPreview] = useState(null)
   const [reportPhotos, setReportPhotos] = useState([])
   const [completedAssignments, setCompletedAssignments] = useState(() => new Set())
   const [adminMessage, setAdminMessage] = useState('')
-  const [adminMessageLog, setAdminMessageLog] = useState([])
   const [adminMessageRecipient, setAdminMessageRecipient] = useState('')
-  const [messageAttachments, setMessageAttachments] = useState([])
   const messageTextareaRef = useRef(null)
-  const fileInputRef = useRef(null)
   const [selectedSchedule, setSelectedSchedule] = useState({ date: null, entries: [] })
   const [activeTab, setActiveTab] = useState('home')
   const [messageView, setMessageView] = useState('received')
@@ -166,7 +163,7 @@ export default function WorkerView() {
     } else {
       alert(result.message || 'Error submitting report')
     }
-  }, [primaryAssignment, reportForm.note, reportPhotos, submitDailyReport, text.worker.reportSubmittedSuccess])
+  }, [primaryAssignment, reportForm.note, reportPhotos, submitDailyReport, setReportForm, setReportPhotos, text.worker.reportSubmittedSuccess])
 
   const handleQuickAction = useCallback(async (action) => {
     setClockLoading(true)
@@ -249,7 +246,7 @@ export default function WorkerView() {
     } else {
       alert(result.message || 'Error sending message')
     }
-  }, [adminMessage, adminMessageRecipient, sendMessageApi])
+  }, [adminMessage, adminMessageRecipient, sendMessageApi, setAdminMessage])
 
 
 
@@ -304,7 +301,7 @@ export default function WorkerView() {
                 </div>
                 <div className="worker-info-row">
                   <span className="worker-info-label">{text.login.accessCodeLabel}</span>
-                  <span className="worker-info-value">{worker.organizationCode}</span>
+                  <span className="worker-info-value">{worker.employee_id}</span>
                 </div>
                 <div className="worker-info-row">
                   <span className="worker-info-label">{text.table.headers.team || 'チーム'}</span>
@@ -596,11 +593,11 @@ export default function WorkerView() {
                   <button type="button" className={messageView === 'received' ? 'active' : ''} onClick={() => setMessageView('received')}>{messageReceivedLabel}</button>
                 </div>
                 <div className="worker-message-log-simple">
-                  {((messageView === 'received' ? incomingMessages : adminMessageLog) || []).length === 0 ? (
+                  {(messageView === 'received' ? incomingMessages : []).length === 0 ? (
                     <p className="worker-empty">{messageEmptyLabel}</p>
                   ) : (
                     <ul>
-                      {((messageView === 'received' ? incomingMessages : adminMessageLog) || []).map((entry, idx) => (
+                      {(messageView === 'received' ? incomingMessages : []).map((entry, idx) => (
                         <li key={entry.id || idx}>
                            <p>{entry.message || entry.content}</p>
                         </li>
