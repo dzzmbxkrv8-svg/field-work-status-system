@@ -9,17 +9,16 @@ import { STATUS_QUICK_ACTIONS } from '@/utils/constants'
 
 export default function WorkerView() {
   const { state, logout } = useAppContext()
-  const { sortedOrders: assignments, getAssignmentsForTeam } = useReports()
-  const { todayAttendance, teamAttendance, updateStatus: updateAttendance, loading: attendanceLoading } = useTimeEntries()
-  const { messages: apiMessages, send: sendMessageApi, markRead: markAsReadApi } = useMessages()
-  const { reports: dailyReports, submitReport: submitDailyReport } = useDailyReports()
-  const { text, formatDate, formatDateTime, getStatusLabel, formatNumber } = useI18n(state.language)
+  const { sortedOrders: assignments } = useReports()
+  const { todayAttendance, updateStatus: updateAttendance, loading: attendanceLoading, refreshToday } = useTimeEntries()
+  const { messages: apiMessages, send: sendMessageApi } = useMessages()
+  const { submitReport: submitDailyReport } = useDailyReports()
+  const { text, formatDate, getStatusLabel } = useI18n(state.language)
   
   const [clockLoading, setClockLoading] = useState(false)
   const [reportForm, setReportForm] = useState({ status: '', assignment_id: '', location: '', note: '' })
   const [avatarPreview, setAvatarPreview] = useState(null)
-  const [reportPhoto, setReportPhoto] = useState(null)
-  const [activityLog, setActivityLog] = useState([])
+  const [reportPhotos, setReportPhotos] = useState([])
   const [completedAssignments, setCompletedAssignments] = useState(() => new Set())
   const [adminMessage, setAdminMessage] = useState('')
   const [adminMessageLog, setAdminMessageLog] = useState([])
@@ -77,7 +76,7 @@ export default function WorkerView() {
     if (!currentExists) {
       setAdminMessageRecipient(recipientOptions[0].value)
     }
-  }, [recipientOptions, adminMessageRecipient])
+  }, [recipientOptions, adminMessageRecipient, setAdminMessageRecipient])
 
   // assignments is now from useReports() directly
   const calendarData = useMemo(() => {
@@ -142,9 +141,8 @@ export default function WorkerView() {
     if (primaryAssignment && !reportForm.assignment_id) {
       setReportForm(prev => ({ ...prev, assignment_id: String(primaryAssignment.db_id) }))
     }
-  }, [primaryAssignment, reportForm.assignment_id])
+  }, [primaryAssignment, reportForm.assignment_id, setReportForm])
 
-  const locationText = primaryAssignment?.location || text.worker.locationUnavailable
   const messageSentLabel = text.worker.adminMessageSentTab ?? 'Sent'
   const messageReceivedLabel = text.worker.adminMessageReceivedTab ?? 'Received'
   const messageEmptyLabel = text.worker.adminMessageEmpty ?? 'No messages yet.'
@@ -153,47 +151,42 @@ export default function WorkerView() {
     setReportForm((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleReportSubmit = async () => {
+  const handleReportSubmit = useCallback(async () => {
     if (!primaryAssignment) return
     const result = await submitDailyReport({
       assignment_id: primaryAssignment.id,
       note: reportForm.note,
-      photo: reportPhoto
+      photos: reportPhotos
     })
     
     if (result.success) {
       setReportForm((prev) => ({ ...prev, note: '' }))
-      setReportPhoto(null)
+      setReportPhotos([])
       alert(text.worker.reportSubmittedSuccess || 'Report submitted!')
     } else {
       alert(result.message || 'Error submitting report')
     }
-  }
+  }, [primaryAssignment, reportForm.note, reportPhotos, submitDailyReport, text.worker.reportSubmittedSuccess])
 
-  const handleQuickAction = async (orderId, action) => {
+  const handleQuickAction = useCallback(async (action) => {
     setClockLoading(true)
     const result = await updateAttendance(action.status)
-    setClockLoading(false)
-
     if (result.success) {
-      const timestamp = new Date().toISOString()
-      const actionLabel = quickLabels[action.status] ?? getStatusLabel(action.status)
-      const newAction = {
-        label: actionLabel,
-        icon: action.icon,
-        status: action.status,
-        timestamp,
-        formatted: formatActionTimestamp(timestamp),
-      }
-      setLatestQuickAction(newAction)
-      setActivityLog((prev) => [newAction, ...prev].slice(0, 5))
+      await refreshToday()
     } else {
       alert(result.message || 'Error updating status')
     }
-  }
+    setClockLoading(false)
+  }, [updateAttendance, refreshToday])
 
-  const handleAssignmentComplete = (orderId) => {
-    handleQuickAction(orderId, STATUS_QUICK_ACTIONS.find(a => a.status === 'finished') || {
+  const avatarContent = avatarPreview ? (
+    <img src={avatarPreview} alt={worker.name} />
+  ) : (
+    <span>{worker.name.slice(0, 1).toUpperCase()}</span>
+  )
+
+  const handleAssignmentComplete = useCallback((orderId) => {
+    handleQuickAction(STATUS_QUICK_ACTIONS.find(a => a.status === 'finished') || {
       status: 'finished',
       icon: '🏁',
       variant: 'danger',
@@ -210,33 +203,35 @@ export default function WorkerView() {
         return next
       })
     }, 10000)
-  }
-
-  const handleAvatarChange = (event) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => setAvatarPreview(reader.result)
-    reader.readAsDataURL(file)
-  }
+  }, [handleQuickAction])
 
   const handleReportPhotoChange = (event) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = () => {
-      setReportPhoto(reader.result)
+    const files = Array.from(event.target.files || [])
+    if (files.length === 0) return
+    
+    const currentCount = reportPhotos.length
+    const remainingSlots = 8 - currentCount
+    
+    if (remainingSlots <= 0) {
+      alert(text.worker.attachmentLimitAlert || 'Maximum 8 photos allowed')
+      return
     }
-    reader.readAsDataURL(file)
+
+    const filesToAdd = files.slice(0, remainingSlots)
+    filesToAdd.forEach(file => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        setReportPhotos(prev => [...prev, reader.result])
+      }
+      reader.readAsDataURL(file)
+    })
   }
 
-  const avatarContent = avatarPreview ? (
-    <img src={avatarPreview} alt={worker.name} />
-  ) : (
-    <span>{worker.name.slice(0, 1).toUpperCase()}</span>
-  )
+  const removeReportPhoto = (index) => {
+    setReportPhotos(prev => prev.filter((_, i) => i !== index))
+  }
 
-  const handleAdminMessageSubmit = async (event) => {
+  const handleAdminMessageSubmit = useCallback(async (event) => {
     event.preventDefault()
     if (!adminMessage.trim()) return
     if (!adminMessageRecipient) return
@@ -251,41 +246,12 @@ export default function WorkerView() {
     const result = await sendMessageApi(payload)
     if (result.success) {
       setAdminMessage('')
-      setMessageAttachments([])
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
     } else {
       alert(result.message || 'Error sending message')
     }
-  }
+  }, [adminMessage, adminMessageRecipient, sendMessageApi])
 
-  const handleMessageFileChange = (event) => {
-    const files = Array.from(event.target.files || [])
-    if (files.length === 0) return
-    const currentCount = messageAttachments.length
-    const remainingSlots = 8 - currentCount
-    if (remainingSlots <= 0) {
-      alert(text.worker.attachmentLimitAlert)
-      return
-    }
-    const filesToAdd = files.slice(0, remainingSlots)
-    filesToAdd.forEach(file => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        setMessageAttachments(prev => [...prev, {
-          name: file.name,
-          type: file.type,
-          data: reader.result
-        }])
-      }
-      reader.readAsDataURL(file)
-    })
-  }
 
-  const removeAttachment = (index) => {
-    setMessageAttachments(prev => prev.filter((_, i) => i !== index))
-  }
 
   const handleAdminMessageChange = (event) => {
     setAdminMessage(event.target.value)
@@ -295,9 +261,6 @@ export default function WorkerView() {
     }
   }
 
-  const formatToLabel = (label) => (text.worker.adminMessageToLabel ? text.worker.adminMessageToLabel(label) : label)
-  const formatFromLabel = (label) => (text.worker.adminMessageFromLabel ? text.worker.adminMessageFromLabel(label) : label)
-
   const getGreeting = () => {
     const hour = new Date().getHours()
     if (hour < 5) return text.worker.greetingNight
@@ -305,18 +268,6 @@ export default function WorkerView() {
     if (hour < 17) return text.worker.greetingAfternoon
     return text.worker.greetingEvening
   }
-
-  const clockStatus = todayAttendance?.status || 'not_reported'
-  const isWorking = clockStatus === 'working' || clockStatus === 'clock_in' || clockStatus === 'break_end'
-  const isOnBreak = clockStatus === 'on_break' || clockStatus === 'break_start'
-  
-  const getClockAction = () => {
-    if (clockStatus === 'not_reported' || clockStatus === 'clock_out') return { status: 'clock_in', label: text.worker.clockIn, icon: '🚀' }
-    if (isOnBreak) return { status: 'break_end', label: text.worker.breakEnd, icon: '▶️' }
-    return { status: 'break_start', label: text.worker.breakStart, icon: '⏸' }
-  }
-
-  const activeClock = getClockAction()
 
   return (
     <div className="worker-app-shell">
@@ -329,90 +280,35 @@ export default function WorkerView() {
                 <span>{text.worker.offlinePending(state.pendingActions.length)}</span>
               </div>
             )}
-            <div className="worker-dashboard-top">
-              <section className="worker-card worker-card-profile">
-                <div className="worker-card-header">
-                  <label className="worker-avatar editable">
-                    <input type="file" accept="image/*" onChange={handleAvatarChange} />
+            
+            <section className="worker-card worker-card-profile">
+              <div className="worker-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                  <div className="worker-avatar">
                     {avatarContent}
-                    <span className="worker-avatar-edit">{text.worker.editAvatar ?? '編集'}</span>
-                  </label>
-                  <div className="worker-card-header-info">
-                    <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 0.25rem' }}>{getGreeting()}</p>
-                    <h2>{worker.name}</h2>
-                    <p className="worker-subtext">
-                      {text.worker.workerIdLabel}: {worker.employee_id || worker.workerId}
-                    </p>
                   </div>
-                  <button type="button" className="worker-logout" onClick={logout}>
-                    {text.actions.logout}
-                  </button>
-                </div>
-                <div className="worker-info-block">
-                  <div className="worker-info-row">
-                    <span className="worker-info-label">{text.login.accessCodeLabel}</span>
-                    <span className="worker-info-value">{worker.organizationCode || worker.employee_id}</span>
-                  </div>
-                  <div className="worker-info-row">
-                    <span className="worker-info-label">{text.table.headers.team || 'Team'}</span>
-                    <span className="worker-info-value">{worker.team_name || worker.team || worker.team_id}</span>
+                  <div>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: '0' }}>{getGreeting()}</p>
+                    <h2 style={{ margin: '0', fontSize: '1.4rem' }}>{worker.name}</h2>
                   </div>
                 </div>
-              </section>
-            </div>
-
-            <section className="worker-card worker-card-clock">
-              <header>
-                <h3>{text.worker.clockHeading || '打刻'}</h3>
-                {clockStatus !== 'not_reported' && (
-                  <span className={`worker-clock-status-badge ${isOnBreak ? 'break' : 'working'}`}>
-                    {isOnBreak ? text.worker.clockStatusOnBreak : text.worker.clockStatusWorking}
-                  </span>
-                )}
-              </header>
-              <div className="worker-clock-content">
-                <div className="worker-clock-timer-group">
-                  <p className="worker-clock-label">{text.worker.todaysWorkHours}</p>
-                  <div className="worker-clock-timer">
-                    {text.worker.workHoursFormat(0, 0)}
-                  </div>
-                </div>
-                <div className="worker-clock-main-action">
-                  <button 
-                    type="button" 
-                    className="worker-clock-button primary"
-                    onClick={() => handleQuickAction('general', activeClock)}
-                    disabled={clockLoading}
-                  >
-                    <span className="worker-clock-btn-icon">{activeClock.icon}</span>
-                    {activeClock.label}
-                  </button>
-                </div>
-                {isWorking && (
-                  <div className="worker-clock-sub-actions">
-                    <button 
-                      type="button" 
-                      className="worker-clock-button secondary"
-                      onClick={() => handleQuickAction('general', { status: 'clock_out', label: text.worker.clockOut, icon: '🏁' })}
-                      disabled={clockLoading}
-                    >
-                      {text.worker.clockOut}
-                    </button>
-                  </div>
-                )}
+                <button type="button" className="worker-logout" onClick={logout}>
+                  {text.actions.logout}
+                </button>
               </div>
-              <div className="worker-clock-history">
-                <p className="worker-clock-history-label">{text.worker.todaysClockHistory}</p>
-                <div className="worker-clock-history-list">
-                  {activityLog.filter(a => a.status.includes('clock') || a.status.includes('break')).map((entry, idx) => (
-                    <div key={idx} className="worker-clock-history-item">
-                      <span className="worker-clock-history-time">{entry.formatted.split(' ')[1]}</span>
-                      <span className="worker-clock-history-action">{entry.label}</span>
-                    </div>
-                  ))}
-                  {activityLog.filter(a => a.status.includes('clock') || a.status.includes('break')).length === 0 && (
-                    <p className="worker-empty-mini">履歴はありません</p>
-                  )}
+              
+              <div className="worker-info-block">
+                <div className="worker-info-row">
+                  <span className="worker-info-label">{text.worker.workerIdLabel}</span>
+                  <span className="worker-info-value">{worker.employee_id || worker.workerId}</span>
+                </div>
+                <div className="worker-info-row">
+                  <span className="worker-info-label">{text.login.accessCodeLabel}</span>
+                  <span className="worker-info-value">{worker.organizationCode}</span>
+                </div>
+                <div className="worker-info-row">
+                  <span className="worker-info-label">{text.table.headers.team || 'チーム'}</span>
+                  <span className="worker-info-value">{worker.team_name || worker.team}</span>
                 </div>
               </div>
             </section>
@@ -427,15 +323,21 @@ export default function WorkerView() {
             <section className="worker-card worker-card-actions">
               <p className="worker-section-label">{text.worker.quickStatusTitle || '現場ステータス報告'}</p>
               <div className="worker-actions-grid">
-                {STATUS_QUICK_ACTIONS.map((action) => {
+                {[
+                  { status: 'woke_up', icon: '🌅', variant: 'primary' },
+                  { status: 'departed', icon: '🚗', variant: 'success' },
+                  { status: 'arrived', icon: '📍', variant: 'warning' },
+                  { status: 'finished', icon: '✅', variant: 'danger' },
+                ].map((action) => {
                   const actionLabel = quickLabels[action.status] ?? getStatusLabel(action.status)
+                  const isRecorded = todayAttendance && todayAttendance[`${action.status}_at`]
                   return (
                     <button
                       key={action.status}
                       type="button"
                       className={`worker-action worker-action-${action.variant}`}
-                      onClick={() => handleQuickAction(primaryAssignment?.id || 'general', action)}
-                      disabled={clockLoading}
+                      onClick={() => handleQuickAction(action)}
+                      disabled={clockLoading || isRecorded}
                     >
                       <span className="worker-action-icon" aria-hidden="true">
                         {action.icon}
@@ -447,78 +349,48 @@ export default function WorkerView() {
               </div>
             </section>
 
-            <section className="worker-card worker-card-team">
-              <header>
-                <h3>{text.worker.teamStatusTitle ?? 'チームメンバーの状況'}</h3>
-              </header>
-              <div className="worker-team-grid">
-                {teamAttendance.length === 0 ? (
-                  <p className="worker-empty">{text.worker.teamStatusEmpty ?? 'メンバーがいません'}</p>
-                ) : (
-                  teamAttendance.map((attendee) => {
-                    if (attendee.worker_id === worker.id) return null;
-                    const memberStatus = attendee.status || 'not_reported'
-                    const statusLabel = quickLabels[memberStatus] || getStatusLabel(memberStatus)
-                    const statusVariant = (() => {
-                      switch (memberStatus) {
-                        case 'woke_up': return 'warning'
-                        case 'departed': return 'primary'
-                        case 'arrived': return 'success'
-                        case 'finished': return 'completed'
-                        case 'clock_in': return 'working'
-                        default: return 'neutral'
-                      }
-                    })()
+            <section className="worker-card worker-card-history">
+              <p className="worker-section-label">当日クイックアクション履歴</p>
+              <div className="worker-clock-history-list">
+                {(() => {
+                  const historyItems = [
+                    { key: 'woke_up_at', label: '起床済み', icon: '🌅' },
+                    { key: 'departed_at', label: '出発済み', icon: '🚗' },
+                    { key: 'arrived_at', label: '現場到着', icon: '📍' },
+                    { key: 'finished_at', label: '作業終了', icon: '✅' },
+                  ].filter(item => todayAttendance && todayAttendance[item.key])
+                   .map(item => ({
+                     ...item,
+                     timestamp: todayAttendance[item.key]
+                   }))
+                   .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-                    return (
-                      <div key={attendee.worker_id} className="worker-team-member">
-                        <div className="worker-team-avatar">
-                          <span>{attendee.name.slice(0, 1)}</span>
-                        </div>
-                        <div className="worker-team-info">
-                          <span className="worker-team-name">{attendee.name}</span>
-                          <span className={`worker-team-status worker-team-status-${statusVariant}`}>
-                            {statusLabel}
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-            </section>
+                  if (historyItems.length === 0) {
+                    return <p className="worker-empty-mini" style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>本日の履歴はありません</p>;
+                  }
 
-            <section className="worker-card">
-              <div className="worker-latest-wrapper">
-                <h4>{text.worker.latestReportTitle}</h4>
-                <div className="worker-report-list">
-                  {dailyReports.length > 0 ? (
-                    dailyReports.slice(0, 3).map((report) => (
-                      <div key={report.id} className="worker-latest-highlight worker-action-neutral">
-                        <div className="worker-latest-icon">📝</div>
-                        <div className="worker-latest-details">
-                          <p className="worker-latest-label">
-                            {formatDateTime(report.submitted_at)}
-                            {report.assignment_code && (
-                              <span className="worker-latest-code">
-                                [{report.assignment_code}: {report.assignment_title}]
-                              </span>
-                            )}
-                          </p>
-                          <p className="worker-latest-snippet">
-                            {report.content ? (report.content.length > 30 ? report.content.substring(0, 30) + '...' : report.content) : ''}
-                          </p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="worker-empty">{text.worker.latestReportEmpty}</p>
-                  )}
-                </div>
+                  return historyItems.map((item, idx) => (
+                    <div key={idx} className="worker-history-item-row" style={{ 
+                      padding: '0.75rem 0',
+                      borderBottom: idx === historyItems.length - 1 ? 'none' : '1px solid var(--color-border-light)',
+                      fontSize: '0.95rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}>
+                      <span style={{ fontSize: '1.1rem' }}>{item.icon}</span>
+                      <span style={{ fontWeight: '500', color: 'var(--color-text-primary)' }}>{item.label}</span>
+                      <span style={{ color: 'var(--color-text-secondary)', marginLeft: 'auto' }}>{formatActionTimestamp(item.timestamp)}</span>
+                    </div>
+                  ));
+                })()}
               </div>
             </section>
           </>
         )}
+
+
+
 
         {activeTab === 'calendar' && (
           <section className="worker-card worker-card-upcoming">
@@ -551,52 +423,71 @@ export default function WorkerView() {
                         onClick={() => setSelectedSchedule({ date: new Date(day), entries })}
                       >
                         <span className="worker-calendar-day">{day.getDate()}</span>
-                        {entries.map((a) => (
-                          <span key={a.id} className="worker-calendar-tag">
-                            {a.projectName || a.title || a.id}
-                          </span>
-                        ))}
-                        {isSelected && (
-                          <div className={`worker-calendar-bubble ${bubbleClass}`} onClick={(e) => e.stopPropagation()}>
-                            <button
-                              className="worker-calendar-bubble-close"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setSelectedSchedule({ date: null, entries: [] })
-                              }}
-                            >
-                              ×
-                            </button>
-                            <h4>{formatDate(day)}</h4>
-                            {entries.length > 0 ? (
-                              <ul>
-                                  {entries.map((entry) => {
-                                    const sLabel = entry.raw_status === 'pending' ? '未着手' : 
-                                                   entry.raw_status === 'in_progress' ? '進行中' : 
-                                                   entry.raw_status === 'completed' ? '完了' : 
-                                                   entry.raw_status === 'cancelled' ? 'キャンセル' : entry.status
-                                    return (
-                                      <li key={entry.id}>
-                                        <div className="worker-calendar-bubble-item-header">
-                                          <strong>{entry.projectName || entry.title || entry.id}</strong>
-                                          <span className="worker-assignment-badge mini">{sLabel}</span>
-                                        </div>
-                                        <p>{entry.notes || entry.location}</p>
-                                      </li>
-                                    )
-                                  })}
-                              </ul>
-                            ) : (
-                              <p className="worker-calendar-no-events">{text.worker.calendarNoEvents}</p>
-                            )}
-                          </div>
-                        )}
+                        {entries.length > 0 && <span className="worker-calendar-dot">●</span>}
                       </button>
                     )
                   })}
                 </div>
               ))}
             </div>
+
+            {selectedSchedule.date && (
+              <section className="worker-calendar-details">
+                <header>
+                  <h4>{formatDate(selectedSchedule.date)}</h4>
+                  <button
+                    className="worker-calendar-details-close"
+                    onClick={() => setSelectedSchedule({ date: null, entries: [] })}
+                  >
+                    ×
+                  </button>
+                </header>
+                {selectedSchedule.entries.length > 0 ? (
+                  <div className="worker-assignment-grid">
+                    {selectedSchedule.entries.map((entry) => (
+                      <article key={entry.id} className="worker-assignment-card">
+                        <div className="worker-assignment-info">
+                          <div className="worker-info-item">
+                            <span className="worker-meta-label">{text.worker.assignmentProjectLabel}:</span>
+                            <strong>{entry.projectName || entry.title || entry.id}</strong>
+                          </div>
+                          <div className="worker-info-item">
+                            <span className="worker-meta-label">{text.worker.assignmentAddressLabel}:</span>
+                            <span>{entry.location || text.worker.locationUnavailable}</span>
+                          </div>
+                          <div className="worker-info-item">
+                            <span className="worker-meta-label">{text.worker.assignmentDateLabel}:</span>
+                            <span>{formatDate(entry.startDate)}</span>
+                            <span className="worker-meta-label" style={{ marginLeft: '1rem' }}>{text.worker.assignmentCrewLabel}:</span>
+                            <span>{entry.crewCount || '—'}</span>
+                          </div>
+                          <div className="worker-info-item">
+                            <span className="worker-meta-label">{text.worker.assignmentTaskLabel}:</span>
+                            <span>{entry.notes || '—'}</span>
+                          </div>
+                          <div className="worker-info-item">
+                            <span className="worker-meta-label">{text.worker.assignmentMembersLabel}:</span>
+                            <span>{entry.members || '—'}</span>
+                          </div>
+                          <div className="worker-assignment-links">
+                            <a href="#" className="worker-assignment-link">{text.worker.assignmentDocsLabel}</a>
+                          </div>
+                          <button
+                            type="button"
+                            className="worker-assignment-complete"
+                            onClick={() => handleAssignmentComplete(entry.db_id)}
+                          >
+                            {text.worker.completeAssignmentLabel}
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="worker-calendar-no-events">{text.worker.calendarNoEvents}</p>
+                )}
+              </section>
+            )}
 
             <section className="worker-card worker-card-assignments">
               <header>
@@ -615,7 +506,6 @@ export default function WorkerView() {
                     
                     return (
                       <article key={order.id} className="worker-assignment-card">
-                        <div className="worker-assignment-badge">{statusLabel}</div>
                         <div className="worker-assignment-info">
                           {completedAssignments.has(order.id) ? (
                             <p className="worker-assignment-finished">{text.worker.assignmentFinishedMessage}</p>
@@ -651,7 +541,6 @@ export default function WorkerView() {
                               )}
                               <div className="worker-assignment-links">
                                 <a href="#" className="worker-assignment-link">{text.worker.assignmentDocsLabel}</a>
-                                <a href="#" className="worker-assignment-link" onClick={() => setActiveTab('report')}>{text.worker.assignmentUploadLabel}</a>
                               </div>
                             </>
                           )}
@@ -694,10 +583,9 @@ export default function WorkerView() {
                      value={adminMessage} 
                      onChange={handleAdminMessageChange} 
                      placeholder={text.worker.adminMessagePlaceholder} 
-                     rows={1}
+                     style={{ minHeight: '120px' }}
                    />
                    <button type="submit" className="worker-message-send-btn">
-                     <span className="worker-send-icon">📎</span>
                      <span className="worker-send-btn-text">{text.worker.adminMessageButton}</span>
                    </button>
                  </div>
@@ -727,13 +615,25 @@ export default function WorkerView() {
               <section className="worker-card worker-photo-report">
                 <h4>📸 {text.worker.photoReportHeading || '現場写真報告'}</h4>
                 <div className="worker-photo-controls">
-                  <label className="worker-photo-label">
-                    <input type="file" accept="image/*" capture="camera" onChange={handleReportPhotoChange} style={{ display: 'none' }} />
-                    <div className="worker-photo-preview-box-large">
-                      {reportPhoto ? <img src={reportPhoto} alt="Preview" /> : <span>{text.worker.photoReportPrompt}</span>}
+                  <label className="worker-photo-label-trigger">
+                    <input type="file" accept="image/*" capture="camera" multiple onChange={handleReportPhotoChange} style={{ display: 'none' }} />
+                    <div className="worker-photo-add-box">
+                      <span>{text.worker.photoReportPrompt}</span>
                     </div>
                   </label>
-                  {reportPhoto && (
+                  
+                  {reportPhotos.length > 0 && (
+                    <div className="worker-photo-grid-preview">
+                      {reportPhotos.map((photo, idx) => (
+                        <div key={idx} className="worker-photo-thumbnail">
+                          <img src={photo} alt={`Preview ${idx}`} />
+                          <button type="button" className="worker-photo-delete" onClick={() => removeReportPhoto(idx)}>×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {reportPhotos.length > 0 && (
                     <button type="button" className="worker-clock-button primary" onClick={handleReportSubmit} style={{ marginTop: '1rem' }}>
                       {text.worker.photoReportSubmit}
                     </button>

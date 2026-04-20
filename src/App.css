@@ -3360,3 +3360,122 @@ textarea:focus {
   font-size: 0.95rem;
   resize: vertical;
 }
+
+/* --- Task 2: Calendar Refinements --- */
+.worker-calendar-dot {
+  display: inline-flex;
+  font-size: 8px;
+  color: #2563eb;
+  margin-top: 2px;
+}
+
+.worker-calendar-details {
+  background: white;
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: var(--premium-shadow);
+  border: 1px solid var(--premium-glass-border);
+  margin-top: 0.5rem;
+  animation: slideDown 0.3s ease-out;
+}
+
+.worker-calendar-details header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--color-border-light);
+  padding-bottom: 0.75rem;
+}
+
+.worker-calendar-details h4 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--color-text-primary);
+}
+
+.worker-calendar-details-close {
+  background: #f1f5f9;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+/* --- Task 3: Photo Report Improvements --- */
+.worker-photo-add-box {
+  border: 2px dashed #cbd5e1;
+  border-radius: 16px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(241, 245, 249, 0.5);
+  transition: all 0.2s;
+}
+
+.worker-photo-add-box:hover {
+  background: rgba(241, 245, 249, 0.8);
+  border-color: var(--premium-blue);
+}
+
+.worker-photo-grid-preview {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.worker-photo-thumbnail {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.worker-photo-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.worker-photo-delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.worker-assignment-finished {
+  color: var(--color-success);
+  font-weight: 700;
+  text-align: center;
+  padding: 1rem;
+  background: #ecfdf5;
+  border-radius: 12px;
+}
