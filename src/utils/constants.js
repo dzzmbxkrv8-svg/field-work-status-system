@@ -8,10 +8,10 @@ export const ADMIN_ACCESS_LENGTH = 8
 
 /** Quick action presets for the worker dashboard. */
 export const STATUS_QUICK_ACTIONS = [
-  { status: 'woke_up', icon: '⏰', variant: 'primary' },
+  { status: 'woke_up', icon: '🌅', variant: 'primary' },
   { status: 'departed', icon: '🚗', variant: 'success' },
   { status: 'arrived', icon: '📍', variant: 'warning' },
-  { status: 'finished', icon: '🏁', variant: 'danger' },
+  { status: 'finished', icon: '✅', variant: 'danger' },
 ]
 
 /** Role tabs rendered on the admin dashboard header. */

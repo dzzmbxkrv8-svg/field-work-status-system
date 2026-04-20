@@ -6,6 +6,7 @@ import { useMessages } from '@/hooks/useMessages'
 import { useDailyReports } from '@/hooks/useDailyReports'
 import { useI18n } from '@/i18n'
 import { STATUS_QUICK_ACTIONS } from '@/utils/constants'
+import { getWorkers } from '@/api/workers'
 
 export default function WorkerView() {
   const { state, logout } = useAppContext()
@@ -25,33 +26,74 @@ export default function WorkerView() {
   const messageTextareaRef = useRef(null)
   const [selectedSchedule, setSelectedSchedule] = useState({ date: null, entries: [] })
   const [activeTab, setActiveTab] = useState('home')
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date()
+    return { year: now.getFullYear(), month: now.getMonth() }
+  })
+  const [apiWorkers, setApiWorkers] = useState([])
+
+  useEffect(() => {
+    if (!worker) return
+    getWorkers().then(res => {
+      if (res.success) setApiWorkers(res.data || [])
+    })
+  }, [worker])
   const [messageView, setMessageView] = useState('received')
+  const [toast, setToast] = useState(null) // { type: 'success'|'error'|'warning', text: string }
+
+  const showToast = (type, text, duration = 3500) => {
+    setToast({ type, text })
+    setTimeout(() => setToast(null), duration)
+  }
 
   const worker = state.session
 
   const incomingMessages = useMemo(() => {
-    return apiMessages.map(msg => ({
-      id: msg.id,
-      sender: msg.sender_name || 'Admin',
-      message: msg.content,
-      timestamp: msg.created_at,
-      isRead: msg.is_read
-    })).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-  }, [apiMessages])
+    return apiMessages
+      .filter(msg => msg.sender_id !== worker?.id)
+      .map(msg => ({
+        id: msg.id,
+        sender: msg.sender_name || 'Admin',
+        message: msg.content,
+        timestamp: msg.created_at,
+        isRead: msg.is_read
+      })).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+  }, [apiMessages, worker])
+
+  const sentMessages = useMemo(() => {
+    return apiMessages
+      .filter(msg => msg.sender_id === worker?.id)
+      .map(msg => {
+        let receiver = '管理者'
+        if (msg.receiver_name) {
+          receiver = msg.receiver_name
+        } else if (msg.receiver_id) {
+          const found = apiWorkers.find(w => w.id === msg.receiver_id)
+          receiver = found ? found.name : `作業員 #${msg.receiver_id}`
+        } else if (msg.team_id) {
+          receiver = 'チーム全体'
+        }
+        return {
+          id: msg.id,
+          receiver,
+          message: msg.content,
+          timestamp: msg.created_at,
+        }
+      })
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+  }, [apiMessages, worker, apiWorkers])
 
   const recipientOptions = useMemo(() => {
-    const organizationRecipients = state.organizations.map((org) => ({
-      value: `org:${org.code}`,
-      label: `${org.companyName || text.login.adminCompanyLabel}`,
-      code: org.code,
-    }))
-    const workerRecipients = state.workers.map((item) => ({
-      value: `worker:${item.id}`,
-      label: `${item.name}`,
-      code: item.organizationCode,
-    }))
-    return [...organizationRecipients, ...workerRecipients]
-  }, [state.organizations, state.workers, text.login.adminCompanyLabel])
+    const adminOption = { value: 'admin:0', label: '管理者' }
+    const workerRecipients = apiWorkers
+      .filter(w => w.id !== worker?.id)
+      .map(w => ({
+        value: `worker:${w.id}`,
+        label: `${w.name}（${w.team_name || w.team || `チーム ${w.team_id}`}）`,
+        receiverId: w.id,
+      }))
+    return [adminOption, ...workerRecipients]
+  }, [apiWorkers, worker])
 
 
   useEffect(() => {
@@ -70,8 +112,7 @@ export default function WorkerView() {
   // assignments is now from useReports() directly
   const calendarData = useMemo(() => {
     const today = new Date()
-    const year = today.getFullYear()
-    const month = today.getMonth()
+    const { year, month } = calendarMonth
     const firstDay = new Date(year, month, 1)
     const startDate = new Date(firstDay)
     startDate.setDate(startDate.getDate() - startDate.getDay())
@@ -106,7 +147,7 @@ export default function WorkerView() {
       })
     })
     return { year, month, weeks, assignmentByDate, today }
-  }, [assignments])
+  }, [assignments, calendarMonth])
 
   const quickLabels = text.worker.statusQuickLabels ?? {}
 
@@ -140,7 +181,7 @@ export default function WorkerView() {
   const handleReportSubmit = useCallback(async () => {
     if (!primaryAssignment) return
     const result = await submitDailyReport({
-      assignment_id: primaryAssignment.id,
+      assignment_id: primaryAssignment.db_id ?? primaryAssignment.id,
       note: reportForm.note,
       photos: reportPhotos
     })
@@ -148,9 +189,9 @@ export default function WorkerView() {
     if (result.success) {
       setReportForm((prev) => ({ ...prev, note: '' }))
       setReportPhotos([])
-      alert(text.worker.reportSubmittedSuccess || 'Report submitted!')
+      showToast('success', text.worker.reportSubmittedSuccess || '日報を提出しました。')
     } else {
-      alert(result.message || 'Error submitting report')
+      showToast('error', result.message || '日報の提出に失敗しました。')
     }
   }, [primaryAssignment, reportForm.note, reportPhotos, submitDailyReport, setReportForm, setReportPhotos, text.worker.reportSubmittedSuccess])
 
@@ -160,7 +201,7 @@ export default function WorkerView() {
     if (result.success) {
       await refreshToday()
     } else {
-      alert(result.message || 'Error updating status')
+      showToast('error', result.message || 'ステータスの更新に失敗しました。')
     }
     setClockLoading(false)
   }, [updateAttendance, refreshToday])
@@ -199,7 +240,7 @@ export default function WorkerView() {
     const remainingSlots = 8 - currentCount
     
     if (remainingSlots <= 0) {
-      alert(text.worker.attachmentLimitAlert || 'Maximum 8 photos allowed')
+      showToast('warning', text.worker.attachmentLimitAlert || 'ファイルは最大で8つまで添付できます')
       return
     }
 
@@ -225,15 +266,16 @@ export default function WorkerView() {
     const [type, id] = adminMessageRecipient.split(':')
     const payload = {
       content: adminMessage.trim(),
-      team_id: type === 'worker' ? null : id,
+      team_id: (type === 'worker' || type === 'admin') ? null : id,
       receiver_id: type === 'worker' ? parseInt(id) : null
     }
 
     const result = await sendMessageApi(payload)
     if (result.success) {
       setAdminMessage('')
+      showToast('success', 'メッセージを送信しました。')
     } else {
-      alert(result.message || 'Error sending message')
+      showToast('error', result.message || 'メッセージの送信に失敗しました。')
     }
   }, [adminMessage, adminMessageRecipient, sendMessageApi, setAdminMessage])
 
@@ -259,8 +301,28 @@ export default function WorkerView() {
     return null
   }
 
+  const toastColors = {
+    success: { bg: '#d1fae5', color: '#065f46', border: '#6ee7b7' },
+    error:   { bg: '#fee2e2', color: '#991b1b', border: '#fca5a5' },
+    warning: { bg: '#fef3c7', color: '#92400e', border: '#fcd34d' },
+  }
+
   return (
     <div className="worker-app-shell">
+      {toast && (
+        <div style={{
+          position: 'fixed', top: '1rem', left: '50%', transform: 'translateX(-50%)',
+          zIndex: 9999, padding: '0.75rem 1.25rem', borderRadius: '8px',
+          fontSize: '0.9rem', maxWidth: '90vw', textAlign: 'center',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          background: toastColors[toast.type].bg,
+          color: toastColors[toast.type].color,
+          border: `1px solid ${toastColors[toast.type].border}`,
+        }}>
+          {toast.type === 'success' ? '✅ ' : toast.type === 'error' ? '❌ ' : '⚠️ '}
+          {toast.text}
+        </div>
+      )}
       <div className="worker-app">
         {activeTab === 'home' && (
           <>
@@ -301,24 +363,54 @@ export default function WorkerView() {
                   <span className="worker-info-value">{worker.team_name || worker.team}</span>
                 </div>
               </div>
+
+              {(() => {
+                const statusSteps = [
+                  { key: 'woke_up_at',   label: '起床済み',   color: '#f59e0b', icon: '🌅' },
+                  { key: 'departed_at',  label: '出発済み',   color: '#3b82f6', icon: '🚗' },
+                  { key: 'arrived_at',   label: '現場到着',   color: '#10b981', icon: '📍' },
+                  { key: 'finished_at',  label: '作業終了',   color: '#6b7280', icon: '✅' },
+                ]
+                const currentStep = [...statusSteps].reverse().find(s => todayAttendance?.[s.key])
+                return (
+                  <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>本日のステータス：</span>
+                    {currentStep ? (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                        background: currentStep.color, color: '#fff',
+                        borderRadius: '999px', fontSize: '0.8rem', fontWeight: 'bold',
+                        padding: '0.2rem 0.75rem',
+                      }}>
+                        {currentStep.icon} {currentStep.label}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>未報告</span>
+                    )}
+                  </div>
+                )
+              })()}
             </section>
 
-            <section className="safety-ticker">
-              <span className="safety-icon">⚠️</span>
-              <div className="safety-content">
-                【安全通知】本日、午後から強風の予報が出ています。高所作業の際は十分に注意してください。   【天気】現在は晴れ（24℃）、降水確率10%です。
-              </div>
-            </section>
+            {(() => {
+              const latestAdminMsg = incomingMessages[0]
+              const tickerText = latestAdminMsg
+                ? `【管理者からのお知らせ】${latestAdminMsg.message}`
+                : '【安全通知】作業前に安全確認を必ず行ってください。ヘルメット・安全帯の着用を徹底してください。'
+              return (
+                <section className="safety-ticker">
+                  <span className="safety-icon">⚠️</span>
+                  <div className="safety-content">
+                    {tickerText}
+                  </div>
+                </section>
+              )
+            })()}
 
             <section className="worker-card worker-card-actions">
               <p className="worker-section-label">{text.worker.quickStatusTitle || '現場ステータス報告'}</p>
               <div className="worker-actions-grid">
-                {[
-                  { status: 'woke_up', icon: '🌅', variant: 'primary' },
-                  { status: 'departed', icon: '🚗', variant: 'success' },
-                  { status: 'arrived', icon: '📍', variant: 'warning' },
-                  { status: 'finished', icon: '✅', variant: 'danger' },
-                ].map((action) => {
+                {STATUS_QUICK_ACTIONS.map((action) => {
                   const actionLabel = quickLabels[action.status] ?? getStatusLabel(action.status)
                   const isRecorded = todayAttendance && todayAttendance[`${action.status}_at`]
                   return (
@@ -386,7 +478,39 @@ export default function WorkerView() {
           <section className="worker-card worker-card-upcoming">
             <header>
               <h3>{text.worker.upcomingHeading}</h3>
-              <p className="worker-upcoming-month">{new Date(calendarData.year, calendarData.month).toLocaleString(state.language === 'ja' ? 'ja-JP' : 'en-US', { month: 'long', year: 'numeric' })}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.25rem' }}>
+                <button
+                  type="button"
+                  className="worker-nav-month-btn"
+                  onClick={() => {
+                    setCalendarMonth(prev => {
+                      const d = new Date(prev.year, prev.month - 1, 1)
+                      return { year: d.getFullYear(), month: d.getMonth() }
+                    })
+                    setSelectedSchedule({ date: null, entries: [] })
+                  }}
+                  style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: '6px', padding: '0.2rem 0.6rem', cursor: 'pointer', fontSize: '1rem' }}
+                >
+                  ‹
+                </button>
+                <p className="worker-upcoming-month" style={{ margin: 0 }}>
+                  {new Date(calendarData.year, calendarData.month).toLocaleString(state.language === 'ja' ? 'ja-JP' : 'en-US', { month: 'long', year: 'numeric' })}
+                </p>
+                <button
+                  type="button"
+                  className="worker-nav-month-btn"
+                  onClick={() => {
+                    setCalendarMonth(prev => {
+                      const d = new Date(prev.year, prev.month + 1, 1)
+                      return { year: d.getFullYear(), month: d.getMonth() }
+                    })
+                    setSelectedSchedule({ date: null, entries: [] })
+                  }}
+                  style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: '6px', padding: '0.2rem 0.6rem', cursor: 'pointer', fontSize: '1rem' }}
+                >
+                  ›
+                </button>
+              </div>
             </header>
             <div className="worker-calendar">
               <div className="worker-calendar-row worker-calendar-head">
@@ -437,7 +561,20 @@ export default function WorkerView() {
                           </div>
                           <div className="worker-info-item">
                             <span className="worker-meta-label">{text.worker.assignmentAddressLabel}:</span>
-                            <span>{entry.location || text.worker.locationUnavailable}</span>
+                            <span>
+                              {entry.location || text.worker.locationUnavailable}
+                              {entry.location && (
+                                <a
+                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(entry.location)}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="worker-map-link"
+                                  style={{ marginLeft: '0.4rem', color: '#2563eb', textDecoration: 'underline', fontSize: '0.85rem' }}
+                                >
+                                  [MAP]
+                                </a>
+                              )}
+                            </span>
                           </div>
                           <div className="worker-info-item">
                             <span className="worker-meta-label">{text.worker.assignmentDateLabel}:</span>
@@ -453,9 +590,18 @@ export default function WorkerView() {
                             <span className="worker-meta-label">{text.worker.assignmentMembersLabel}:</span>
                             <span>{entry.members || '—'}</span>
                           </div>
-                          <div className="worker-assignment-links">
-                            <a href="#" className="worker-assignment-link">{text.worker.assignmentDocsLabel}</a>
-                          </div>
+                          {entry.location && (
+                            <div className="worker-assignment-links">
+                              <a
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(entry.location)}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="worker-assignment-link"
+                              >
+                                📍 {text.worker.assignmentDocsLabel}
+                              </a>
+                            </div>
+                          )}
                           <button
                             type="button"
                             className="worker-assignment-complete"
@@ -496,7 +642,20 @@ export default function WorkerView() {
                               </div>
                               <div className="worker-info-item">
                                 <span className="worker-meta-label">{text.worker.assignmentAddressLabel}:</span>
-                                <span>{order.location || text.worker.locationUnavailable} <span className="worker-map-link">[MAP]</span></span>
+                                <span>
+                                  {order.location || text.worker.locationUnavailable}
+                                  {order.location && (
+                                    <a
+                                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.location)}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="worker-map-link"
+                                      style={{ marginLeft: '0.4rem', color: '#2563eb', textDecoration: 'underline', fontSize: '0.85rem' }}
+                                    >
+                                      [MAP]
+                                    </a>
+                                  )}
+                                </span>
                               </div>
                               <div className="worker-info-item">
                                 <span className="worker-meta-label">{text.worker.assignmentDateLabel}:</span>
@@ -518,9 +677,18 @@ export default function WorkerView() {
                                   <span>{order.cautionNote}</span>
                                 </div>
                               )}
-                              <div className="worker-assignment-links">
-                                <a href="#" className="worker-assignment-link">{text.worker.assignmentDocsLabel}</a>
-                              </div>
+                              {order.location && (
+                                <div className="worker-assignment-links">
+                                  <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.location)}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="worker-assignment-link"
+                                  >
+                                    📍 {text.worker.assignmentDocsLabel}
+                                  </a>
+                                </div>
+                              )}
                             </>
                           )}
                         </div>
@@ -558,10 +726,11 @@ export default function WorkerView() {
                    </select>
                  </div>
                  <div className="worker-message-textarea-wrapper">
-                   <textarea 
-                     value={adminMessage} 
-                     onChange={handleAdminMessageChange} 
-                     placeholder={text.worker.adminMessagePlaceholder} 
+                   <textarea
+                     ref={messageTextareaRef}
+                     value={adminMessage}
+                     onChange={handleAdminMessageChange}
+                     placeholder={text.worker.adminMessagePlaceholder}
                      style={{ minHeight: '120px' }}
                    />
                    <button type="submit" className="worker-message-send-btn">
@@ -575,13 +744,22 @@ export default function WorkerView() {
                   <button type="button" className={messageView === 'received' ? 'active' : ''} onClick={() => setMessageView('received')}>{messageReceivedLabel}</button>
                 </div>
                 <div className="worker-message-log-simple">
-                  {(messageView === 'received' ? incomingMessages : []).length === 0 ? (
+                  {(messageView === 'received' ? incomingMessages : sentMessages).length === 0 ? (
                     <p className="worker-empty">{messageEmptyLabel}</p>
                   ) : (
                     <ul>
-                      {(messageView === 'received' ? incomingMessages : []).map((entry, idx) => (
-                        <li key={entry.id || idx}>
-                           <p>{entry.message || entry.content}</p>
+                      {(messageView === 'received' ? incomingMessages : sentMessages).map((entry, idx) => (
+                        <li key={entry.id || idx} style={{ padding: '0.75rem 0', borderBottom: '1px solid var(--color-border-light)' }}>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', margin: '0 0 0.25rem' }}>
+                            {messageView === 'received'
+                              ? `${text.worker.adminMessageFromLabel(entry.sender)}`
+                              : `${text.worker.adminMessageToLabel(entry.receiver)}`
+                            }
+                          </p>
+                          <p style={{ margin: '0 0 0.25rem' }}>{entry.message || entry.content}</p>
+                          <small style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>
+                            {new Date(entry.timestamp).toLocaleString('ja-JP')}
+                          </small>
                         </li>
                       ))}
                     </ul>
@@ -626,6 +804,24 @@ export default function WorkerView() {
                 <h3>{text.worker.dailyReportTitle || '日報'}</h3>
               </header>
               <div className="worker-report-form-simple">
+                {assignments.length > 1 && (
+                  <div className="worker-form-group" style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', display: 'block', marginBottom: '0.3rem' }}>
+                      {text.worker.assignmentProjectLabel}
+                    </label>
+                    <select
+                      value={reportForm.assignment_id}
+                      onChange={(e) => handleReportChange('assignment_id', e.target.value)}
+                      style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--color-border)', fontSize: '0.9rem' }}
+                    >
+                      {assignments.map(a => (
+                        <option key={a.db_id ?? a.id} value={String(a.db_id ?? a.id)}>
+                          {a.projectName || a.location || a.id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <textarea
                   rows={4}
                   value={reportForm.note}
@@ -647,9 +843,32 @@ export default function WorkerView() {
         )}
 
         <nav className="worker-bottom-nav">
-          <button type="button" className={`worker-nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}>🏠<span>{text.worker.navHome}</span></button>
-          <button type="button" className={`worker-nav-item ${activeTab === 'calendar' ? 'active' : ''}`} onClick={() => setActiveTab('calendar')}>📅<span>{text.worker.navCalendar}</span></button>
-          <button type="button" className={`worker-nav-item ${activeTab === 'report' ? 'active' : ''}`} onClick={() => setActiveTab('report')}>✉️<span>{text.worker.navReport}</span></button>
+          <button type="button" className={`worker-nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}>
+            🏠<span>{text.worker.navHome}</span>
+          </button>
+          <button type="button" className={`worker-nav-item ${activeTab === 'calendar' ? 'active' : ''}`} onClick={() => setActiveTab('calendar')}>
+            📅<span>{text.worker.navCalendar}</span>
+          </button>
+          <button
+            type="button"
+            className={`worker-nav-item ${activeTab === 'report' ? 'active' : ''}`}
+            onClick={() => setActiveTab('report')}
+            style={{ position: 'relative' }}
+          >
+            ✉️
+            {incomingMessages.filter(m => !m.isRead).length > 0 && (
+              <span style={{
+                position: 'absolute', top: '4px', right: '12px',
+                background: '#ef4444', color: '#fff',
+                borderRadius: '999px', fontSize: '0.65rem', fontWeight: 'bold',
+                minWidth: '16px', height: '16px', lineHeight: '16px',
+                textAlign: 'center', padding: '0 3px',
+              }}>
+                {incomingMessages.filter(m => !m.isRead).length}
+              </span>
+            )}
+            <span>{text.worker.navReport}</span>
+          </button>
         </nav>
       </div>
     </div>

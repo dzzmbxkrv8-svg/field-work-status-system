@@ -25,6 +25,12 @@ export default function AdminPanel({ onAssignWorkers }) {
   const [error, setError] = useState(null)
   const [formState, setFormState] = useState(defaultFormState)
   const [isAdding, setIsAdding] = useState(false)
+  const [notification, setNotification] = useState(null)
+
+  const showNotification = (type, text, duration = 3500) => {
+    setNotification({ type, text })
+    setTimeout(() => setNotification(null), duration)
+  }
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
@@ -209,8 +215,9 @@ export default function AdminPanel({ onAssignWorkers }) {
       setFormState(defaultFormState)
       setIsAdding(false)
       fetchOrders()
+      showNotification('success', '作業指示を作成しました。')
     } else {
-      alert(result.message || 'Error creating order')
+      showNotification('error', result.message || '作業指示の作成に失敗しました。')
     }
   }
 
@@ -222,7 +229,7 @@ export default function AdminPanel({ onAssignWorkers }) {
     if (result.success) {
       fetchOrders()
     } else {
-      alert(result.message || 'Error updating status')
+      showNotification('error', result.message || 'ステータスの更新に失敗しました。')
     }
   }
 
@@ -231,6 +238,16 @@ export default function AdminPanel({ onAssignWorkers }) {
 
   return (
     <section className="fws-panel">
+      {notification && (
+        <div style={{
+          padding: '0.75rem 1rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem',
+          background: notification.type === 'success' ? '#d1fae5' : '#fee2e2',
+          color: notification.type === 'success' ? '#065f46' : '#991b1b',
+          border: `1px solid ${notification.type === 'success' ? '#6ee7b7' : '#fca5a5'}`,
+        }}>
+          {notification.type === 'success' ? '✅ ' : '❌ '}{notification.text}
+        </div>
+      )}
       <header className="fws-panel-header">
         <div>
           <h3>{text.admin.title}</h3>

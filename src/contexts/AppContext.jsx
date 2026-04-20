@@ -32,11 +32,12 @@ function createInitialState() {
         return {
           language,
           // トークンがない場合は以前のセッション（parsed.session）があったとしても null にする
-          session: validatedSession, 
+          session: validatedSession,
           workOrders: (parsed.workOrders && parsed.workOrders.length > 0) ? parsed.workOrders : [...seedWorkOrders],
           organizations: (parsed.organizations && parsed.organizations.length > 0) ? parsed.organizations : [...INITIAL_ORGANIZATIONS],
           workers: (parsed.workers && parsed.workers.length > 0) ? parsed.workers : [...INITIAL_WORKERS],
           timeEntries: (parsed.timeEntries && parsed.timeEntries.length > 0) ? parsed.timeEntries : [...seedTimeEntries],
+          messages: [],
           auditLogs: parsed.auditLogs || [],
           selectedTab: restoredTab,
           filters: parsed.filters || {
@@ -58,6 +59,7 @@ function createInitialState() {
           organizations: [...INITIAL_ORGANIZATIONS],
           workers: [...INITIAL_WORKERS],
           timeEntries: [...seedTimeEntries],
+          messages: [],
           auditLogs: [],
           selectedTab: ROLE_TABS[0].id,
           filters: { status: 'All', priority: 'All', search: '' },
@@ -77,6 +79,7 @@ function createInitialState() {
     organizations: [...INITIAL_ORGANIZATIONS],
     workers: [...INITIAL_WORKERS],
     timeEntries: [...seedTimeEntries],
+    messages: [],
     auditLogs: [],
     selectedTab: ROLE_TABS[0].id,
     filters: {

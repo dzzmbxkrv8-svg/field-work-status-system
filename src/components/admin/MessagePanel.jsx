@@ -14,6 +14,7 @@ export default function MessagePanel() {
     const [recipient, setRecipient] = useState('')
     const [message, setMessage] = useState('')
     const [activeTab, setActiveTab] = useState('received')
+    const [notification, setNotification] = useState(null) // { type: 'success'|'error', text: string }
 
     useEffect(() => {
         const fetchWorkers = async () => {
@@ -45,9 +46,12 @@ export default function MessagePanel() {
         const result = await sendMessageApi(payload)
         if (result.success) {
             setMessage('')
-            alert('Message sent!')
+            setRecipient('')
+            setNotification({ type: 'success', text: 'メッセージを送信しました。' })
+            setTimeout(() => setNotification(null), 3000)
         } else {
-            alert(result.message || 'Error sending message')
+            setNotification({ type: 'error', text: result.message || 'メッセージの送信に失敗しました。' })
+            setTimeout(() => setNotification(null), 4000)
         }
     }
 
@@ -73,6 +77,19 @@ export default function MessagePanel() {
                 <h2 style={{ margin: 0 }}>{text.worker.adminMessageTitle}</h2>
             </div>
 
+            {notification && (
+                <div style={{
+                    padding: '0.75rem 1rem',
+                    borderRadius: '6px',
+                    marginBottom: '1rem',
+                    fontSize: '0.9rem',
+                    background: notification.type === 'success' ? '#d1fae5' : '#fee2e2',
+                    color: notification.type === 'success' ? '#065f46' : '#991b1b',
+                    border: `1px solid ${notification.type === 'success' ? '#6ee7b7' : '#fca5a5'}`,
+                }}>
+                    {notification.type === 'success' ? '✅ ' : '❌ '}{notification.text}
+                </div>
+            )}
             <div className="fws-grid-layout fws-message-grid">
                 <form onSubmit={handleSend} className="fws-form-card">
                     <label>
