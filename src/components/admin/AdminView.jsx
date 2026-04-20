@@ -2,7 +2,6 @@ import { ROLE_TABS, PRIORITY_OPTIONS, STATUS_OPTIONS } from '@/utils/constants'
 import { useI18n } from '@/i18n'
 import { useAppContext } from '@/contexts/AppContext'
 import { useReports } from '@/hooks/useReports'
-import { useTimeEntries } from '@/hooks/useTimeEntries'
 import WorkOrdersTable from './WorkOrdersTable'
 import AdminPanel from './AdminPanel'
 import AttendancePanel from './AttendancePanel'
@@ -17,16 +16,9 @@ export default function AdminView() {
   const { state, dispatch, logout } = useAppContext()
   const {
     filters,
-    sortedOrders,
-    filteredOrders,
-    summary,
-    outstandingStarts,
-    topPriorityOrders,
-    createOrder,
     updateOrder,
   } = useReports()
-  const timeEntriesHook = useTimeEntries()
-  const { session, selectedTab, language, workers } = state
+  const { session, selectedTab, workers } = state
   const { text, getStatusLabel, getPriorityLabel } = useI18n('ja')
   const [assigningOrder, setAssigningOrder] = useState(null)
 

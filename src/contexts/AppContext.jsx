@@ -18,7 +18,7 @@ function createInitialState() {
       const userStr = localStorage.getItem('user')
       let validatedSession = null
       if (token && userStr) {
-        try { validatedSession = JSON.parse(userStr) } catch (e) { validatedSession = null }
+        try { validatedSession = JSON.parse(userStr) } catch { validatedSession = null }
       }
 
       // Restore from main state storage
@@ -53,7 +53,7 @@ function createInitialState() {
       if (validatedSession) {
         return {
           language,
-          session,
+          session: validatedSession,
           workOrders: [...seedWorkOrders],
           organizations: [...INITIAL_ORGANIZATIONS],
           workers: [...INITIAL_WORKERS],

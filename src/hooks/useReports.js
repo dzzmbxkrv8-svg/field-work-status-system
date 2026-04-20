@@ -108,7 +108,7 @@ export function useReports() {
   )
 
   const updateProgress = useCallback(
-    async (orderId, progress) => {
+    async () => {
       // Backend assignment doesn't have progress yet, but we'll simulate if needed or just skip
       return { success: true }
     },

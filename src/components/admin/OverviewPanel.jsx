@@ -2,12 +2,10 @@ import SummaryCards from './SummaryCards'
 import { useI18n } from '@/i18n'
 import { useState, useEffect } from 'react'
 import { getAssignments } from '@/api/assignments'
-import { getTeamTodayAttendance } from '@/api/attendance'
 
 export default function OverviewPanel() {
   const { text, formatNumber, formatDue, formatPriorityTag } = useI18n('ja')
   const [orders, setOrders] = useState([])
-  const [attendance, setAttendance] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -28,27 +26,17 @@ export default function OverviewPanel() {
     const fetchData = async () => {
       setLoading(true)
       try {
-        const [assignmentsRes, attendanceRes] = await Promise.all([
-          getAssignments(),
-          getTeamTodayAttendance()
-        ])
+        const assignmentsRes = await getAssignments()
 
         if (assignmentsRes.success) {
           setOrders(assignmentsRes.data || [])
         } else {
           setOrders([])
         }
-
-        if (attendanceRes.success) {
-          setAttendance(attendanceRes.data || [])
-        } else {
-          setAttendance([])
-        }
       } catch (err) {
         console.error('Failed to fetch overview data:', err)
         setError('データを取得できませんでした')
         setOrders([])
-        setAttendance([])
       } finally {
         setLoading(false)
       }
