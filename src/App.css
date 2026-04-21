@@ -3511,3 +3511,11 @@ textarea:focus {
   animation: toastFadeIn 0.3s ease forwards, toastFadeOut 0.3s ease 2.2s forwards;
   pointer-events: none;
 }
+
+/* === トースト通知アニメーション (シンプル版) === */
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  75% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+}

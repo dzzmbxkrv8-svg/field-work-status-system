@@ -40,7 +40,7 @@ export default function WorkerView() {
   }, [worker])
   const [messageView, setMessageView] = useState('received')
   const [toast, setToast] = useState(null) // { type: 'success'|'error'|'warning', text: string }
-  const [completionToasts, setCompletionToasts] = useState([]) // Array of { id, text }
+  const [showCompletionToast, setShowCompletionToast] = useState(false)
   const [lastCheckedDate, setLastCheckedDate] = useState(() => new Date().toDateString())
 
   // Date change monitoring
@@ -55,11 +55,10 @@ export default function WorkerView() {
     return () => clearInterval(timer)
   }, [lastCheckedDate, refreshToday])
 
-  const addCompletionToast = useCallback(() => {
-    const id = Date.now()
-    setCompletionToasts(prev => [...prev, { id, text: '✅ お疲れ様でした！作業が完了しました' }])
+  const triggerCompletionToast = useCallback(() => {
+    setShowCompletionToast(true)
     setTimeout(() => {
-      setCompletionToasts(prev => prev.filter(t => t.id !== id))
+      setShowCompletionToast(false)
     }, 2500)
   }, [])
 
@@ -237,13 +236,13 @@ export default function WorkerView() {
   const { updateStatus: updateAssignmentStatus } = useReports()
 
   const handleAssignmentComplete = useCallback(async (order) => {
-    const orderId = order.id; // Display ID (e.g. FW-001)
-    const dbId = order.db_id; // Backend ID (numeric)
+    const orderId = order.id;
+    const dbId = order.db_id;
     
-    console.log('Completing assignment:', orderId, 'dbId:', dbId);
+    console.log('Completing assignment id:', orderId);
     
     // Show completion toast immediately
-    addCompletionToast()
+    triggerCompletionToast()
 
     // Update local UI status immediately
     setCompletedAssignments((prev) => ({ ...prev, [orderId]: true }))
@@ -352,11 +351,25 @@ export default function WorkerView() {
 
   return (
     <div className="worker-app-shell">
-      {completionToasts.map(t => (
-        <div key={t.id} className="worker-toast-completion">
-          {t.text}
+      {showCompletionToast && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: '#4CAF50',
+          color: 'white',
+          padding: '12px 24px',
+          borderRadius: '8px',
+          zIndex: 9999,
+          fontSize: '16px',
+          fontWeight: 'bold',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          animation: 'fadeInOut 2.5s ease forwards'
+        }}>
+          ✅ お疲れ様でした！作業が完了しました
         </div>
-      ))}
+      )}
       {toast && (
         <div style={{
           position: 'fixed', top: '1rem', left: '50%', transform: 'translateX(-50%)',
