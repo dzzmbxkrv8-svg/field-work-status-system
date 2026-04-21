@@ -234,24 +234,30 @@ export default function WorkerView() {
     <span>{worker.name.slice(0, 1).toUpperCase()}</span>
   )
 
-  const handleAssignmentComplete = useCallback((orderId) => {
+  const handleAssignmentComplete = useCallback((id) => {
+    console.log('Completing assignment:', id);
+    
+    // Show completion toast immediately
+    addCompletionToast()
+
+    // Update UI status immediately
+    setCompletedAssignments((prev) => {
+      const next = new Set(prev)
+      next.add(id)
+      return next
+    })
+
+    // Call API in background
     handleQuickAction(STATUS_QUICK_ACTIONS.find(a => a.status === 'finished') || {
       status: 'finished',
       icon: '🏁',
       variant: 'danger',
-    })
-    // Show completion toast
-    addCompletionToast()
+    }).catch(err => console.error('Failed to update attendance status:', err));
 
-    setCompletedAssignments((prev) => {
-      const next = new Set(prev)
-      next.add(orderId)
-      return next
-    })
     window.setTimeout(() => {
       setCompletedAssignments((prev) => {
         const next = new Set(prev)
-        next.delete(orderId)
+        next.delete(id)
         return next
       })
     }, 10000)
@@ -639,7 +645,10 @@ export default function WorkerView() {
                           <button
                             type="button"
                             className="worker-assignment-complete"
-                            onClick={() => handleAssignmentComplete(entry.db_id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAssignmentComplete(entry.id);
+                            }}
                           >
                             {text.worker.completeAssignmentLabel}
                           </button>
@@ -731,7 +740,10 @@ export default function WorkerView() {
                             <button
                               type="button"
                               className="worker-assignment-complete"
-                              onClick={() => handleAssignmentComplete(order.db_id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAssignmentComplete(order.id);
+                              }}
                             >
                               {text.worker.completeAssignmentLabel}
                             </button>
