@@ -19,8 +19,8 @@ export default function WorkerView() {
   const [clockLoading, setClockLoading] = useState(false)
   const [reportForm, setReportForm] = useState({ assignment_id: '', note: '' })
   const [avatarPreview] = useState(null)
-  const [reportPhotos, setReportPhotos] = useState([])
-  const [completedAssignments, setCompletedAssignments] = useState({}) // { [id]: boolean }
+  const [completedIds, setCompletedIds] = useState(new Set())
+  const [toastVisible, setToastVisible] = useState(false)
   const [adminMessage, setAdminMessage] = useState('')
   const [adminMessageRecipient, setAdminMessageRecipient] = useState('')
   const messageTextareaRef = useRef(null)
@@ -40,7 +40,6 @@ export default function WorkerView() {
   }, [worker])
   const [messageView, setMessageView] = useState('received')
   const [toast, setToast] = useState(null) // { type: 'success'|'error'|'warning', text: string }
-  const [showCompletionToast, setShowCompletionToast] = useState(false)
   const [lastCheckedDate, setLastCheckedDate] = useState(() => new Date().toDateString())
 
   // Date change monitoring
@@ -55,12 +54,7 @@ export default function WorkerView() {
     return () => clearInterval(timer)
   }, [lastCheckedDate, refreshToday])
 
-  const triggerCompletionToast = useCallback(() => {
-    setShowCompletionToast(true)
-    setTimeout(() => {
-      setShowCompletionToast(false)
-    }, 2500)
-  }, [])
+  // Toast trigger is now part of handleComplete
 
   const showToast = (type, text, duration = 3500) => {
     setToast({ type, text })
@@ -233,46 +227,34 @@ export default function WorkerView() {
     <span>{worker.name.slice(0, 1).toUpperCase()}</span>
   )
 
-  const { updateStatus: updateAssignmentStatus } = useReports()
-
-  const handleAssignmentComplete = useCallback(async (order) => {
-    const orderId = order.id;
+  const handleComplete = useCallback(async (order) => {
+    const displayId = order.id;
     const dbId = order.db_id;
     
-    console.log('Completing assignment id:', orderId);
+    console.log('Starting clear complete process for:', displayId);
     
-    // Show completion toast immediately
-    triggerCompletionToast()
+    // Step 1: Immediate UI update
+    setCompletedIds(prev => new Set([...prev, displayId]));
+    setToastVisible(true);
+    setTimeout(() => setToastVisible(false), 2500);
 
-    // Update local UI status immediately
-    setCompletedAssignments((prev) => ({ ...prev, [orderId]: true }))
-
+    // Step 2: Background API call
     try {
-      // 1. Update overall attendance status (finished for the day)
-      await handleQuickAction(STATUS_QUICK_ACTIONS.find(a => a.status === 'finished') || {
-        status: 'finished',
-        icon: '🏁',
-        variant: 'danger',
-      })
-
-      // 2. Update specific assignment status to Completed in DB
-      await updateAssignmentStatus(dbId, 'Completed')
-      
-      showToast('success', '作業指示を完了しました。')
-    } catch (err) {
-      console.error('Failed to update assignment status:', err)
-      showToast('error', 'ステータスの更新に失敗しました。')
+      const apiUrl = import.meta.env.VITE_API_URL || '';
+      await fetch(`${apiUrl}/api/assignments/${dbId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ status: 'Completed' })
+      });
+      // Optionally refresh data to sync with other users
+      refreshToday();
+    } catch (error) {
+      console.error('完了処理エラー (バックグラウンド):', error);
     }
-
-    // Keep the "Thank you" state for a while before letting it refresh from server
-    window.setTimeout(() => {
-      setCompletedAssignments((prev) => {
-        const next = { ...prev }
-        delete next[orderId]
-        return next
-      })
-    }, 15000)
-  }, [handleQuickAction, triggerCompletionToast, updateAssignmentStatus])
+  }, [refreshToday])
 
   const handleReportPhotoChange = (event) => {
     const files = Array.from(event.target.files || [])
@@ -351,7 +333,7 @@ export default function WorkerView() {
 
   return (
     <div className="worker-app-shell">
-      {showCompletionToast && (
+      {toastVisible && (
         <div style={{
           position: 'fixed',
           top: '20px',
@@ -365,7 +347,8 @@ export default function WorkerView() {
           fontSize: '16px',
           fontWeight: 'bold',
           boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          animation: 'fadeInOut 2.5s ease forwards'
+          transition: 'opacity 0.3s ease',
+          whiteSpace: 'nowrap'
         }}>
           ✅ お疲れ様でした！作業が完了しました
         </div>
@@ -620,7 +603,7 @@ export default function WorkerView() {
                     {selectedSchedule.entries.map((entry) => (
                       <article key={entry.id} className="worker-assignment-card">
                         <div className="worker-assignment-info">
-                          {completedAssignments[entry.id] || entry.status === 'Completed' ? (
+                          {completedIds.has(entry.id) || entry.status === 'Completed' || entry.status === 'completed' ? (
                             <p className="worker-assignment-finished">{text.worker.assignmentFinishedMessage}</p>
                           ) : (
                             <>
@@ -671,13 +654,17 @@ export default function WorkerView() {
                                   </a>
                                 </div>
                               )}
-                              {!completedAssignments[entry.id] && entry.status !== 'Completed' && (
+                              {completedIds.has(entry.id) || entry.status === 'Completed' || entry.status === 'completed' ? (
+                                <button disabled className="worker-assignment-complete" style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                                  完了済み
+                                </button>
+                              ) : (
                                 <button
                                   type="button"
                                   className="worker-assignment-complete"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleAssignmentComplete(entry);
+                                    handleComplete(entry);
                                   }}
                                 >
                                   {text.worker.completeAssignmentLabel}
@@ -708,7 +695,7 @@ export default function WorkerView() {
                     return (
                       <article key={order.id} className="worker-assignment-card">
                         <div className="worker-assignment-info">
-                          {completedAssignments[order.id] || order.status === 'Completed' ? (
+                          {completedIds.has(order.id) || order.status === 'Completed' || order.status === 'completed' ? (
                             <p className="worker-assignment-finished">{text.worker.assignmentFinishedMessage}</p>
                           ) : (
                             <>
@@ -768,14 +755,20 @@ export default function WorkerView() {
                             </>
                           )}
                         </div>
-                        {!completedAssignments[order.id] && order.status !== 'Completed' && (
+                        {completedIds.has(order.id) || order.status === 'Completed' || order.status === 'completed' ? (
+                          <div className="worker-assignment-actions">
+                            <button disabled className="worker-assignment-complete" style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                              完了済み
+                            </button>
+                          </div>
+                        ) : (
                           <div className="worker-assignment-actions">
                             <button
                               type="button"
                               className="worker-assignment-complete"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleAssignmentComplete(order);
+                                handleComplete(order);
                               }}
                             >
                               {text.worker.completeAssignmentLabel}
