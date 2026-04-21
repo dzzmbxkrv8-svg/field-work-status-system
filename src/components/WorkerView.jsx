@@ -20,7 +20,7 @@ export default function WorkerView() {
   const [reportForm, setReportForm] = useState({ assignment_id: '', note: '' })
   const [avatarPreview] = useState(null)
   const [reportPhotos, setReportPhotos] = useState([])
-  const [completedAssignments, setCompletedAssignments] = useState(() => new Set())
+  const [completedAssignments, setCompletedAssignments] = useState({}) // { [id]: boolean }
   const [adminMessage, setAdminMessage] = useState('')
   const [adminMessageRecipient, setAdminMessageRecipient] = useState('')
   const messageTextareaRef = useRef(null)
@@ -234,34 +234,46 @@ export default function WorkerView() {
     <span>{worker.name.slice(0, 1).toUpperCase()}</span>
   )
 
-  const handleAssignmentComplete = useCallback((id) => {
-    console.log('Completing assignment:', id);
+  const { updateStatus: updateAssignmentStatus } = useReports()
+
+  const handleAssignmentComplete = useCallback(async (order) => {
+    const orderId = order.id; // Display ID (e.g. FW-001)
+    const dbId = order.db_id; // Backend ID (numeric)
+    
+    console.log('Completing assignment:', orderId, 'dbId:', dbId);
     
     // Show completion toast immediately
     addCompletionToast()
 
-    // Update UI status immediately
-    setCompletedAssignments((prev) => {
-      const next = new Set(prev)
-      next.add(id)
-      return next
-    })
+    // Update local UI status immediately
+    setCompletedAssignments((prev) => ({ ...prev, [orderId]: true }))
 
-    // Call API in background
-    handleQuickAction(STATUS_QUICK_ACTIONS.find(a => a.status === 'finished') || {
-      status: 'finished',
-      icon: '🏁',
-      variant: 'danger',
-    }).catch(err => console.error('Failed to update attendance status:', err));
+    try {
+      // 1. Update overall attendance status (finished for the day)
+      await handleQuickAction(STATUS_QUICK_ACTIONS.find(a => a.status === 'finished') || {
+        status: 'finished',
+        icon: '🏁',
+        variant: 'danger',
+      })
 
+      // 2. Update specific assignment status to Completed in DB
+      await updateAssignmentStatus(dbId, 'Completed')
+      
+      showToast('success', '作業指示を完了しました。')
+    } catch (err) {
+      console.error('Failed to update assignment status:', err)
+      showToast('error', 'ステータスの更新に失敗しました。')
+    }
+
+    // Keep the "Thank you" state for a while before letting it refresh from server
     window.setTimeout(() => {
       setCompletedAssignments((prev) => {
-        const next = new Set(prev)
-        next.delete(id)
+        const next = { ...prev }
+        delete next[orderId]
         return next
       })
-    }, 10000)
-  }, [handleQuickAction, addCompletionToast])
+    }, 15000)
+  }, [handleQuickAction, addCompletionToast, updateAssignmentStatus])
 
   const handleReportPhotoChange = (event) => {
     const files = Array.from(event.target.files || [])
@@ -595,63 +607,71 @@ export default function WorkerView() {
                     {selectedSchedule.entries.map((entry) => (
                       <article key={entry.id} className="worker-assignment-card">
                         <div className="worker-assignment-info">
-                          <div className="worker-info-item">
-                            <span className="worker-meta-label">{text.worker.assignmentProjectLabel}:</span>
-                            <strong>{entry.projectName || entry.title || entry.id}</strong>
-                          </div>
-                          <div className="worker-info-item">
-                            <span className="worker-meta-label">{text.worker.assignmentAddressLabel}:</span>
-                            <span>
-                              {entry.location || text.worker.locationUnavailable}
+                          {completedAssignments[entry.id] || entry.status === 'Completed' ? (
+                            <p className="worker-assignment-finished">{text.worker.assignmentFinishedMessage}</p>
+                          ) : (
+                            <>
+                              <div className="worker-info-item">
+                                <span className="worker-meta-label">{text.worker.assignmentProjectLabel}:</span>
+                                <strong>{entry.projectName || entry.title || entry.id}</strong>
+                              </div>
+                              <div className="worker-info-item">
+                                <span className="worker-meta-label">{text.worker.assignmentAddressLabel}:</span>
+                                <span>
+                                  {entry.location || text.worker.locationUnavailable}
+                                  {entry.location && (
+                                    <a
+                                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(entry.location)}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="worker-map-link"
+                                      style={{ marginLeft: '0.4rem', color: '#2563eb', textDecoration: 'underline', fontSize: '0.85rem' }}
+                                    >
+                                      [MAP]
+                                    </a>
+                                  )}
+                                </span>
+                              </div>
+                              <div className="worker-info-item">
+                                <span className="worker-meta-label">{text.worker.assignmentDateLabel}:</span>
+                                <span>{formatDate(entry.startDate)}</span>
+                                <span className="worker-meta-label" style={{ marginLeft: '1rem' }}>{text.worker.assignmentCrewLabel}:</span>
+                                <span>{entry.crewCount || '—'}</span>
+                              </div>
+                              <div className="worker-info-item">
+                                <span className="worker-meta-label">{text.worker.assignmentTaskLabel}:</span>
+                                <span>{entry.notes || '—'}</span>
+                              </div>
+                              <div className="worker-info-item">
+                                <span className="worker-meta-label">{text.worker.assignmentMembersLabel}:</span>
+                                <span>{entry.members || '—'}</span>
+                              </div>
                               {entry.location && (
-                                <a
-                                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(entry.location)}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="worker-map-link"
-                                  style={{ marginLeft: '0.4rem', color: '#2563eb', textDecoration: 'underline', fontSize: '0.85rem' }}
-                                >
-                                  [MAP]
-                                </a>
+                                <div className="worker-assignment-links">
+                                  <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(entry.location)}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="worker-assignment-link"
+                                  >
+                                    📍 {text.worker.assignmentDocsLabel}
+                                  </a>
+                                </div>
                               )}
-                            </span>
-                          </div>
-                          <div className="worker-info-item">
-                            <span className="worker-meta-label">{text.worker.assignmentDateLabel}:</span>
-                            <span>{formatDate(entry.startDate)}</span>
-                            <span className="worker-meta-label" style={{ marginLeft: '1rem' }}>{text.worker.assignmentCrewLabel}:</span>
-                            <span>{entry.crewCount || '—'}</span>
-                          </div>
-                          <div className="worker-info-item">
-                            <span className="worker-meta-label">{text.worker.assignmentTaskLabel}:</span>
-                            <span>{entry.notes || '—'}</span>
-                          </div>
-                          <div className="worker-info-item">
-                            <span className="worker-meta-label">{text.worker.assignmentMembersLabel}:</span>
-                            <span>{entry.members || '—'}</span>
-                          </div>
-                          {entry.location && (
-                            <div className="worker-assignment-links">
-                              <a
-                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(entry.location)}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="worker-assignment-link"
-                              >
-                                📍 {text.worker.assignmentDocsLabel}
-                              </a>
-                            </div>
+                              {!completedAssignments[entry.id] && entry.status !== 'Completed' && (
+                                <button
+                                  type="button"
+                                  className="worker-assignment-complete"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAssignmentComplete(entry);
+                                  }}
+                                >
+                                  {text.worker.completeAssignmentLabel}
+                                </button>
+                              )}
+                            </>
                           )}
-                          <button
-                            type="button"
-                            className="worker-assignment-complete"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAssignmentComplete(entry.id);
-                            }}
-                          >
-                            {text.worker.completeAssignmentLabel}
-                          </button>
                         </div>
                       </article>
                     ))}
@@ -675,7 +695,7 @@ export default function WorkerView() {
                     return (
                       <article key={order.id} className="worker-assignment-card">
                         <div className="worker-assignment-info">
-                          {completedAssignments.has(order.id) ? (
+                          {completedAssignments[order.id] || order.status === 'Completed' ? (
                             <p className="worker-assignment-finished">{text.worker.assignmentFinishedMessage}</p>
                           ) : (
                             <>
@@ -735,14 +755,14 @@ export default function WorkerView() {
                             </>
                           )}
                         </div>
-                        {!completedAssignments.has(order.id) && (
+                        {!completedAssignments[order.id] && order.status !== 'Completed' && (
                           <div className="worker-assignment-actions">
                             <button
                               type="button"
                               className="worker-assignment-complete"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleAssignmentComplete(order.id);
+                                handleAssignmentComplete(order);
                               }}
                             >
                               {text.worker.completeAssignmentLabel}
