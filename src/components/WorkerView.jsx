@@ -272,7 +272,7 @@ export default function WorkerView() {
         return next
       })
     }, 15000)
-  }, [handleQuickAction, addCompletionToast, updateAssignmentStatus])
+  }, [handleQuickAction, triggerCompletionToast, updateAssignmentStatus])
 
   const handleReportPhotoChange = (event) => {
     const files = Array.from(event.target.files || [])
