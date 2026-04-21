@@ -31,16 +31,19 @@ export default function WorkerView() {
     return { year: now.getFullYear(), month: now.getMonth() }
   })
   const [apiWorkers, setApiWorkers] = useState([])
+  const [messageView, setMessageView] = useState('received')
+  const [toast, setToast] = useState(null) // { type: 'success'|'error'|'warning', text: string }
+  const [lastCheckedDate, setLastCheckedDate] = useState(() => new Date().toDateString())
+  const [reportPhotos, setReportPhotos] = useState([])
+
+  const worker = state.session
 
   useEffect(() => {
     if (!worker) return
     getWorkers().then(res => {
       if (res.success) setApiWorkers(res.data || [])
     })
-  }, [worker])
-  const [messageView, setMessageView] = useState('received')
-  const [toast, setToast] = useState(null) // { type: 'success'|'error'|'warning', text: string }
-  const [lastCheckedDate, setLastCheckedDate] = useState(() => new Date().toDateString())
+  }, [worker?.id])
 
   // Date change monitoring
   useEffect(() => {
@@ -60,8 +63,6 @@ export default function WorkerView() {
     setToast({ type, text })
     setTimeout(() => setToast(null), duration)
   }
-
-  const worker = state.session
 
   const incomingMessages = useMemo(() => {
     return apiMessages
@@ -237,18 +238,22 @@ export default function WorkerView() {
     
     try {
       const apiUrl = import.meta.env.VITE_API_URL || '';
-      await fetch(`${apiUrl}/api/assignments/${dbId}/status`, {
+      const response = await fetch(`${apiUrl}/api/assignments/${dbId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify({ status: 'completed' })
+        body: JSON.stringify({ status: 'Completed' })
       });
+      
+      if (response.ok) {
+        refreshToday();
+      }
     } catch (error) {
       console.error('完了処理エラー:', error);
     }
-  }, [])
+  }, [refreshToday])
 
   const handleReportPhotoChange = (event) => {
     const files = Array.from(event.target.files || [])
@@ -632,6 +637,12 @@ export default function WorkerView() {
                                 <span className="worker-meta-label" style={{ marginLeft: '1rem' }}>{text.worker.assignmentCrewLabel}:</span>
                                 <span>{entry.crewCount || '—'}</span>
                               </div>
+                              {entry.cautionNote && (
+                                <div className="worker-info-item">
+                                  <span className="worker-meta-label">{text.worker.assignmentCautionLabel}:</span>
+                                  <span>{entry.cautionNote}</span>
+                                </div>
+                              )}
                               <div className="worker-info-item">
                                 <span className="worker-meta-label">{text.worker.assignmentTaskLabel}:</span>
                                 <span>{entry.notes || '—'}</span>
@@ -763,18 +774,6 @@ export default function WorkerView() {
                                 <div className="worker-info-item">
                                   <span className="worker-meta-label">{text.worker.assignmentCautionLabel}:</span>
                                   <span>{order.cautionNote}</span>
-                                </div>
-                              )}
-                              {order.location && (
-                                <div className="worker-assignment-links">
-                                  <a
-                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.location)}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="worker-assignment-link"
-                                  >
-                                    📍 {text.worker.assignmentDocsLabel}
-                                  </a>
                                 </div>
                               )}
                             </>
