@@ -43,7 +43,7 @@ export default function WorkerView() {
     getWorkers().then(res => {
       if (res.success) setApiWorkers(res.data || [])
     })
-  }, [worker?.id])
+  }, [worker])
 
   // Date change monitoring
   useEffect(() => {
