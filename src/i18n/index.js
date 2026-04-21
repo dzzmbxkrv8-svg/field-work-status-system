@@ -580,7 +580,7 @@ const translationPacks = {
       assignmentCautionLabel: '注意事項',
       assignmentDocsLabel: '資料・図面を確認',
       assignmentUploadLabel: '写真・報告をアップロード',
-      completeAssignmentLabel: '作業を完了とする',
+      completeAssignmentLabel: '完了',
       offlinePending: (count) => `オフライン：送信待機中 (${count}件)`,
       clockHeading: '打刻',
       todaysWorkHours: '本日の勤務時間',
