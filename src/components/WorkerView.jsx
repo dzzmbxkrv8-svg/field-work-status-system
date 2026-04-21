@@ -231,14 +231,10 @@ export default function WorkerView() {
     const displayId = order.id;
     const dbId = order.db_id;
     
-    console.log('Starting clear complete process for:', displayId);
-    
-    // Step 1: Immediate UI update
     setCompletedIds(prev => new Set([...prev, displayId]));
     setToastVisible(true);
     setTimeout(() => setToastVisible(false), 2500);
-
-    // Step 2: Background API call
+    
     try {
       const apiUrl = import.meta.env.VITE_API_URL || '';
       await fetch(`${apiUrl}/api/assignments/${dbId}/status`, {
@@ -247,14 +243,12 @@ export default function WorkerView() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify({ status: 'Completed' })
+        body: JSON.stringify({ status: 'completed' })
       });
-      // Optionally refresh data to sync with other users
-      refreshToday();
     } catch (error) {
-      console.error('完了処理エラー (バックグラウンド):', error);
+      console.error('完了処理エラー:', error);
     }
-  }, [refreshToday])
+  }, [])
 
   const handleReportPhotoChange = (event) => {
     const files = Array.from(event.target.files || [])
@@ -347,7 +341,6 @@ export default function WorkerView() {
           fontSize: '16px',
           fontWeight: 'bold',
           boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          transition: 'opacity 0.3s ease',
           whiteSpace: 'nowrap'
         }}>
           ✅ お疲れ様でした！作業が完了しました
@@ -619,9 +612,14 @@ export default function WorkerView() {
                                     <a
                                       href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(entry.location)}`}
                                       target="_blank"
-                                      rel="noreferrer"
-                                      className="worker-map-link"
-                                      style={{ marginLeft: '0.4rem', color: '#2563eb', textDecoration: 'underline', fontSize: '0.85rem' }}
+                                      rel="noopener noreferrer"
+                                      style={{
+                                        color: '#3B82F6',
+                                        textDecoration: 'underline',
+                                        cursor: 'pointer',
+                                        marginLeft: '4px',
+                                        fontSize: '0.85rem'
+                                      }}
                                     >
                                       [MAP]
                                     </a>
@@ -655,19 +653,41 @@ export default function WorkerView() {
                                 </div>
                               )}
                               {completedIds.has(entry.id) || entry.status === 'Completed' || entry.status === 'completed' ? (
-                                <button disabled className="worker-assignment-complete" style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                                <button
+                                  disabled
+                                  style={{
+                                    width: '100%',
+                                    padding: '12px',
+                                    backgroundColor: '#888',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    cursor: 'not-allowed',
+                                    fontSize: '16px'
+                                  }}
+                                >
                                   完了済み
                                 </button>
                               ) : (
                                 <button
                                   type="button"
-                                  className="worker-assignment-complete"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleComplete(entry);
                                   }}
+                                  style={{
+                                    width: '100%',
+                                    padding: '12px',
+                                    backgroundColor: '#F59E0B',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    fontSize: '16px',
+                                    fontWeight: 'bold'
+                                  }}
                                 >
-                                  {text.worker.completeAssignmentLabel}
+                                  完了
                                 </button>
                               )}
                             </>
@@ -711,9 +731,14 @@ export default function WorkerView() {
                                     <a
                                       href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.location)}`}
                                       target="_blank"
-                                      rel="noreferrer"
-                                      className="worker-map-link"
-                                      style={{ marginLeft: '0.4rem', color: '#2563eb', textDecoration: 'underline', fontSize: '0.85rem' }}
+                                      rel="noopener noreferrer"
+                                      style={{
+                                        color: '#3B82F6',
+                                        textDecoration: 'underline',
+                                        cursor: 'pointer',
+                                        marginLeft: '4px',
+                                        fontSize: '0.85rem'
+                                      }}
                                     >
                                       [MAP]
                                     </a>
@@ -756,22 +781,44 @@ export default function WorkerView() {
                           )}
                         </div>
                         {completedIds.has(order.id) || order.status === 'Completed' || order.status === 'completed' ? (
-                          <div className="worker-assignment-actions">
-                            <button disabled className="worker-assignment-complete" style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                          <div className="worker-assignment-actions" style={{ width: '100%' }}>
+                            <button
+                              disabled
+                              style={{
+                                width: '100%',
+                                padding: '12px',
+                                backgroundColor: '#888',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'not-allowed',
+                                fontSize: '16px'
+                              }}
+                            >
                               完了済み
                             </button>
                           </div>
                         ) : (
-                          <div className="worker-assignment-actions">
+                          <div className="worker-assignment-actions" style={{ width: '100%' }}>
                             <button
                               type="button"
-                              className="worker-assignment-complete"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleComplete(order);
                               }}
+                              style={{
+                                width: '100%',
+                                padding: '12px',
+                                backgroundColor: '#F59E0B',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '16px',
+                                fontWeight: 'bold'
+                              }}
                             >
-                              {text.worker.completeAssignmentLabel}
+                              完了
                             </button>
                           </div>
                         )}
