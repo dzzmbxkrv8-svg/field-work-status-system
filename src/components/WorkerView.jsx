@@ -40,6 +40,28 @@ export default function WorkerView() {
   }, [worker])
   const [messageView, setMessageView] = useState('received')
   const [toast, setToast] = useState(null) // { type: 'success'|'error'|'warning', text: string }
+  const [completionToasts, setCompletionToasts] = useState([]) // Array of { id, text }
+  const [lastCheckedDate, setLastCheckedDate] = useState(() => new Date().toDateString())
+
+  // Date change monitoring
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date().toDateString()
+      if (now !== lastCheckedDate) {
+        setLastCheckedDate(now)
+        refreshToday()
+      }
+    }, 60000)
+    return () => clearInterval(timer)
+  }, [lastCheckedDate, refreshToday])
+
+  const addCompletionToast = useCallback(() => {
+    const id = Date.now()
+    setCompletionToasts(prev => [...prev, { id, text: '✅ お疲れ様でした！作業が完了しました' }])
+    setTimeout(() => {
+      setCompletionToasts(prev => prev.filter(t => t.id !== id))
+    }, 2500)
+  }, [])
 
   const showToast = (type, text, duration = 3500) => {
     setToast({ type, text })
@@ -218,6 +240,9 @@ export default function WorkerView() {
       icon: '🏁',
       variant: 'danger',
     })
+    // Show completion toast
+    addCompletionToast()
+
     setCompletedAssignments((prev) => {
       const next = new Set(prev)
       next.add(orderId)
@@ -230,7 +255,7 @@ export default function WorkerView() {
         return next
       })
     }, 10000)
-  }, [handleQuickAction])
+  }, [handleQuickAction, addCompletionToast])
 
   const handleReportPhotoChange = (event) => {
     const files = Array.from(event.target.files || [])
@@ -309,6 +334,11 @@ export default function WorkerView() {
 
   return (
     <div className="worker-app-shell">
+      {completionToasts.map(t => (
+        <div key={t.id} className="worker-toast-completion">
+          {t.text}
+        </div>
+      ))}
       {toast && (
         <div style={{
           position: 'fixed', top: '1rem', left: '50%', transform: 'translateX(-50%)',
@@ -440,7 +470,11 @@ export default function WorkerView() {
                     { key: 'departed_at', label: '出発済み', icon: '🚗' },
                     { key: 'arrived_at', label: '現場到着', icon: '📍' },
                     { key: 'finished_at', label: '作業終了', icon: '✅' },
-                  ].filter(item => todayAttendance && todayAttendance[item.key])
+                  ].filter(item => {
+                    const isToday = todayAttendance && 
+                                    (!todayAttendance.date || new Date(todayAttendance.date).toDateString() === new Date().toDateString())
+                    return isToday && todayAttendance && todayAttendance[item.key]
+                  })
                    .map(item => ({
                      ...item,
                      timestamp: todayAttendance[item.key]

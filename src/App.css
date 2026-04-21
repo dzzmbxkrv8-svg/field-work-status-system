@@ -3479,3 +3479,35 @@ textarea:focus {
   background: #ecfdf5;
   border-radius: 12px;
 }
+
+/* === トースト通知アニメーション === */
+@keyframes toastFadeIn {
+  from { opacity: 0; transform: translate(-50%, -20px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+@keyframes toastFadeOut {
+  from { opacity: 1; transform: translate(-50%, 0); }
+  to { opacity: 0; transform: translate(-50%, -20px); }
+}
+
+.worker-toast-completion {
+  position: fixed;
+  top: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  padding: 0.85rem 1.5rem;
+  border-radius: 12px;
+  background: white;
+  color: var(--color-success);
+  font-weight: 700;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(5, 150, 105, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  animation: toastFadeIn 0.3s ease forwards, toastFadeOut 0.3s ease 2.2s forwards;
+  pointer-events: none;
+}
