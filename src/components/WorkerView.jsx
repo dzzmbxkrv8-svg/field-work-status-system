@@ -10,7 +10,7 @@ import { getWorkers } from '@/api/workers'
 
 export default function WorkerView() {
   const { state, logout } = useAppContext()
-  const { sortedOrders: assignments } = useReports()
+  const { sortedOrders: assignments, updateStatus: updateAssignmentStatus, refresh: refreshAssignments } = useReports()
   const { todayAttendance, updateStatus: updateAttendance, refreshToday } = useTimeEntries()
   const { messages: apiMessages, send: sendMessageApi } = useMessages()
   const { submitReport: submitDailyReport } = useDailyReports()
@@ -230,30 +230,25 @@ export default function WorkerView() {
 
   const handleComplete = useCallback(async (order) => {
     const displayId = order.id;
-    const dbId = order.db_id;
-    
+    const dbId = order.db_id ?? order.id;
+
     setCompletedIds(prev => new Set([...prev, displayId]));
-    setToastVisible(true);
-    setTimeout(() => setToastVisible(false), 2500);
-    
+
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || '';
-      const response = await fetch(`${apiUrl}/api/assignments/${dbId}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ status: 'Completed' })
-      });
-      
-      if (response.ok) {
-        refreshToday();
+      const result = await updateAssignmentStatus(dbId, 'completed')
+      if (result.success) {
+        await refreshAssignments()
+        showToast('success', 'お疲れ様でした！作業が完了しました ✅')
+      } else {
+        setCompletedIds(prev => { const s = new Set(prev); s.delete(displayId); return s })
+        showToast('error', result.message || '完了処理に失敗しました。')
       }
     } catch (error) {
       console.error('完了処理エラー:', error);
+      setCompletedIds(prev => { const s = new Set(prev); s.delete(displayId); return s })
+      showToast('error', '完了処理に失敗しました。')
     }
-  }, [refreshToday])
+  }, [updateAssignmentStatus, refreshAssignments])
 
   const handleReportPhotoChange = (event) => {
     const files = Array.from(event.target.files || [])
@@ -332,25 +327,6 @@ export default function WorkerView() {
 
   return (
     <div className="worker-app-shell">
-      {toastVisible && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          backgroundColor: '#4CAF50',
-          color: 'white',
-          padding: '12px 24px',
-          borderRadius: '8px',
-          zIndex: 9999,
-          fontSize: '16px',
-          fontWeight: 'bold',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          whiteSpace: 'nowrap'
-        }}>
-          ✅ お疲れ様でした！作業が完了しました
-        </div>
-      )}
       {toast && (
         <div style={{
           position: 'fixed', top: '1rem', left: '50%', transform: 'translateX(-50%)',
@@ -516,6 +492,8 @@ export default function WorkerView() {
             </section>
           </>
         )}
+
+
 
 
 
@@ -713,120 +691,125 @@ export default function WorkerView() {
               </section>
             )}
 
-            <section className="worker-card worker-card-assignments">
-              <header>
-                <h3>{text.worker.assignmentHeading}</h3>
-                <p className="worker-assignment-count">{text.worker.assignmentCount ? text.worker.assignmentCount(assignments.length) : `${assignments.length}件`}</p>
-              </header>
-              {assignments.length === 0 ? (
-                <p className="worker-empty">{text.worker.empty}</p>
-              ) : (
-                <div className="worker-assignment-grid">
-                  {assignments.map((order) => {
-                    return (
-                      <article key={order.id} className="worker-assignment-card">
-                        <div className="worker-assignment-info">
-                          {completedIds.has(order.id) || order.status === 'Completed' || order.status === 'completed' ? (
-                            <p className="worker-assignment-finished">{text.worker.assignmentFinishedMessage}</p>
-                          ) : (
-                            <>
-                              <div className="worker-info-item">
-                                <span className="worker-meta-label">{text.worker.assignmentProjectLabel}:</span>
-                                <strong>{order.projectName || order.title || order.id}</strong>
-                              </div>
-                              <div className="worker-info-item">
-                                <span className="worker-meta-label">{text.worker.assignmentAddressLabel}:</span>
-                                <span>
-                                  {order.location || text.worker.locationUnavailable}
-                                  {order.location && (
-                                    <a
-                                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.location)}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      style={{
-                                        color: '#3B82F6',
-                                        textDecoration: 'underline',
-                                        cursor: 'pointer',
-                                        marginLeft: '4px',
-                                        fontSize: '0.85rem'
-                                      }}
-                                    >
-                                      [MAP]
-                                    </a>
-                                  )}
-                                </span>
-                              </div>
-                              <div className="worker-info-item">
-                                <span className="worker-meta-label">{text.worker.assignmentDateLabel}:</span>
-                                <span>{formatDate(order.startDate)}</span>
-                                <span className="worker-meta-label" style={{ marginLeft: '1rem' }}>{text.worker.assignmentCrewLabel}:</span>
-                                <span>{order.crewCount || '—'}</span>
-                              </div>
-                              <div className="worker-info-item">
-                                <span className="worker-meta-label">{text.worker.assignmentTaskLabel}:</span>
-                                <span>{order.notes || '—'}</span>
-                              </div>
-                              <div className="worker-info-item">
-                                <span className="worker-meta-label">{text.worker.assignmentMembersLabel}:</span>
-                                <span>{order.members || '—'}</span>
-                              </div>
-                              {order.cautionNote && (
-                                <div className="worker-info-item">
-                                  <span className="worker-meta-label">{text.worker.assignmentCautionLabel}:</span>
-                                  <span>{order.cautionNote}</span>
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
+
+          </section>
+        )}
+
+        {activeTab === 'calendar' && (
+          <section className="worker-card worker-card-assignments">
+            <header>
+              <h3>{text.worker.assignmentHeading}</h3>
+              <p className="worker-assignment-count">{text.worker.assignmentCount ? text.worker.assignmentCount(assignments.length) : `${assignments.length}件`}</p>
+            </header>
+            {assignments.length === 0 ? (
+              <p className="worker-empty">{text.worker.empty}</p>
+            ) : (
+              <div className="worker-assignment-grid">
+                {assignments.map((order) => {
+                  return (
+                    <article key={order.id} className="worker-assignment-card">
+                      <div className="worker-assignment-info">
                         {completedIds.has(order.id) || order.status === 'Completed' || order.status === 'completed' ? (
-                          <div className="worker-assignment-actions" style={{ width: '100%' }}>
-                            <button
-                              disabled
-                              style={{
-                                width: '100%',
-                                padding: '12px',
-                                backgroundColor: '#888',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '8px',
-                                cursor: 'not-allowed',
-                                fontSize: '16px'
-                              }}
-                            >
-                              完了済み
-                            </button>
-                          </div>
+                          <p className="worker-assignment-finished">{text.worker.assignmentFinishedMessage}</p>
                         ) : (
-                          <div className="worker-assignment-actions" style={{ width: '100%' }}>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleComplete(order);
-                              }}
-                              style={{
-                                width: '100%',
-                                padding: '12px',
-                                backgroundColor: '#F59E0B',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                fontSize: '16px',
-                                fontWeight: 'bold'
-                              }}
-                            >
-                              完了
-                            </button>
-                          </div>
+                          <>
+                            <div className="worker-info-item">
+                              <span className="worker-meta-label">{text.worker.assignmentProjectLabel}:</span>
+                              <strong>{order.projectName || order.title || order.id}</strong>
+                            </div>
+                            <div className="worker-info-item">
+                              <span className="worker-meta-label">{text.worker.assignmentAddressLabel}:</span>
+                              <span>
+                                {order.location || text.worker.locationUnavailable}
+                                {order.location && (
+                                  <a
+                                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.location)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    style={{
+                                      color: '#3B82F6',
+                                      textDecoration: 'underline',
+                                      cursor: 'pointer',
+                                      marginLeft: '4px',
+                                      fontSize: '0.85rem'
+                                    }}
+                                  >
+                                    [MAP]
+                                  </a>
+                                )}
+                              </span>
+                            </div>
+                            <div className="worker-info-item">
+                              <span className="worker-meta-label">{text.worker.assignmentDateLabel}:</span>
+                              <span>{formatDate(order.startDate)}</span>
+                              <span className="worker-meta-label" style={{ marginLeft: '1rem' }}>{text.worker.assignmentCrewLabel}:</span>
+                              <span>{order.crewCount || '—'}</span>
+                            </div>
+                            <div className="worker-info-item">
+                              <span className="worker-meta-label">{text.worker.assignmentTaskLabel}:</span>
+                              <span>{order.notes || '—'}</span>
+                            </div>
+                            <div className="worker-info-item">
+                              <span className="worker-meta-label">{text.worker.assignmentMembersLabel}:</span>
+                              <span>{order.members || '—'}</span>
+                            </div>
+                            {order.cautionNote && (
+                              <div className="worker-info-item">
+                                <span className="worker-meta-label">{text.worker.assignmentCautionLabel}:</span>
+                                <span>{order.cautionNote}</span>
+                              </div>
+                            )}
+                          </>
                         )}
-                      </article>
-                    )
-                  })}
-                </div>
-              )}
-            </section>
+                      </div>
+                      {completedIds.has(order.id) || order.status === 'Completed' || order.status === 'completed' ? (
+                        <div className="worker-assignment-actions" style={{ width: '100%' }}>
+                          <button
+                            disabled
+                            style={{
+                              width: '100%',
+                              padding: '12px',
+                              backgroundColor: '#888',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '8px',
+                              cursor: 'not-allowed',
+                              fontSize: '16px'
+                            }}
+                          >
+                            完了済み
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="worker-assignment-actions" style={{ width: '100%' }}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleComplete(order);
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '12px',
+                              backgroundColor: '#F59E0B',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              fontSize: '16px',
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            完了
+                          </button>
+                        </div>
+                      )}
+                    </article>
+                  )
+                })}
+              </div>
+            )}
           </section>
         )}
 

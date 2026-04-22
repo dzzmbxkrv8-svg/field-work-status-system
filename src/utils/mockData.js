@@ -35,6 +35,7 @@ export const INITIAL_WORKERS = [
 export const seedWorkOrders = [
   {
     id: 'FW-2401',
+    db_id: 1,
     projectName: '〇〇建設 第3棟',
     address: '東京都杉並区高円寺1-2-3',
     mapUrl: 'https://maps.example.com/?q=Tokyo+Koenji+1-2-3',
@@ -60,6 +61,7 @@ export const seedWorkOrders = [
   },
   {
     id: 'FW-2402',
+    db_id: 2,
     projectName: '物流倉庫 荷捌き場',
     address: '北海道函館市豊川町2-4-1',
     mapUrl: 'https://maps.example.com/?q=Hakodate+Toyokawa',
@@ -85,6 +87,7 @@ export const seedWorkOrders = [
   },
   {
     id: 'FW-2403',
+    db_id: 3,
     team: 'Central Maintenance',
     supervisor: 'Hiroko Watanabe',
     location: 'Asahikawa Substation',
@@ -103,6 +106,7 @@ export const seedWorkOrders = [
   },
   {
     id: 'FW-2404',
+    db_id: 4,
     team: 'South Response',
     supervisor: 'Ken Tanaka',
     location: 'Muroran Coastal Route',
@@ -121,6 +125,7 @@ export const seedWorkOrders = [
   },
   {
     id: 'FW-2405',
+    db_id: 5,
     team: 'Support East',
     supervisor: 'Mina Ishikawa',
     location: 'Kushiro Waterworks',

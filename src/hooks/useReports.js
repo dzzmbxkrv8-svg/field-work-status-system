@@ -40,26 +40,45 @@ export function useReports() {
   const { state, dispatch } = useAppContext()
   const { workOrders, filters } = state
 
+  // DBのstatus値（snake_case/lowercase）をフロントエンド表示用（PascalCase）に変換
+  const normalizeStatus = (raw) => {
+    const map = {
+      'completed': 'Completed',
+      'in_progress': 'In Progress',
+      'in progress': 'In Progress',
+      'not_started': 'Not Started',
+      'not started': 'Not Started',
+      'delayed': 'Delayed',
+      'ready_for_dispatch': 'Ready for Dispatch',
+      'ready for dispatch': 'Ready for Dispatch',
+    }
+    if (!raw) return 'Not Started'
+    return map[raw.toLowerCase()] || raw
+  }
+
   const fetchAssignments = useCallback(async () => {
     if (!localStorage.getItem('token')) return;
     const result = await assignmentsApi.getAssignments()
     if (result.success) {
-      dispatch({ 
-        type: 'SET_WORK_ORDERS', 
-        payload: result.data.map(o => ({
-          ...o,
-          db_id: o.id,
-          id: o.assignment_code || o.id,
-          projectName: o.title,
-          location: o.location,
-          startDate: o.start_date,
-          endDate: o.end_date,
-          dueDate: o.end_date || o.start_date,
-          raw_status: o.status,
-          status: o.status,
-          priority: o.priority ? o.priority.charAt(0).toUpperCase() + o.priority.slice(1) : 'Medium',
-          progress: o.status === 'completed' ? 100 : (o.status === 'in_progress' ? 50 : 0)
-        }))
+      dispatch({
+        type: 'SET_WORK_ORDERS',
+        payload: result.data.map(o => {
+          const normalizedStatus = normalizeStatus(o.status)
+          return {
+            ...o,
+            db_id: o.id,
+            id: o.assignment_code || o.id,
+            projectName: o.title,
+            location: o.location,
+            startDate: o.start_date,
+            endDate: o.end_date,
+            dueDate: o.end_date || o.start_date,
+            raw_status: o.status,
+            status: normalizedStatus,
+            priority: o.priority ? o.priority.charAt(0).toUpperCase() + o.priority.slice(1) : 'Medium',
+            progress: normalizedStatus === 'Completed' ? 100 : (normalizedStatus === 'In Progress' ? 50 : 0)
+          }
+        })
       })
     }
   }, [dispatch])
