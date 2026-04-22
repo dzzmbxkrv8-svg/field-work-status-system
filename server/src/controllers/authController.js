@@ -69,7 +69,7 @@ exports.me = async (req, res, next) => {
       FROM users u
       LEFT JOIN teams t ON u.team_id = t.id
       WHERE u.id = $1
-    `, [id]);
+    `, [req.user.id]);
     const user = rows[0];
 
     if (!user) {

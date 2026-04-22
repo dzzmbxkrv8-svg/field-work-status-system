@@ -11,6 +11,7 @@ import ReportsPanel from './ReportsPanel'
 import WorkerAssignmentDialog from './WorkerAssignmentDialog'
 import BottomNavigation from './BottomNavigation'
 import { useState } from 'react'
+import { assignWorker } from '@/api/assignments'
 
 export default function AdminView() {
   const { state, dispatch, logout } = useAppContext()
@@ -21,15 +22,22 @@ export default function AdminView() {
   const { session, selectedTab, workers } = state
   const { text, getStatusLabel, getPriorityLabel } = useI18n('ja')
   const [assigningOrder, setAssigningOrder] = useState(null)
+  const [assignError, setAssignError] = useState(null)
 
   const handleAssignWorkers = (order) => {
     setAssigningOrder(order)
+    setAssignError(null)
   }
 
-  const handleSaveAssignments = (members) => {
-    if (assigningOrder) {
-      updateOrder(assigningOrder.id, { members })
+  const handleSaveAssignments = async (workerId) => {
+    if (!assigningOrder) return
+    const dbId = assigningOrder.db_id || assigningOrder.id
+    const result = await assignWorker(dbId, workerId)
+    if (result.success) {
       setAssigningOrder(null)
+      setAssignError(null)
+    } else {
+      setAssignError(result.message || '割り振りの保存に失敗しました')
     }
   }
 
@@ -133,7 +141,8 @@ export default function AdminView() {
           order={assigningOrder}
           workers={workers}
           onSave={handleSaveAssignments}
-          onClose={() => setAssigningOrder(null)}
+          onClose={() => { setAssigningOrder(null); setAssignError(null) }}
+          error={assignError}
         />
       )}
 

@@ -5,7 +5,9 @@ import { defaultFormState, PRIORITY_OPTIONS, STATUS_OPTIONS } from '@/utils/cons
 import { downloadBlob, escapeForCsv, formatAdminDate } from '@/utils/format'
 import AdminActivityFeed from './AdminActivityFeed'
 import WorkOrdersTable from './WorkOrdersTable'
-import { getAssignments, createAssignment, updateAssignmentStatus } from '@/api/assignments'
+import { getAssignments, createAssignment, updateAssignmentStatus, assignWorker, uploadAttachments } from '@/api/assignments'
+import { getWorkers } from '@/api/workers'
+import CreateOrderWizard from './CreateOrderWizard'
 
 function escapeHtml(value) {
   if (value === null || value === undefined) return ''
@@ -21,6 +23,7 @@ export default function AdminPanel({ onAssignWorkers }) {
   const { filters } = state
   const { text, getStatusLabel, getPriorityLabel, getSafetyCheckLabel } = useI18n('ja')
   const [orders, setOrders] = useState([])
+  const [workers, setWorkers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [formState, setFormState] = useState(defaultFormState)
@@ -68,6 +71,9 @@ export default function AdminPanel({ onAssignWorkers }) {
 
   useEffect(() => {
     fetchOrders()
+    getWorkers().then(res => {
+      if (res.success) setWorkers(res.data || [])
+    })
   }, [fetchOrders])
 
   const filteredOrders = useMemo(() => {
@@ -197,28 +203,39 @@ export default function AdminPanel({ onAssignWorkers }) {
     setFormState((previous) => ({ ...previous, [field]: value }))
   }
 
-  const handleSubmit = async (event) => {
-    event.preventDefault()
+  const handleWizardCreate = async ({ title, location, startDate, dueDate, priority, workerId, attachments }) => {
     const result = await createAssignment({
       assignment_code: `FW-${Date.now().toString().slice(-4)}`,
-      title: formState.location, 
-      location: formState.location,
-      team_id: 1, 
-      start_date: formState.startDate,
-      end_date: formState.dueDate,
-      notes: formState.notes,
-      priority: formState.priority.toLowerCase(),
-      status: formState.status.toLowerCase()
+      title,
+      location,
+      team_id: 1,
+      start_date: startDate,
+      end_date: dueDate,
+      priority: priority.toLowerCase(),
+      status: 'pending',
     })
-    
-    if (result.success) {
-      setFormState(defaultFormState)
-      setIsAdding(false)
-      fetchOrders()
-      showNotification('success', '作業指示を作成しました。')
-    } else {
+
+    if (!result.success) {
       showNotification('error', result.message || '作業指示の作成に失敗しました。')
+      throw new Error(result.message)
     }
+
+    const newId = result.data?.id
+    if (newId) {
+      if (workerId) {
+        await assignWorker(newId, workerId)
+      }
+      if (attachments && attachments.length > 0) {
+        const uploadResult = await uploadAttachments(newId, attachments)
+        if (!uploadResult.success) {
+          showNotification('error', `作業指示は作成しましたが、ファイルのアップロードに失敗しました: ${uploadResult.message}`)
+        }
+      }
+    }
+
+    setIsAdding(false)
+    fetchOrders()
+    showNotification('success', '作業指示を作成しました。')
   }
 
   const handleStatusChange = async (orderId, newStatus) => {
@@ -260,101 +277,24 @@ export default function AdminPanel({ onAssignWorkers }) {
           <button type="button" className="fws-button secondary" onClick={handleExportToExcel}>
             {text.admin.exportExcel}
           </button>
-          <button type="button" className="fws-button" onClick={() => setIsAdding((value) => !value)}>
-            {isAdding ? text.admin.cancel : text.admin.addOrder}
-          </button>
         </div>
       </header>
 
       <AdminActivityFeed orders={filteredOrders} />
 
-      {isAdding && (
-        <form className="fws-form" onSubmit={handleSubmit}>
-          <div className="fws-form-grid">
-            <label>
-              {text.admin.form.team}
-              <input required value={formState.team} onChange={(event) => handleFormChange('team', event.target.value)} />
-            </label>
-            <label>
-              {text.admin.form.supervisor}
-              <input
-                required
-                value={formState.supervisor}
-                onChange={(event) => handleFormChange('supervisor', event.target.value)}
-              />
-            </label>
-            <label>
-              {text.admin.form.location}
-              <input
-                required
-                value={formState.location}
-                onChange={(event) => handleFormChange('location', event.target.value)}
-              />
-            </label>
-            <label>
-              {text.admin.form.status}
-              <select value={formState.status} onChange={(event) => handleFormChange('status', event.target.value)}>
-                {STATUS_OPTIONS.map((status) => (
-                  <option key={status} value={status}>
-                    {getStatusLabel(status)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              {text.admin.form.priority}
-              <select value={formState.priority} onChange={(event) => handleFormChange('priority', event.target.value)}>
-                {PRIORITY_OPTIONS.map((priority) => (
-                  <option key={priority} value={priority}>
-                    {getPriorityLabel(priority)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              {text.admin.form.crewCount}
-              <input
-                type="number"
-                min="1"
-                value={formState.crewCount}
-                onChange={(event) => handleFormChange('crewCount', event.target.value)}
-              />
-            </label>
-            <label>
-              {text.admin.form.startDate}
-              <input type="date" value={formState.startDate} onChange={(event) => handleFormChange('startDate', event.target.value)} />
-            </label>
-            <label>
-              {text.admin.form.dueDate}
-              <input type="date" value={formState.dueDate} onChange={(event) => handleFormChange('dueDate', event.target.value)} />
-            </label>
-            <label>
-              {text.admin.form.progress}
-              <input
-                type="number"
-                min="0"
-                max="100"
-                step="5"
-                value={formState.progress}
-                onChange={(event) => handleFormChange('progress', event.target.value)}
-              />
-            </label>
-            <label>
-              {text.admin.form.safetyCheck}
-              <input value={formState.safetyCheck} onChange={(event) => handleFormChange('safetyCheck', event.target.value)} />
-            </label>
-            <label className="fws-form-notes">
-              {text.admin.form.notes}
-              <textarea rows={3} value={formState.notes} onChange={(event) => handleFormChange('notes', event.target.value)} />
-            </label>
-          </div>
-          <div className="fws-form-actions">
-            <button type="submit" className="fws-button">
-              {text.admin.form.submit}
-            </button>
-          </div>
-        </form>
-      )}
+      <div style={{ marginBottom: '1rem' }}>
+        {!isAdding ? (
+          <button type="button" className="fws-button" onClick={() => setIsAdding(true)}>
+            {text.admin.addOrder}
+          </button>
+        ) : (
+          <CreateOrderWizard
+            workers={workers}
+            onCreate={handleWizardCreate}
+            onCancel={() => setIsAdding(false)}
+          />
+        )}
+      </div>
 
       <WorkOrdersTable
         orders={filteredOrders}

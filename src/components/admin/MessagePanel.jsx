@@ -61,6 +61,7 @@ export default function MessagePanel() {
             sender: msg.sender_name || 'Admin',
             receiver: msg.receiver_name || (msg.team_id ? 'Team' : 'All'),
             message: msg.content,
+            photo_url: msg.photo_url, // 写真URLを追加
             timestamp: msg.created_at,
             type: msg.sender_id === state.session?.id ? 'sent' : 'received'
         })).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
@@ -150,6 +151,11 @@ export default function MessagePanel() {
                                             }
                                         </strong>
                                         <p>{msg.message}</p>
+                                        {msg.photo_url && (
+                                            <div style={{ marginTop: '0.5rem' }}>
+                                                <img src={msg.photo_url} alt="Attached" style={{ maxWidth: '100%', borderRadius: '4px', maxHeight: '150px', objectFit: 'contain' }} />
+                                            </div>
+                                        )}
                                         <small className="fws-meta">{formatDate(msg.timestamp)}</small>
                                     </div>
                                 </li>

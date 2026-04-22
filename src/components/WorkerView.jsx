@@ -71,6 +71,7 @@ export default function WorkerView() {
         id: msg.id,
         sender: msg.sender_name || 'Admin',
         message: msg.content,
+        photo_url: msg.photo_url, // 写真URLを追加
         timestamp: msg.created_at,
         isRead: msg.is_read
       })).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
@@ -93,6 +94,7 @@ export default function WorkerView() {
           id: msg.id,
           receiver,
           message: msg.content,
+          photo_url: msg.photo_url, // 写真URLを追加
           timestamp: msg.created_at,
         }
       })
@@ -199,17 +201,16 @@ export default function WorkerView() {
     const result = await submitDailyReport({
       assignment_id: primaryAssignment.db_id ?? primaryAssignment.id,
       note: reportForm.note,
-      photos: reportPhotos
+      // 日報セクションは変更しないため、ここでの写真は送信しない（メッセージセクションに統合）
     })
     
     if (result.success) {
       setReportForm((prev) => ({ ...prev, note: '' }))
-      setReportPhotos([])
       showToast('success', text.worker.reportSubmittedSuccess || '日報を提出しました。')
     } else {
       showToast('error', result.message || '日報の提出に失敗しました。')
     }
-  }, [primaryAssignment, reportForm.note, reportPhotos, submitDailyReport, setReportForm, setReportPhotos, text.worker.reportSubmittedSuccess])
+  }, [primaryAssignment, reportForm.note, submitDailyReport, setReportForm, text.worker.reportSubmittedSuccess])
 
   const handleQuickAction = useCallback(async (action) => {
     setClockLoading(true)
@@ -278,24 +279,29 @@ export default function WorkerView() {
 
   const handleAdminMessageSubmit = useCallback(async (event) => {
     event.preventDefault()
-    if (!adminMessage.trim()) return
+    if (!adminMessage.trim() && reportPhotos.length === 0) return
     if (!adminMessageRecipient) return
 
     const [type, id] = adminMessageRecipient.split(':')
     const payload = {
       content: adminMessage.trim(),
       team_id: (type === 'worker' || type === 'admin') ? null : id,
-      receiver_id: type === 'worker' ? parseInt(id) : null
+      receiver_id: type === 'worker' ? parseInt(id) : null,
+      photos: reportPhotos // 写真も含めて送信
     }
 
     const result = await sendMessageApi(payload)
     if (result.success) {
       setAdminMessage('')
-      showToast('success', 'メッセージを送信しました。')
+      setReportPhotos([])
+      if (messageTextareaRef.current) {
+        messageTextareaRef.current.style.height = '120px'
+      }
+      showToast('success', 'メッセージと報告を送信しました。')
     } else {
-      showToast('error', result.message || 'メッセージの送信に失敗しました。')
+      showToast('error', result.message || '送信に失敗しました。')
     }
-  }, [adminMessage, adminMessageRecipient, sendMessageApi, setAdminMessage])
+  }, [adminMessage, adminMessageRecipient, sendMessageApi, setAdminMessage, reportPhotos, setReportPhotos])
 
 
 
@@ -817,7 +823,7 @@ export default function WorkerView() {
           <div className="worker-report-container">
             <section className="worker-card worker-card-message">
               <header>
-                <h3>{text.worker.adminMessageTitle}</h3>
+                <h3>メッセージ・現場報告</h3>
               </header>
               <form className="worker-message-form" onSubmit={handleAdminMessageSubmit}>
                  <div className="worker-form-group">
@@ -834,12 +840,36 @@ export default function WorkerView() {
                      placeholder={text.worker.adminMessagePlaceholder}
                      style={{ minHeight: '120px' }}
                    />
-                   <button type="submit" className="worker-message-send-btn">
-                     <span className="worker-send-btn-text">{text.worker.adminMessageButton}</span>
-                   </button>
                  </div>
+
+                 <div className="worker-photo-controls" style={{ marginTop: '1rem' }}>
+                   <label className="worker-photo-label-trigger">
+                     <input type="file" accept="image/*" capture="camera" multiple onChange={handleReportPhotoChange} style={{ display: 'none' }} />
+                     <div className="worker-photo-add-box" style={{ padding: '0.75rem', border: '2px dashed var(--color-border)', borderRadius: '8px', textAlign: 'center', cursor: 'pointer' }}>
+                       <span>📷 {text.worker.photoReportPrompt || '写真を追加'}</span>
+                     </div>
+                   </label>
+                   
+                   {reportPhotos.length > 0 && (
+                     <div className="worker-photo-grid-preview" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', marginTop: '1rem' }}>
+                       {reportPhotos.map((photo, idx) => (
+                         <div key={idx} className="worker-photo-thumbnail" style={{ position: 'relative', aspectRatio: '1/1' }}>
+                           <img src={photo} alt={`Preview ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
+                           <button type="button" className="worker-photo-delete" onClick={() => removeReportPhoto(idx)} style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', borderRadius: '50%', width: '20px', height: '20px', lineHeight: '20px', fontSize: '12px', cursor: 'pointer' }}>×</button>
+                         </div>
+                       ))}
+                     </div>
+                   )}
+                   {reportPhotos.length >= 8 && (
+                     <p style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.5rem' }}>最大8枚まで選択できます</p>
+                   )}
+                 </div>
+
+                 <button type="submit" className="worker-message-send-btn" style={{ marginTop: '1rem', width: '100%', padding: '0.75rem', background: 'var(--color-primary)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                   <span className="worker-send-btn-text">{text.worker.adminMessageButton}</span>
+                 </button>
               </form>
-              <div className="worker-message-list-section">
+              <div className="worker-message-list-section" style={{ marginTop: '2rem' }}>
                 <div className="worker-message-tabs-pill">
                   <button type="button" className={messageView === 'sent' ? 'active' : ''} onClick={() => setMessageView('sent')}>{messageSentLabel}</button>
                   <button type="button" className={messageView === 'received' ? 'active' : ''} onClick={() => setMessageView('received')}>{messageReceivedLabel}</button>
@@ -851,16 +881,25 @@ export default function WorkerView() {
                     <ul>
                       {(messageView === 'received' ? incomingMessages : sentMessages).map((entry, idx) => (
                         <li key={entry.id || idx} style={{ padding: '0.75rem 0', borderBottom: '1px solid var(--color-border-light)' }}>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', margin: '0 0 0.25rem' }}>
-                            {messageView === 'received'
-                              ? `${text.worker.adminMessageFromLabel(entry.sender)}`
-                              : `${text.worker.adminMessageToLabel(entry.receiver)}`
-                            }
-                          </p>
-                          <p style={{ margin: '0 0 0.25rem' }}>{entry.message || entry.content}</p>
-                          <small style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>
-                            {new Date(entry.timestamp).toLocaleString('ja-JP')}
-                          </small>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                              <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', margin: '0 0 0.25rem' }}>
+                                {messageView === 'received'
+                                  ? `${text.worker.adminMessageFromLabel(entry.sender)}`
+                                  : `${text.worker.adminMessageToLabel(entry.receiver)}`
+                                }
+                              </p>
+                              <p style={{ margin: '0 0 0.25rem' }}>{entry.message || entry.content}</p>
+                              {entry.photo_url && (
+                                <div style={{ marginTop: '0.5rem' }}>
+                                  <img src={entry.photo_url} alt="Attached" style={{ maxWidth: '100%', borderRadius: '8px', maxHeight: '200px', objectFit: 'contain' }} />
+                                </div>
+                              )}
+                              <small style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>
+                                {new Date(entry.timestamp).toLocaleString('ja-JP')}
+                              </small>
+                            </div>
+                          </div>
                         </li>
                       ))}
                     </ul>
@@ -868,37 +907,6 @@ export default function WorkerView() {
                 </div>
               </div>
             </section>
-
-            {primaryAssignment && (
-              <section className="worker-card worker-photo-report">
-                <h4>📸 {text.worker.photoReportHeading || '現場写真報告'}</h4>
-                <div className="worker-photo-controls">
-                  <label className="worker-photo-label-trigger">
-                    <input type="file" accept="image/*" capture="camera" multiple onChange={handleReportPhotoChange} style={{ display: 'none' }} />
-                    <div className="worker-photo-add-box">
-                      <span>{text.worker.photoReportPrompt}</span>
-                    </div>
-                  </label>
-                  
-                  {reportPhotos.length > 0 && (
-                    <div className="worker-photo-grid-preview">
-                      {reportPhotos.map((photo, idx) => (
-                        <div key={idx} className="worker-photo-thumbnail">
-                          <img src={photo} alt={`Preview ${idx}`} />
-                          <button type="button" className="worker-photo-delete" onClick={() => removeReportPhoto(idx)}>×</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {reportPhotos.length > 0 && (
-                    <button type="button" className="worker-clock-button primary" onClick={handleReportSubmit} style={{ marginTop: '1rem' }}>
-                      {text.worker.photoReportSubmit}
-                    </button>
-                  )}
-                </div>
-              </section>
-            )}
 
             <section className="worker-card worker-card-daily-report">
               <header>

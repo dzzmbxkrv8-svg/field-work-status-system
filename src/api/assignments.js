@@ -25,3 +25,41 @@ export const updateAssignmentStatus = async (id, status) => {
     body: JSON.stringify({ status }),
   });
 };
+
+export const assignWorker = async (assignmentDbId, workerId) => {
+  return apiClient(`/api/assignments/${assignmentDbId}/assign`, {
+    method: 'PATCH',
+    body: JSON.stringify({ worker_id: workerId }),
+  });
+};
+
+export const uploadAttachments = async (assignmentDbId, files) => {
+  const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  const token = localStorage.getItem('token');
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append('files', file);
+  }
+  try {
+    const response = await fetch(`${baseURL}/api/assignments/${assignmentDbId}/attachments`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      return { success: false, message: data.message || `アップロードエラー: ${response.status}` };
+    }
+    return await response.json();
+  } catch (error) {
+    return { success: false, message: error.message };
+  }
+};
+
+export const getAttachments = async (assignmentDbId) => {
+  return apiClient(`/api/assignments/${assignmentDbId}/attachments`, { method: 'GET' });
+};
+
+export const deleteAttachment = async (assignmentDbId, attachmentId) => {
+  return apiClient(`/api/assignments/${assignmentDbId}/attachments/${attachmentId}`, { method: 'DELETE' });
+};

@@ -13,6 +13,7 @@ export default function AttendancePanel() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [teamFilter, setTeamFilter] = useState('All')
+    const [lastUpdated, setLastUpdated] = useState(null)
 
     const statusLabels = {
         not_reported: '未報告',
@@ -23,8 +24,8 @@ export default function AttendancePanel() {
     }
 
     useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true)
+        const fetchData = async (isInitial = false) => {
+            if (isInitial) setLoading(true)
             try {
                 const [workersRes, attendanceRes] = await Promise.all([
                     getWorkers(),
@@ -37,17 +38,25 @@ export default function AttendancePanel() {
                 if (attendanceRes.success) {
                     setTeamAttendance(attendanceRes.data || [])
                 }
+                setLastUpdated(new Date())
+                setError(null)
             } catch (err) {
                 console.error('Failed to fetch attendance data:', err)
-                setError('データを取得できませんでした')
-                setWorkers([])
-                setTeamAttendance([])
+                if (isInitial) {
+                    setError('データを取得できませんでした')
+                    setWorkers([])
+                    setTeamAttendance([])
+                }
             } finally {
-                setLoading(false)
+                if (isInitial) setLoading(false)
             }
         }
 
-        fetchData()
+        fetchData(true)
+
+        // 30秒ごとに自動更新
+        const intervalId = setInterval(() => fetchData(false), 30000)
+        return () => clearInterval(intervalId)
     }, [])
 
     const workersWithAttendance = useMemo(() => {
@@ -82,7 +91,14 @@ export default function AttendancePanel() {
     return (
         <div className="fws-panel">
             <div className="fws-panel-header">
-                <h2>{text.tabs.monitoring}</h2>
+                <div>
+                    <h2>{text.tabs.monitoring}</h2>
+                    {lastUpdated && (
+                        <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.25rem 0 0' }}>
+                            最終更新: {lastUpdated.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}（30秒ごとに自動更新）
+                        </p>
+                    )}
+                </div>
                 <div className="fws-filter-group">
                     <button
                         className={`fws-filter-chip ${teamFilter === 'All' ? 'active' : ''}`}

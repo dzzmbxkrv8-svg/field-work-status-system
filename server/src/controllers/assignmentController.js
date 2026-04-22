@@ -50,3 +50,24 @@ exports.updateStatus = async (req, res, next) => {
     next(error);
   }
 };
+
+exports.assignWorker = async (req, res, next) => {
+  try {
+    const { worker_id } = req.body;
+    // worker_id が null の場合は割り振り解除
+    if (worker_id !== null && worker_id !== undefined) {
+      const workerCheck = await db.query('SELECT id FROM users WHERE id=$1 AND role=$2', [worker_id, 'worker']);
+      if (workerCheck.rows.length === 0) {
+        return res.status(400).json({ success: false, message: '指定された作業員が見つかりません' });
+      }
+    }
+    const { rows } = await db.query(
+      'UPDATE assignments SET assigned_worker_id=$1, updated_at=NOW() WHERE id=$2 RETURNING *',
+      [worker_id || null, req.params.id]
+    );
+    if (rows.length === 0) return res.status(404).json({ success: false, message: '案件が見つかりません' });
+    res.status(200).json({ success: true, data: rows[0] });
+  } catch (error) {
+    next(error);
+  }
+};
