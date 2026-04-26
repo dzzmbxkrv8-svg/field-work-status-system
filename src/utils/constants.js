@@ -21,6 +21,7 @@ export const ROLE_TABS = [
   { id: 'orders', icon: '📋' },
   { id: 'messages', icon: '💬' },
   { id: 'reports', icon: '📈' },
+  { id: 'teams', icon: '👥' },
 ]
 
 

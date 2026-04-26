@@ -14,6 +14,24 @@ exports.getWorkers = async (req, res, next) => {
   }
 };
 
+exports.updateWorkerTeam = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { teamId } = req.body;
+    const { rows } = await db.query(
+      `UPDATE users SET team_id = $1 WHERE id = $2 AND role = 'worker' AND is_active = true
+       RETURNING id, name, employee_id, team_id`,
+      [teamId || null, id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: '作業員が見つかりません' });
+    }
+    res.status(200).json({ success: true, data: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.getWorker = async (req, res, next) => {
   try {
     const { id } = req.params;
