@@ -16,13 +16,21 @@ const storage = multer.diskStorage({
     cb(null, `${unique}${ext}`);
   },
 });
+const ALLOWED_MIMETYPES = [
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain',
+];
+
 const upload = multer({
   storage,
   limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB per file
   fileFilter: (req, file, cb) => {
-    const allowed = /pdf|jpeg|jpg|png|gif|webp|heic|doc|docx|xls|xlsx/i;
-    const ext = path.extname(file.originalname).slice(1);
-    if (allowed.test(ext)) return cb(null, true);
+    if (ALLOWED_MIMETYPES.includes(file.mimetype)) return cb(null, true);
     cb(new Error('対応していないファイル形式です'));
   },
 });
@@ -32,6 +40,10 @@ router.get('/:id', auth, assignmentController.getAssignment);
 router.post('/', auth, requireAdmin, assignmentController.createAssignment);
 router.patch('/:id/status', auth, assignmentController.updateStatus);
 router.patch('/:id/assign', auth, requireAdmin, assignmentController.assignWorker);
+
+// Members
+router.get('/:id/members', auth, assignmentController.getMembers);
+router.post('/:id/members', auth, requireAdmin, assignmentController.setMembers);
 
 // Attachments
 router.get('/:id/attachments', auth, attachmentController.getAttachments);

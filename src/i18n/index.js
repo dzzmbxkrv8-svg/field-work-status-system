@@ -51,6 +51,7 @@ const translationPacks = {
       orders: 'Orders',
       messages: 'Messages',
       reports: 'Reports',
+      teams: 'Teams',
     },
     filters: {
       searchLabel: 'Search',
@@ -133,6 +134,8 @@ const translationPacks = {
       completedToday: 'Completed today',
       recentActivity: 'Recent activity',
       noActivity: 'No recent updates yet.',
+      ordersLabel: 'orders',
+      empty: 'No active orders.',
       formatPriorityTag: (value) => `Priority: ${value}`,
       formatDue: (value) => `Due: ${value}`,
     },
@@ -359,6 +362,7 @@ const translationPacks = {
       orders: '作業指示',
       messages: 'メッセージ',
       reports: 'レポート',
+      teams: 'チーム管理',
     },
     filters: {
       searchLabel: '検索',
@@ -441,6 +445,8 @@ const translationPacks = {
       completedToday: '本日完了',
       recentActivity: '最近の更新',
       noActivity: 'まだ更新はありません。',
+      ordersLabel: '件',
+      empty: '作業指示がありません。',
       formatPriorityTag: (value) => `優先度: ${value}`,
       formatDue: (value) => `期限: ${value}`,
     },

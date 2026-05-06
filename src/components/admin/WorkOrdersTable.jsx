@@ -1,106 +1,130 @@
 import { useI18n } from '@/i18n'
+import { useAppContext } from '@/contexts/AppContext'
 import { formatAdminDate } from '@/utils/format'
-import { STATUS_OPTIONS } from '@/utils/constants'
+
+const priorityStyles = {
+  high:   { background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' },
+  medium: { background: '#fffbeb', color: '#d97706', border: '1px solid #fde68a' },
+  low:    { background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' },
+}
+const priorityLabels = { high: '高', medium: '中', low: '低' }
+
+const statusStyles = {
+  pending:     { background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' },
+  in_progress: { background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' },
+  completed:   { background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' },
+  cancelled:   { background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' },
+}
+const statusLabels = {
+  pending:     '未着手',
+  in_progress: '進行中',
+  completed:   '完了',
+  cancelled:   'キャンセル',
+}
 
 export default function WorkOrdersTable({
   orders,
   readOnly,
-  onStatusChange,
-  onProgressChange,
+  onCancel,
   onAssignWorkers,
 }) {
-  const { text, formatNumber, getPriorityLabel, getStatusLabel, getSafetyCheckLabel } = useI18n('ja')
+  const { state } = useAppContext()
+  const { text } = useI18n(state.language)
 
   if (orders.length === 0) {
     return <p className="fws-empty">{text.table.empty}</p>
   }
 
   return (
-    <div className="fws-table-wrapper">
-      <table className="fws-table">
-        <thead>
-          <tr>
-            <th>{text.table.headers.order}</th>
-            <th>{text.table.headers.team}</th>
-            <th>{text.table.headers.supervisor}</th>
-            <th>{text.table.headers.location}</th>
-            <th>{text.table.headers.status}</th>
-            <th>{text.table.headers.progress}</th>
-            <th>{text.table.headers.priority}</th>
-            <th>{text.table.headers.crew}</th>
-            <th>{text.table.headers.start}</th>
-            <th>{text.table.headers.due}</th>
-            <th>{text.table.headers.safety}</th>
-            <th>{text.table.headers.notes}</th>
-            <th>{text.table.headers.updated}</th>
-            {!readOnly && <th>{text.table.headers.actions}</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {orders.map((order) => (
-            <tr key={order.id}>
-              <td data-label={text.table.headers.order}>{order.id}</td>
-              <td data-label={text.table.headers.team}>{order.team}</td>
-              <td data-label={text.table.headers.supervisor}>{order.supervisor}</td>
-              <td data-label={text.table.headers.location}>{order.location}</td>
-              <td data-label={text.table.headers.status}>
-                {readOnly ? (
-                  getStatusLabel(order.status)
-                ) : (
-                  <select value={order.status} onChange={(event) => onStatusChange(order.id, event.target.value)}>
-                    {STATUS_OPTIONS.map((status) => (
-                      <option key={status} value={status}>
-                        {getStatusLabel(status)}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </td>
-              <td data-label={text.table.headers.progress}>
-                {readOnly ? (
-                  `${order.progress}%`
-                ) : (
-                  <div className="fws-progress-editor">
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      step="5"
-                      value={order.progress}
-                      onChange={(event) =>
-                        onProgressChange(order.id, Number.parseInt(event.target.value, 10))
-                      }
-                    />
-                    <span>{order.progress}%</span>
-                  </div>
-                )}
-              </td>
-              <td data-label={text.table.headers.priority}>
-                <span className={`fws-priority fws-priority-${order.priority.toLowerCase()}`}>
-                  {getPriorityLabel(order.priority)}
-                </span>
-              </td>
-              <td data-label={text.table.headers.crew}>{formatNumber(order.crewCount)}</td>
-              <td data-label={text.table.headers.start}>{formatAdminDate(order.startDate)}</td>
-              <td data-label={text.table.headers.due}>{formatAdminDate(order.dueDate)}</td>
-              <td data-label={text.table.headers.safety}>{getSafetyCheckLabel(order.safetyCheck)}</td>
-              <td data-label={text.table.headers.notes}>{order.notes || '—'}</td>
-              <td data-label={text.table.headers.updated}>{formatAdminDate(order.updatedAt)}</td>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      {orders.map((order) => {
+        const pKey = (order.priority || 'medium').toLowerCase()
+        const pStyle = priorityStyles[pKey] || priorityStyles.medium
+        const pLabel = priorityLabels[pKey] || order.priority
+
+        const sKey = (order.status || 'pending').toLowerCase()
+        const sStyle = statusStyles[sKey] || statusStyles.pending
+        const sLabel = statusLabels[sKey] || order.status
+
+        const isCancellable = !readOnly && sKey !== 'cancelled' && sKey !== 'completed'
+
+        return (
+          <div key={order.id} style={{
+            background: 'white',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            padding: '0.9rem 1rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.6rem',
+            opacity: sKey === 'cancelled' ? 0.6 : 1,
+          }}>
+            {/* 1行目：案件名・優先度・ステータスバッジ */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0f172a' }}>{order.projectName || order.id}</span>
+              <span style={{
+                fontSize: '0.68rem', fontWeight: 700, padding: '0.15rem 0.5rem',
+                borderRadius: '999px', ...pStyle,
+              }}>
+                優先度: {pLabel}
+              </span>
+              <span style={{
+                marginLeft: 'auto',
+                fontSize: '0.72rem', fontWeight: 700, padding: '0.2rem 0.6rem',
+                borderRadius: '999px', ...sStyle,
+              }}>
+                {sLabel}
+              </span>
+            </div>
+
+            {/* 2行目：現場 */}
+            {order.location && (
+              <div style={{ fontSize: '0.82rem', color: '#475569' }}>
+                📍 {order.location}
+              </div>
+            )}
+
+            {/* 3行目：チーム・担当者 */}
+            <div style={{ display: 'flex', gap: '1rem', fontSize: '0.78rem', color: '#64748b' }}>
+              {order.team && <span>チーム: {order.team}</span>}
+              {order.assignedWorkerName && <span>担当: {order.assignedWorkerName}</span>}
+            </div>
+
+            {/* 4行目：日付・操作ボタン */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                {formatAdminDate(order.startDate)}
+                {order.dueDate && order.dueDate !== order.startDate && ` 〜 ${formatAdminDate(order.dueDate)}`}
+              </span>
               {!readOnly && (
-                <td data-label={text.table.headers.actions}>
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.4rem' }}>
                   <button
                     type="button"
                     className="fws-button tertiary small"
+                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.7rem' }}
                     onClick={() => onAssignWorkers(order)}
                   >
                     {text.admin.assignWorkers}
                   </button>
-                </td>
+                  {isCancellable && (
+                    <button
+                      type="button"
+                      style={{
+                        fontSize: '0.72rem', padding: '0.25rem 0.6rem',
+                        borderRadius: '8px', border: '1px solid #fecaca',
+                        background: '#fef2f2', color: '#dc2626', cursor: 'pointer',
+                      }}
+                      onClick={() => onCancel && onCancel(order)}
+                    >
+                      キャンセル
+                    </button>
+                  )}
+                </div>
               )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }

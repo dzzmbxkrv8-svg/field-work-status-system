@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useI18n } from '@/i18n'
 
 export default function WorkerAssignmentDialog({ order, workers, onSave, onClose, error }) {
-    const { text } = useI18n('ja')
+    const { text } = useI18n()
     // DBのassigned_worker_idに合わせて単一選択（ラジオボタン）
     const [selectedWorkerId, setSelectedWorkerId] = useState(order.assigned_worker_id || null)
     const [saving, setSaving] = useState(false)

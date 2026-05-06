@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useI18n } from '@/i18n'
+import { useAppContext } from '@/contexts/AppContext'
 import { downloadBlob, escapeForCsv, formatAdminDate } from '@/utils/format'
 import WorkOrdersTable from './WorkOrdersTable'
 import { getReports } from '@/api/reports'
@@ -7,7 +8,8 @@ import { getWorkers } from '@/api/workers'
 import { getAssignments } from '@/api/assignments'
 
 export default function ReportsPanel() {
-    const { text, getStatusLabel, getPriorityLabel } = useI18n('ja')
+    const { state } = useAppContext()
+    const { text, getStatusLabel, getPriorityLabel } = useI18n(state.language)
 
     const today = new Date()
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)

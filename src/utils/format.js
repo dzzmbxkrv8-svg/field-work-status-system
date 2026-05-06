@@ -36,10 +36,10 @@ export function formatAdminDate(value) {
   if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const dayNames = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日']
   const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
+  const month = date.getMonth() + 1
+  const day = date.getDate()
   const dayName = dayNames[date.getDay()]
-  return `${year}-${month}-${day}-${dayName}`
+  return `${year}年${month}月${day}日 ${dayName}`
 }

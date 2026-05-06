@@ -1,10 +1,12 @@
 import SummaryCards from './SummaryCards'
 import { useI18n } from '@/i18n'
+import { useAppContext } from '@/contexts/AppContext'
 import { useState, useEffect } from 'react'
 import { getAssignments } from '@/api/assignments'
 
 export default function OverviewPanel() {
-  const { text, formatNumber, formatDue, formatPriorityTag } = useI18n('ja')
+  const { state } = useAppContext()
+  const { text, formatNumber, formatDue, formatPriorityTag } = useI18n(state.language)
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)

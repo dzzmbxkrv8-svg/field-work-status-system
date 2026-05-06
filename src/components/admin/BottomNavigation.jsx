@@ -2,7 +2,7 @@ import { ROLE_TABS } from '@/utils/constants'
 import { useI18n } from '@/i18n'
 
 export default function BottomNavigation({ selectedTab, onTabChange }) {
-    const { text } = useI18n('ja')
+    const { text } = useI18n()
 
     return (
         <nav className="fws-bottom-nav">

@@ -1,34 +1,23 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useI18n } from '@/i18n'
 import { useAppContext } from '@/contexts/AppContext'
-import { defaultFormState, PRIORITY_OPTIONS, STATUS_OPTIONS } from '@/utils/constants'
-import { downloadBlob, escapeForCsv, formatAdminDate } from '@/utils/format'
-import AdminActivityFeed from './AdminActivityFeed'
+import { defaultFormState } from '@/utils/constants'
+import { formatAdminDate } from '@/utils/format'
 import WorkOrdersTable from './WorkOrdersTable'
-import { getAssignments, createAssignment, updateAssignmentStatus, assignWorker, uploadAttachments } from '@/api/assignments'
-import { getWorkers } from '@/api/workers'
+import { getAssignments, createAssignment, cancelAssignment, assignWorker, setMembers, uploadAttachments } from '@/api/assignments'
 import CreateOrderWizard from './CreateOrderWizard'
 
-function escapeHtml(value) {
-  if (value === null || value === undefined) return ''
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
 
-export default function AdminPanel({ onAssignWorkers }) {
+export default function AdminPanel({ onAssignWorkers, workers = [] }) {
   const { state } = useAppContext()
-  const { filters } = state
-  const { text, getStatusLabel, getPriorityLabel, getSafetyCheckLabel } = useI18n('ja')
+  const { text, getStatusLabel } = useI18n(state.language)
   const [orders, setOrders] = useState([])
-  const [workers, setWorkers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [formState, setFormState] = useState(defaultFormState)
   const [isAdding, setIsAdding] = useState(false)
   const [notification, setNotification] = useState(null)
+  const [showCompleted, setShowCompleted] = useState(false)
 
   const showNotification = (type, text, duration = 3500) => {
     setNotification({ type, text })
@@ -55,7 +44,8 @@ export default function AdminPanel({ onAssignWorkers }) {
           endDate: o.end_date,
           dueDate: o.end_date || o.start_date,
           progress: o.status === 'completed' ? 100 : (o.status === 'in_progress' ? 50 : 0),
-          updatedAt: o.updated_at || o.created_at
+          updatedAt: o.updated_at || o.created_at,
+          assignedWorkerName: o.assigned_worker_name || null,
         })))
       } else {
         setOrders([])
@@ -71,139 +61,13 @@ export default function AdminPanel({ onAssignWorkers }) {
 
   useEffect(() => {
     fetchOrders()
-    getWorkers().then(res => {
-      if (res.success) setWorkers(res.data || [])
-    })
   }, [fetchOrders])
-
-  const filteredOrders = useMemo(() => {
-    const searchTerm = filters.search.trim().toLowerCase()
-    return orders.filter((order) => {
-      const matchesStatus = filters.status === 'All' || order.status === filters.status.toLowerCase()
-      const matchesPriority = filters.priority === 'All' || order.priority === filters.priority
-      const matchesSearch =
-        searchTerm.length === 0 ||
-        [order.id, order.team, order.supervisor, order.location, order.notes]
-          .join(' ')
-          .toLowerCase()
-          .includes(searchTerm)
-      return matchesStatus && matchesPriority && matchesSearch
-    })
-  }, [orders, filters])
-
-  const formatDateForExport = (value) => {
-    const formatted = formatAdminDate(value)
-    return formatted === '—' ? '' : formatted
-  }
-
-  const handleExportToCsv = () => {
-    const headers = [
-      `${text.table.headers.order} ID`,
-      text.table.headers.team,
-      text.table.headers.supervisor,
-      text.table.headers.location,
-      text.table.headers.status,
-      text.table.headers.progress,
-      text.table.headers.priority,
-      text.admin.form.crewCount,
-      text.admin.form.startDate,
-      text.admin.form.dueDate,
-      text.admin.form.safetyCheck,
-      text.admin.form.notes,
-      text.table.headers.updated,
-    ]
-
-    const csvRows = [
-      headers.join(','),
-      ...filteredOrders.map((order) =>
-        [
-          order.id,
-          order.team,
-          order.supervisor,
-          order.location,
-          getStatusLabel(order.status),
-          `${order.progress}%`,
-          getPriorityLabel(order.priority),
-          order.crewCount,
-          formatDateForExport(order.startDate),
-          formatDateForExport(order.dueDate),
-          getSafetyCheckLabel(order.safetyCheck),
-          order.notes,
-          formatDateForExport(order.updatedAt),
-        ]
-          .map(escapeForCsv)
-          .join(',')
-      ),
-    ]
-
-    const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' })
-    downloadBlob('field-work-status.csv', blob)
-  }
-
-  const handleExportToExcel = () => {
-    const headers = [
-      `${text.table.headers.order} ID`,
-      text.table.headers.team,
-      text.table.headers.supervisor,
-      text.table.headers.location,
-      text.table.headers.status,
-      text.table.headers.progress,
-      text.table.headers.priority,
-      text.admin.form.crewCount,
-      text.admin.form.startDate,
-      text.admin.form.dueDate,
-      text.admin.form.safetyCheck,
-      text.admin.form.notes,
-      text.table.headers.updated,
-    ]
-
-    const bodyRows = filteredOrders
-      .map(
-        (order) => `<tr>${[
-          order.id,
-          order.team,
-          order.supervisor,
-          order.location,
-          getStatusLabel(order.status),
-          `${order.progress}%`,
-          getPriorityLabel(order.priority),
-          order.crewCount,
-          formatDateForExport(order.startDate),
-          formatDateForExport(order.dueDate),
-          getSafetyCheckLabel(order.safetyCheck),
-          order.notes || '',
-          formatDateForExport(order.updatedAt),
-        ]
-          .map((value) => `<td>${escapeHtml(value)}</td>`)
-          .join('')}</tr>`
-      )
-      .join('')
-
-    const table = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
-        <head><meta charset="UTF-8" /></head>
-        <body>
-          <table>
-            <thead>
-              <tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr>
-            </thead>
-            <tbody>${bodyRows}</tbody>
-          </table>
-        </body>
-      </html>
-    `
-
-    const blob = new Blob(['\ufeff' + table], {
-      type: 'application/vnd.ms-excel',
-    })
-    downloadBlob('field-work-status.xls', blob)
-  }
 
   const handleFormChange = (field, value) => {
     setFormState((previous) => ({ ...previous, [field]: value }))
   }
 
-  const handleWizardCreate = async ({ title, location, startDate, dueDate, priority, workerId, attachments }) => {
+  const handleWizardCreate = async ({ title, location, startDate, dueDate, priority, leaderId, memberIds, attachments }) => {
     const result = await createAssignment({
       assignment_code: `FW-${Date.now().toString().slice(-4)}`,
       title,
@@ -222,8 +86,11 @@ export default function AdminPanel({ onAssignWorkers }) {
 
     const newId = result.data?.id
     if (newId) {
-      if (workerId) {
-        await assignWorker(newId, workerId)
+      if (leaderId) {
+        await assignWorker(newId, leaderId)
+      }
+      if (memberIds && memberIds.length > 0) {
+        await setMembers(newId, memberIds)
       }
       if (attachments && attachments.length > 0) {
         const uploadResult = await uploadAttachments(newId, attachments)
@@ -238,70 +105,133 @@ export default function AdminPanel({ onAssignWorkers }) {
     showNotification('success', '作業指示を作成しました。')
   }
 
-  const handleStatusChange = async (orderId, newStatus) => {
-    const order = orders.find(o => o.id === orderId)
-    if (!order) return
-    
-    const result = await updateAssignmentStatus(order.db_id, newStatus.toLowerCase())
+  const handleCancel = async (order) => {
+    if (!window.confirm(`「${order.projectName || order.id}」をキャンセルしますか？`)) return
+    const result = await cancelAssignment(order.db_id || order.id)
     if (result.success) {
       fetchOrders()
+      showNotification('success', 'キャンセルしました。')
     } else {
-      showNotification('error', result.message || 'ステータスの更新に失敗しました。')
+      showNotification('error', result.message || 'キャンセルに失敗しました。')
     }
   }
+
+  // 進行中・未着手と完了済みを分離
+  const activeOrders = useMemo(() => orders.filter(o => o.status !== 'completed' && o.status !== 'cancelled'), [orders])
+  const completedOrders = useMemo(() =>
+    orders
+      .filter(o => o.status === 'completed')
+      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)),
+  [orders])
 
   if (loading && orders.length === 0) return <div className="fws-panel"><p>読み込み中...</p></div>
   if (error && orders.length === 0) return <div className="fws-panel"><p className="fws-accent">{error}</p></div>
 
   return (
     <section className="fws-panel">
-      {notification && (
-        <div style={{
-          padding: '0.75rem 1rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem',
-          background: notification.type === 'success' ? '#d1fae5' : '#fee2e2',
-          color: notification.type === 'success' ? '#065f46' : '#991b1b',
-          border: `1px solid ${notification.type === 'success' ? '#6ee7b7' : '#fca5a5'}`,
-        }}>
-          {notification.type === 'success' ? '✅ ' : '❌ '}{notification.text}
-        </div>
-      )}
-      <header className="fws-panel-header">
-        <div>
-          <h3>{text.admin.title}</h3>
-          <p>{text.admin.description}</p>
-        </div>
-        <div className="fws-action-bar">
-          <button type="button" className="fws-button secondary" onClick={handleExportToCsv}>
-            {text.admin.exportCsv}
-          </button>
-          <button type="button" className="fws-button secondary" onClick={handleExportToExcel}>
-            {text.admin.exportExcel}
-          </button>
-        </div>
-      </header>
-
-      <AdminActivityFeed orders={filteredOrders} />
-
-      <div style={{ marginBottom: '1rem' }}>
-        {!isAdding ? (
-          <button type="button" className="fws-button" onClick={() => setIsAdding(true)}>
-            {text.admin.addOrder}
-          </button>
-        ) : (
-          <CreateOrderWizard
-            workers={workers}
-            onCreate={handleWizardCreate}
-            onCancel={() => setIsAdding(false)}
-          />
+        {notification && (
+          <div style={{
+            padding: '0.75rem 1rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem',
+            background: notification.type === 'success' ? '#d1fae5' : '#fee2e2',
+            color: notification.type === 'success' ? '#065f46' : '#991b1b',
+            border: `1px solid ${notification.type === 'success' ? '#6ee7b7' : '#fca5a5'}`,
+          }}>
+            {notification.type === 'success' ? '✅ ' : '❌ '}{notification.text}
+          </div>
         )}
-      </div>
+        <header className="fws-panel-header">
+          <div>
+            <h3>{text.admin.title}</h3>
+            <p>{text.admin.description}</p>
+          </div>
+        </header>
 
-      <WorkOrdersTable
-        orders={filteredOrders}
-        onStatusChange={handleStatusChange}
-        onProgressChange={() => { }}
-        onAssignWorkers={onAssignWorkers}
-      />
+        <div style={{ marginBottom: '1rem' }}>
+          {!isAdding ? (
+            <button type="button" className="fws-button" onClick={() => setIsAdding(true)}>
+              {text.admin.addOrder}
+            </button>
+          ) : (
+            <CreateOrderWizard
+              workers={workers}
+              onCreate={handleWizardCreate}
+              onCancel={() => setIsAdding(false)}
+            />
+          )}
+        </div>
+
+        {/* 進行中・未着手の案件 */}
+        <WorkOrdersTable
+          orders={activeOrders}
+          onCancel={handleCancel}
+          onAssignWorkers={onAssignWorkers}
+        />
+
+        {/* 完了済み案件（折りたたみ） */}
+        <div style={{ marginTop: '1.5rem' }}>
+          <button
+            type="button"
+            onClick={() => setShowCompleted(v => !v)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: '0.9rem', fontWeight: 700, color: '#475569',
+              padding: '0.4rem 0', width: '100%',
+            }}
+          >
+            <span style={{
+              display: 'inline-block', transition: 'transform 0.2s',
+              transform: showCompleted ? 'rotate(90deg)' : 'rotate(0deg)',
+              fontSize: '0.8rem',
+            }}>▶</span>
+            完了済み案件
+            <span style={{
+              marginLeft: '0.4rem', fontSize: '0.75rem', fontWeight: 700,
+              background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0',
+              borderRadius: '999px', padding: '0.1rem 0.5rem',
+            }}>
+              {completedOrders.length}件
+            </span>
+          </button>
+
+          {showCompleted && (
+            <div style={{ marginTop: '0.75rem' }}>
+              {completedOrders.length === 0 ? (
+                <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>完了した案件はありません</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                  {completedOrders.map(order => (
+                    <div key={order.id} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '0.65rem 0.9rem',
+                      background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px',
+                      gap: '1rem',
+                    }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem', color: '#14532d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {order.projectName || order.id}
+                        </p>
+                        {order.location && (
+                          <p style={{ margin: '0.1rem 0 0', fontSize: '0.78rem', color: '#166534' }}>📍 {order.location}</p>
+                        )}
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        {order.assignedWorkerName && (
+                          <p style={{ margin: 0, fontSize: '0.8rem', color: '#15803d', fontWeight: 500 }}>
+                            👤 {order.assignedWorkerName}
+                          </p>
+                        )}
+                        <p style={{ margin: '0.1rem 0 0', fontSize: '0.72rem', color: '#64748b' }}>
+                          {formatAdminDate(order.updatedAt)} 完了
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
     </section>
   )
 }

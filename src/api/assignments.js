@@ -26,6 +26,13 @@ export const updateAssignmentStatus = async (id, status) => {
   });
 };
 
+export const cancelAssignment = async (id) => {
+  return apiClient(`/api/assignments/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'cancelled' }),
+  });
+};
+
 export const assignWorker = async (assignmentDbId, workerId) => {
   return apiClient(`/api/assignments/${assignmentDbId}/assign`, {
     method: 'PATCH',
@@ -54,6 +61,17 @@ export const uploadAttachments = async (assignmentDbId, files) => {
   } catch (error) {
     return { success: false, message: error.message };
   }
+};
+
+export const setMembers = async (assignmentDbId, memberIds) => {
+  return apiClient(`/api/assignments/${assignmentDbId}/members`, {
+    method: 'POST',
+    body: JSON.stringify({ member_ids: memberIds }),
+  });
+};
+
+export const getMembers = async (assignmentDbId) => {
+  return apiClient(`/api/assignments/${assignmentDbId}/members`, { method: 'GET' });
 };
 
 export const getAttachments = async (assignmentDbId) => {

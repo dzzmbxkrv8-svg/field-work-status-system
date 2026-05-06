@@ -1,7 +1,7 @@
 import { useI18n } from '@/i18n'
 
 export default function SummaryCards({ summary, outstandingCount }) {
-  const { text, formatNumber } = useI18n('ja')
+  const { text, formatNumber } = useI18n()
 
   return (
     <div className="fws-summary-grid">

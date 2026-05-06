@@ -4,7 +4,7 @@ import { STATUS_OPTIONS } from '@/utils/constants'
 import WorkOrdersTable from './WorkOrdersTable'
 
 export default function TeamLeadPanel({ orders, onStatusChange, onProgressChange }) {
-  const { text, getStatusLabel } = useI18n('ja')
+  const { text, getStatusLabel } = useI18n()
   const teams = useMemo(() => Array.from(new Set(orders.map((order) => order.team))), [orders])
   const [selectedTeam, setSelectedTeam] = useState(teams[0] ?? '')
   const [statusFilter, setStatusFilter] = useState('All')

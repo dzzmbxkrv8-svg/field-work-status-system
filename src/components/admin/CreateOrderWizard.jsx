@@ -1,6 +1,200 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 
 const STEPS = ['案件情報', 'メンバーを選ぶ', '確認']
+
+// ---- Calendar Date Range Picker ----
+const DOW = ['日', '月', '火', '水', '木', '金', '土']
+
+function toYMD(y, m, d) {
+  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+}
+
+function DateRangePicker({ startDate, endDate, onChangeStart, onChangeEnd }) {
+  const now = new Date()
+  const todayStr = toYMD(now.getFullYear(), now.getMonth() + 1, now.getDate())
+  const [viewYear, setViewYear] = useState(now.getFullYear())
+  const [viewMonth, setViewMonth] = useState(now.getMonth() + 1)
+  const [picking, setPicking] = useState(null) // null=閉じている, 'start', 'end'
+
+  const cells = useMemo(() => {
+    const firstDow = new Date(viewYear, viewMonth - 1, 1).getDay()
+    const lastDay = new Date(viewYear, viewMonth, 0).getDate()
+    const result = []
+    for (let i = 0; i < firstDow; i++) result.push(null)
+    for (let d = 1; d <= lastDay; d++) result.push(d)
+    return result
+  }, [viewYear, viewMonth])
+
+  const prevMonth = () => {
+    if (viewMonth === 1) { setViewYear(y => y - 1); setViewMonth(12) }
+    else setViewMonth(m => m - 1)
+  }
+  const nextMonth = () => {
+    if (viewMonth === 12) { setViewYear(y => y + 1); setViewMonth(1) }
+    else setViewMonth(m => m + 1)
+  }
+
+  const openPicker = (key) => {
+    // 選択中の日付の月を表示
+    const ref = key === 'start' ? startDate : endDate
+    if (ref?.length === 10) {
+      setViewYear(parseInt(ref.slice(0, 4)))
+      setViewMonth(parseInt(ref.slice(5, 7)))
+    }
+    setPicking(prev => prev === key ? null : key)
+  }
+
+  const handleDay = (d) => {
+    const ymd = toYMD(viewYear, viewMonth, d)
+    if (picking === 'start') {
+      onChangeStart(ymd)
+      if (endDate && ymd > endDate) onChangeEnd(ymd)
+      // 終了日が未設定なら終了日選択へ、設定済みなら閉じる
+      if (!endDate) {
+        setPicking('end')
+      } else {
+        setPicking(null)
+      }
+    } else {
+      if (startDate && ymd < startDate) {
+        onChangeEnd(startDate)
+        onChangeStart(ymd)
+      } else {
+        onChangeEnd(ymd)
+      }
+      setPicking(null) // 終了日選択後は閉じる
+    }
+  }
+
+  const fmtDisplay = (ymd) => ymd
+    ? `${parseInt(ymd.slice(0,4))}年${parseInt(ymd.slice(5,7))}月${parseInt(ymd.slice(8,10))}日`
+    : 'タップして選択'
+
+  const isOpen = picking !== null
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+
+      {/* 開始日・終了日フィールド */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+        {[['start','開始日'], ['end','終了日']].map(([key, label]) => {
+          const val = key === 'start' ? startDate : endDate
+          const isActive = picking === key
+          return (
+            <button key={key} type="button" onClick={() => openPicker(key)} style={{
+              padding: '0.65rem 0.75rem', borderRadius: 10,
+              border: `1.5px solid ${isActive ? '#2563eb' : val ? '#bfdbfe' : '#e2e8f0'}`,
+              background: isActive ? '#2563eb' : val ? '#eff6ff' : '#f8fafc',
+              cursor: 'pointer', textAlign: 'left',
+            }}>
+              <div style={{ fontSize: '0.68rem', fontWeight: 600, color: isActive ? '#fff' : '#94a3b8', marginBottom: '0.15rem' }}>{label}</div>
+              <div style={{ fontSize: '0.88rem', fontWeight: 600, color: isActive ? '#fff' : val ? '#1d4ed8' : '#94a3b8' }}>
+                {fmtDisplay(val)}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* カレンダー本体（展開時のみ表示） */}
+      {isOpen && (
+        <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid #e2e8f0', background: '#fff' }}>
+
+          {/* 選択中モード表示 */}
+          <div style={{ padding: '0.6rem 1rem', background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fff' }}>
+              {picking === 'start' ? '📅 開始日を選択' : '🏁 終了日を選択'}
+            </span>
+            <button type="button" onClick={() => setPicking(null)} style={{
+              background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%',
+              width: 24, height: 24, cursor: 'pointer', color: '#fff', fontSize: '0.9rem',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>✕</button>
+          </div>
+
+          {/* 月ナビ */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem 0.4rem' }}>
+            <button type="button" onClick={prevMonth} style={{
+              background: '#f1f5f9', border: 'none', cursor: 'pointer',
+              width: 32, height: 32, borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '1rem', color: '#374151',
+            }}>‹</button>
+            <span style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a' }}>
+              {viewYear}年{viewMonth}月
+            </span>
+            <button type="button" onClick={nextMonth} style={{
+              background: '#f1f5f9', border: 'none', cursor: 'pointer',
+              width: 32, height: 32, borderRadius: '50%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '1rem', color: '#374151',
+            }}>›</button>
+          </div>
+
+          {/* 曜日ヘッダー */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', padding: '0 0.5rem' }}>
+            {DOW.map((d, i) => (
+              <div key={d} style={{
+                textAlign: 'center', fontSize: '0.72rem', fontWeight: 600,
+                padding: '0.2rem 0 0.4rem',
+                color: i === 0 ? '#ef4444' : i === 6 ? '#2563eb' : '#94a3b8',
+              }}>{d}</div>
+            ))}
+          </div>
+
+      {/* 日付グリッド */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', padding: '0 0.5rem 0.75rem', rowGap: '0.15rem' }}>
+        {cells.map((d, i) => {
+          if (!d) return <div key={`e${i}`} />
+          const ymd = toYMD(viewYear, viewMonth, d)
+          const isStart = ymd === startDate
+          const isEnd = ymd === endDate
+          const inRange = startDate && endDate && ymd > startDate && ymd < endDate
+          const isToday = ymd === todayStr
+          const col = i % 7
+
+          return (
+            <div key={i} style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 40 }}>
+              {/* 範囲帯 */}
+              {(inRange || (isStart && endDate && endDate !== startDate) || (isEnd && startDate && endDate !== startDate)) && (
+                <div style={{
+                  position: 'absolute', top: '50%', transform: 'translateY(-50%)',
+                  height: 32,
+                  left: (isStart || col === 0) ? '50%' : 0,
+                  right: (isEnd || col === 6) ? '50%' : 0,
+                  background: '#dbeafe', zIndex: 0,
+                }} />
+              )}
+              <button
+                type="button"
+                onClick={() => handleDay(d)}
+                style={{
+                  position: 'relative', zIndex: 1,
+                  width: 34, height: 34, borderRadius: '50%', border: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
+                  background: (isStart || isEnd) ? '#2563eb' : 'transparent',
+                  color: (isStart || isEnd) ? '#fff'
+                    : isToday ? '#2563eb'
+                    : inRange ? '#1d4ed8'
+                    : col === 0 ? '#ef4444'
+                    : col === 6 ? '#2563eb'
+                    : '#0f172a',
+                  fontWeight: (isStart || isEnd || isToday) ? 700 : 400,
+                  fontSize: '0.9rem',
+                  outline: isToday && !isStart && !isEnd ? '2px solid #93c5fd' : 'none',
+                  outlineOffset: 1,
+                }}
+              >{d}</button>
+            </div>
+          )
+        })}
+      </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 const PRIORITY_OPTIONS = [
   { value: 'high',   label: '高', color: '#ef4444' },
@@ -99,11 +293,23 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
   })
   const [attachments, setAttachments] = useState([])
   const [dragOver, setDragOver] = useState(false)
-  const [selectedWorkerId, setSelectedWorkerId] = useState(null)
+  const [selectedWorkerIds, setSelectedWorkerIds] = useState([])
+  const [leaderId, setLeaderId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
-  const selectedWorker = workers.find(w => w.id === selectedWorkerId) || null
+  const toggleWorker = (id) => {
+    setSelectedWorkerIds(prev => {
+      if (prev.includes(id)) {
+        const next = prev.filter(x => x !== id)
+        if (leaderId === id) setLeaderId(next[0] ?? null)
+        return next
+      }
+      const next = [...prev, id]
+      if (!leaderId) setLeaderId(id)
+      return next
+    })
+  }
 
   const handleFormChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -151,7 +357,8 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
         startDate: form.startDate,
         dueDate: form.dueDate,
         priority: form.priority,
-        workerId: selectedWorkerId,
+        leaderId,
+        memberIds: selectedWorkerIds,
         attachments,
       })
     } catch (e) {
@@ -246,25 +453,14 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
             />
           </label>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', fontSize: '0.9rem', color: '#374151' }}>
-              開始日
-              <input
-                type="date"
-                value={form.startDate}
-                onChange={e => handleFormChange('startDate', e.target.value)}
-                style={{ padding: '0.65rem 0.75rem', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
-              />
-            </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', fontSize: '0.9rem', color: '#374151' }}>
-              終了日
-              <input
-                type="date"
-                value={form.dueDate}
-                onChange={e => handleFormChange('dueDate', e.target.value)}
-                style={{ padding: '0.65rem 0.75rem', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: '0.9rem' }}
-              />
-            </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <p style={{ margin: 0, fontSize: '0.9rem', color: '#374151', fontWeight: 500 }}>作業期間</p>
+            <DateRangePicker
+              startDate={form.startDate}
+              endDate={form.dueDate}
+              onChangeStart={v => handleFormChange('startDate', v)}
+              onChangeEnd={v => handleFormChange('dueDate', v)}
+            />
           </div>
 
           <div>
@@ -371,55 +567,124 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
 
       {/* Step 1: メンバーを選ぶ */}
       {step === 1 && (
-        <div>
-          <h4 style={{ margin: '0 0 0.25rem', color: '#1e293b', fontSize: '1rem' }}>👥 担当作業員を選んでください</h4>
-          <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: '#94a3b8' }}>1名選択・スキップも可</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div>
+            <h4 style={{ margin: '0 0 0.2rem', color: '#1e293b', fontSize: '1rem' }}>👥 メンバーを選んでください</h4>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>複数選択可・選択後にリーダーを指定してください</p>
+          </div>
 
-          {selectedWorker && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '0.6rem 0.9rem',
-              background: '#eff6ff',
-              borderRadius: 10,
-              marginBottom: '1rem',
-              border: '1px solid #bfdbfe',
-            }}>
-              <div style={{
-                width: 32, height: 32, borderRadius: '50%',
-                background: '#2563eb', color: '#fff',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: 700, fontSize: '0.9rem',
-              }}>{selectedWorker.name[0]}</div>
-              <span style={{ fontSize: '0.9rem', color: '#1e40af', fontWeight: 600 }}>{selectedWorker.name}</span>
-              <span style={{ fontSize: '0.8rem', color: '#60a5fa' }}>{selectedWorker.team_name || selectedWorker.team}</span>
+          {/* 選択済みメンバー一覧 */}
+          {selectedWorkerIds.length > 0 && (
+            <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 10, padding: '0.6rem 0.75rem' }}>
+              <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', fontWeight: 700, color: '#0369a1' }}>
+                選択中 {selectedWorkerIds.length}名
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                {selectedWorkerIds.map(id => {
+                  const w = workers.find(x => x.id === id)
+                  if (!w) return null
+                  const isLeader = leaderId === id
+                  return (
+                    <div key={id} style={{ position: 'relative', display: 'inline-block' }}>
+                      {isLeader && (
+                        <span style={{
+                          position: 'absolute', top: -8, right: -2,
+                          fontSize: '0.55rem', fontWeight: 700,
+                          color: '#2563eb', background: '#dbeafe',
+                          padding: '0.1rem 0.3rem', borderRadius: 4,
+                          lineHeight: 1.4, whiteSpace: 'nowrap',
+                          border: '1px solid #bfdbfe',
+                        }}>リーダー</span>
+                      )}
+                      <div style={{
+                        padding: '0.25rem 0.6rem', borderRadius: 20,
+                        background: isLeader ? '#2563eb' : '#fff',
+                        border: `1px solid ${isLeader ? '#2563eb' : '#e2e8f0'}`,
+                        fontSize: '0.78rem',
+                        color: isLeader ? '#fff' : '#374151', fontWeight: 600,
+                      }}>{w.name}</div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
 
+          {/* 作業員リスト（5件分の高さ固定・それ以上はスクロール） */}
           <div style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '0.25rem',
-            maxHeight: 280,
+            display: 'flex', flexDirection: 'column', gap: '0.4rem',
+            maxHeight: 'calc(5 * 58px + 4 * 0.4rem)',
             overflowY: 'auto',
-            padding: '0.5rem',
-            background: '#f8fafc',
-            borderRadius: 10,
-            border: '1px solid #e2e8f0',
+            paddingRight: '2px',
           }}>
             {workers.length === 0 ? (
-              <p style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '1rem' }}>作業員が登録されていません</p>
-            ) : workers.map(worker => (
-              <AvatarCircle
-                key={worker.id}
-                name={worker.name}
-                selected={selectedWorkerId === worker.id}
-                onClick={() => setSelectedWorkerId(
-                  selectedWorkerId === worker.id ? null : worker.id
-                )}
-              />
-            ))}
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '1rem', textAlign: 'center' }}>作業員が登録されていません</p>
+            ) : workers.map(worker => {
+              const isSelected = selectedWorkerIds.includes(worker.id)
+              const isLeader = leaderId === worker.id
+              return (
+                <div key={worker.id} style={{
+                  display: 'flex', alignItems: 'center', gap: '0.75rem',
+                  padding: '0.65rem 0.75rem', borderRadius: 10,
+                  background: isSelected ? (isLeader ? '#eff6ff' : '#f8fafc') : '#fff',
+                  border: `1.5px solid ${isLeader ? '#2563eb' : isSelected ? '#bfdbfe' : '#e2e8f0'}`,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }} onClick={() => toggleWorker(worker.id)}>
+                  {/* アバター */}
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                    background: isSelected ? '#2563eb' : '#e2e8f0',
+                    color: isSelected ? '#fff' : '#64748b',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontWeight: 700, fontSize: '0.95rem',
+                  }}>{worker.name[0]}</div>
+
+                  {/* 名前・チーム */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
+                      <p style={{ margin: 0, fontWeight: 600, fontSize: '0.88rem', color: isSelected ? '#1e40af' : '#374151' }}>
+                        {worker.name}
+                      </p>
+                      {isLeader && (
+                        <span style={{
+                          fontSize: '0.6rem', fontWeight: 700,
+                          color: '#2563eb', background: '#dbeafe',
+                          padding: '0.05rem 0.35rem', borderRadius: 4,
+                          border: '1px solid #bfdbfe', lineHeight: 1.6,
+                          position: 'relative', top: '-4px',
+                        }}>リーダー</span>
+                      )}
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.72rem', color: '#94a3b8' }}>{worker.team_name || worker.team || '—'}</p>
+                  </div>
+
+                  {/* チェック + リーダーボタン */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+                    {isSelected && !isLeader && (
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); setLeaderId(worker.id) }}
+                        style={{
+                          padding: '0.2rem 0.5rem', fontSize: '0.68rem', fontWeight: 600,
+                          borderRadius: 6, border: '1px solid #cbd5e1',
+                          background: '#f8fafc', color: '#64748b', cursor: 'pointer',
+                        }}
+                      >
+                        リーダーにする
+                      </button>
+                    )}
+                    <div style={{
+                      width: 20, height: 20, borderRadius: '50%',
+                      background: isSelected ? '#2563eb' : '#e2e8f0',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {isSelected && <span style={{ color: '#fff', fontSize: '0.7rem' }}>✓</span>}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
@@ -447,11 +712,11 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
             <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
                 <span style={{ color: '#64748b' }}>開始日</span>
-                <span style={{ color: '#1e293b', fontWeight: 500 }}>{form.startDate || '—'}</span>
+                <span style={{ color: '#1e293b', fontWeight: 500 }}>{form.startDate ? `${parseInt(form.startDate.slice(0,4))}年${parseInt(form.startDate.slice(5,7))}月${parseInt(form.startDate.slice(8,10))}日` : '—'}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
                 <span style={{ color: '#64748b' }}>終了日</span>
-                <span style={{ color: '#1e293b', fontWeight: 500 }}>{form.dueDate || '—'}</span>
+                <span style={{ color: '#1e293b', fontWeight: 500 }}>{form.dueDate ? `${parseInt(form.dueDate.slice(0,4))}年${parseInt(form.dueDate.slice(5,7))}月${parseInt(form.dueDate.slice(8,10))}日` : '—'}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
                 <span style={{ color: '#64748b' }}>優先度</span>
@@ -462,20 +727,34 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
                   {PRIORITY_OPTIONS.find(p => p.value === form.priority)?.label}
                 </span>
               </div>
-              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '0.6rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.88rem' }}>
-                <span style={{ color: '#64748b' }}>担当作業員</span>
-                {selectedWorker ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <div style={{
-                      width: 24, height: 24, borderRadius: '50%',
-                      background: '#2563eb', color: '#fff',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontWeight: 700, fontSize: '0.75rem',
-                    }}>{selectedWorker.name[0]}</div>
-                    <span style={{ color: '#1e293b', fontWeight: 500 }}>{selectedWorker.name}</span>
-                  </div>
-                ) : (
+              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '0.6rem', fontSize: '0.88rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                  <span style={{ color: '#64748b' }}>メンバー</span>
+                  <span style={{ color: '#1e293b', fontWeight: 500 }}>{selectedWorkerIds.length}名</span>
+                </div>
+                {selectedWorkerIds.length === 0 ? (
                   <span style={{ color: '#94a3b8' }}>未割り当て</span>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    {selectedWorkerIds.map(id => {
+                      const w = workers.find(x => x.id === id)
+                      if (!w) return null
+                      return (
+                        <div key={id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <div style={{
+                            width: 22, height: 22, borderRadius: '50%',
+                            background: '#2563eb', color: '#fff',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontWeight: 700, fontSize: '0.72rem', flexShrink: 0,
+                          }}>{w.name[0]}</div>
+                          <span style={{ color: '#1e293b', fontWeight: 500 }}>{w.name}</span>
+                          {leaderId === id && (
+                            <span style={{ fontSize: '0.6rem', color: '#2563eb', fontWeight: 700, background: '#dbeafe', padding: '0.1rem 0.35rem', borderRadius: 4, border: '1px solid #bfdbfe', position: 'relative', top: '-2px' }}>リーダー</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 )}
               </div>
               {attachments.length > 0 && (
@@ -538,7 +817,7 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
               fontSize: '0.9rem',
             }}
           >
-            {step === 1 ? (selectedWorkerId ? '次へ →' : 'スキップ →') : '次へ →'}
+            {step === 1 ? (selectedWorkerIds.length > 0 ? '次へ →' : 'スキップ →') : '次へ →'}
           </button>
         ) : (
           <button

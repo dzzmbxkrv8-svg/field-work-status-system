@@ -1,7 +1,6 @@
-import { ROLE_TABS, PRIORITY_OPTIONS, STATUS_OPTIONS } from '@/utils/constants'
+import { ROLE_TABS } from '@/utils/constants'
 import { useI18n } from '@/i18n'
 import { useAppContext } from '@/contexts/AppContext'
-import { useReports } from '@/hooks/useReports'
 import WorkOrdersTable from './WorkOrdersTable'
 import AdminPanel from './AdminPanel'
 import AttendancePanel from './AttendancePanel'
@@ -10,19 +9,22 @@ import OverviewPanel from './OverviewPanel'
 import ReportsPanel from './ReportsPanel'
 import WorkerAssignmentDialog from './WorkerAssignmentDialog'
 import BottomNavigation from './BottomNavigation'
-import { useState } from 'react'
+import TeamManagementPanel from './TeamManagementPanel'
+import { useState, useEffect } from 'react'
 import { assignWorker } from '@/api/assignments'
+import { getWorkers } from '@/api/workers'
 
 export default function AdminView() {
   const { state, dispatch, logout } = useAppContext()
-  const {
-    filters,
-    updateOrder,
-  } = useReports()
-  const { session, selectedTab, workers } = state
-  const { text, getStatusLabel, getPriorityLabel } = useI18n('ja')
+  const { session, selectedTab } = state
+  const { text } = useI18n(state.language)
   const [assigningOrder, setAssigningOrder] = useState(null)
   const [assignError, setAssignError] = useState(null)
+  const [dbWorkers, setDbWorkers] = useState([])
+
+  useEffect(() => {
+    getWorkers().then(res => { if (res.success) setDbWorkers(res.data || []) })
+  }, [])
 
   const handleAssignWorkers = (order) => {
     setAssigningOrder(order)
@@ -43,10 +45,6 @@ export default function AdminView() {
 
   const handleTabChange = (tab) => {
     dispatch({ type: 'SET_TAB', payload: tab })
-  }
-
-  const handleFilterChange = (payload) => {
-    dispatch({ type: 'UPDATE_FILTERS', payload })
   }
 
   return (
@@ -86,60 +84,20 @@ export default function AdminView() {
         </div>
       </header>
 
-      {/* Common Filters - Only show for relevant tabs if needed, or keep global */}
-      {(selectedTab === 'orders' || selectedTab === 'monitoring') && (
-        <section className="fws-panel filters">
-          <div className="fws-filter-grid">
-            <label>
-              {text.filters.searchLabel}
-              <input
-                type="search"
-                placeholder={text.filters.searchPlaceholder}
-                value={filters.search}
-                onChange={(event) => handleFilterChange({ search: event.target.value })}
-              />
-            </label>
-            <label>
-              {text.filters.statusLabel}
-              <select value={filters.status} onChange={(event) => handleFilterChange({ status: event.target.value })}>
-                <option value="All">{text.filters.statusOptions.All}</option>
-                {STATUS_OPTIONS.map((status) => (
-                  <option key={status} value={status}>
-                    {getStatusLabel(status)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              {text.filters.priorityLabel}
-              <select
-                value={filters.priority}
-                onChange={(event) => handleFilterChange({ priority: event.target.value })}
-              >
-                <option value="All">{text.filters.priorityOptions.All}</option>
-                {PRIORITY_OPTIONS.map((priority) => (
-                  <option key={priority} value={priority}>
-                    {getPriorityLabel(priority)}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </section>
-      )}
 
       {selectedTab === 'overview' && <OverviewPanel />}
       {selectedTab === 'monitoring' && <AttendancePanel />}
       {selectedTab === 'orders' && (
-        <AdminPanel onAssignWorkers={handleAssignWorkers} />
+        <AdminPanel onAssignWorkers={handleAssignWorkers} workers={dbWorkers} />
       )}
-      {selectedTab === 'messages' && <MessagePanel />}
+      {selectedTab === 'messages' && <MessagePanel workers={dbWorkers} />}
       {selectedTab === 'reports' && <ReportsPanel />}
+      {selectedTab === 'teams' && <TeamManagementPanel />}
 
       {assigningOrder && (
         <WorkerAssignmentDialog
           order={assigningOrder}
-          workers={workers}
+          workers={dbWorkers}
           onSave={handleSaveAssignments}
           onClose={() => { setAssigningOrder(null); setAssignError(null) }}
           error={assignError}
