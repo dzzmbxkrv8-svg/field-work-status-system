@@ -10,7 +10,6 @@ import OverviewPanel from './OverviewPanel'
 import ReportsPanel from './ReportsPanel'
 import WorkerAssignmentDialog from './WorkerAssignmentDialog'
 import BottomNavigation from './BottomNavigation'
-import TeamManagementPanel from './TeamManagementPanel'
 import { useState } from 'react'
 import { assignWorker } from '@/api/assignments'
 
@@ -136,7 +135,6 @@ export default function AdminView() {
       )}
       {selectedTab === 'messages' && <MessagePanel />}
       {selectedTab === 'reports' && <ReportsPanel />}
-      {selectedTab === 'teams' && <TeamManagementPanel />}
 
       {assigningOrder && (
         <WorkerAssignmentDialog

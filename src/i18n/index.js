@@ -51,7 +51,6 @@ const translationPacks = {
       orders: 'Orders',
       messages: 'Messages',
       reports: 'Reports',
-      teams: 'Teams',
     },
     filters: {
       searchLabel: 'Search',
@@ -360,7 +359,6 @@ const translationPacks = {
       orders: '作業指示',
       messages: 'メッセージ',
       reports: 'レポート',
-      teams: 'チーム管理',
     },
     filters: {
       searchLabel: '検索',

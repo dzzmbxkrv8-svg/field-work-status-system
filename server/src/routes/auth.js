@@ -17,7 +17,32 @@ const validateLogin = [
   }
 ];
 
+const validateRegister = [
+  body('access_code').notEmpty().withMessage('アクセスコードは必須です'),
+  body('employee_id').notEmpty().isString().withMessage('社員IDは必須です'),
+  body('name').notEmpty().isString().withMessage('氏名は必須です'),
+  body('password').isLength({ min: 6 }).withMessage('パスワードは6文字以上で入力してください'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+    next();
+  }
+];
+
+const validateResetPassword = [
+  body('employee_id').notEmpty().isString().withMessage('社員IDは必須です'),
+  body('name').notEmpty().isString().withMessage('氏名は必須です'),
+  body('new_password').isLength({ min: 6 }).withMessage('パスワードは6文字以上で入力してください'),
+  (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+    next();
+  }
+];
+
 router.post('/login', validateLogin, authController.login);
+router.post('/register', validateRegister, authController.register);
+router.post('/reset-password', validateResetPassword, authController.resetPassword);
 router.post('/logout', auth, authController.logout);
 router.get('/me', auth, authController.me);
 

@@ -4,14 +4,7 @@ import { useAuth } from '@/hooks/useAuth'
 
 export default function LoginPage() {
   const { language, setLanguage } = useAppContext()
-  const {
-    loginWorker,
-    loginAdmin,
-    registerWorker,
-    registerOrganization,
-    resetWorkerPassword,
-    resetAdminPassword,
-  } = useAuth()
+  const { loginWorker, loginAdmin, registerWorker, resetWorkerPassword } = useAuth()
 
   return (
     <LoginDialog
@@ -21,8 +14,6 @@ export default function LoginPage() {
       onAdminLogin={loginAdmin}
       onRegisterWorker={registerWorker}
       onWorkerReset={resetWorkerPassword}
-      onRegisterOrganization={registerOrganization}
-      onAdminReset={resetAdminPassword}
     />
   )
 }

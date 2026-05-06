@@ -11,7 +11,6 @@ const assignmentRoutes = require('./routes/assignments');
 const attendanceRoutes = require('./routes/attendance');
 const messageRoutes = require('./routes/messages');
 const reportRoutes = require('./routes/reports');
-const teamRoutes = require('./routes/teams');
 
 const app = express();
 
@@ -31,7 +30,6 @@ app.use('/api/assignments', assignmentRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/reports', reportRoutes);
-app.use('/api/teams', teamRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

@@ -1,12 +1,11 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useMemo, useReducer, useEffect } from 'react'
 import { changeLanguage, getCurrentLanguage } from '@/i18n'
-import { seedWorkOrders, INITIAL_ORGANIZATIONS, INITIAL_WORKERS, seedTimeEntries } from '@/utils/mockData'
 import { ROLE_TABS } from '@/utils/constants'
 
 const AppContext = createContext()
 
-const STORAGE_KEY = 'fws_app_state_v2'
+const STORAGE_KEY = 'fws_app_state_v3'
 
 function createInitialState() {
   const language = getCurrentLanguage() || 'ja'
@@ -21,50 +20,43 @@ function createInitialState() {
         try { validatedSession = JSON.parse(userStr) } catch { validatedSession = null }
       }
 
-      // Restore from main state storage
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
         const parsed = JSON.parse(saved)
         const allowedTabs = new Set(ROLE_TABS.map((tab) => tab.id))
         const restoredTab =
           parsed.selectedTab && allowedTabs.has(parsed.selectedTab) ? parsed.selectedTab : ROLE_TABS[0].id
-        
+
         return {
           language,
-          // トークンがない場合は以前のセッション（parsed.session）があったとしても null にする
           session: validatedSession,
-          workOrders: (parsed.workOrders && parsed.workOrders.length > 0) ? parsed.workOrders : [...seedWorkOrders],
-          organizations: (parsed.organizations && parsed.organizations.length > 0) ? parsed.organizations : [...INITIAL_ORGANIZATIONS],
-          workers: (parsed.workers && parsed.workers.length > 0) ? parsed.workers : [...INITIAL_WORKERS],
-          timeEntries: (parsed.timeEntries && parsed.timeEntries.length > 0) ? parsed.timeEntries : [...seedTimeEntries],
-          messages: [],
-          auditLogs: parsed.auditLogs || [],
           selectedTab: restoredTab,
           filters: parsed.filters || {
             status: 'All',
             priority: 'All',
             search: '',
+            worker: 'All',
+            overdueOnly: false,
           },
           online: true,
           pendingActions: parsed.pendingActions || [],
+          workOrders: [],
+          messages: [],
+          reports: [],
         }
       }
-      
-      // Fallback if validatedSession exists but main storage does not
+
       if (validatedSession) {
         return {
           language,
           session: validatedSession,
-          workOrders: [...seedWorkOrders],
-          organizations: [...INITIAL_ORGANIZATIONS],
-          workers: [...INITIAL_WORKERS],
-          timeEntries: [...seedTimeEntries],
-          messages: [],
-          auditLogs: [],
           selectedTab: ROLE_TABS[0].id,
-          filters: { status: 'All', priority: 'All', search: '' },
+          filters: { status: 'All', priority: 'All', search: '', worker: 'All', overdueOnly: false },
           online: true,
           pendingActions: [],
+          workOrders: [],
+          messages: [],
+          reports: [],
         }
       }
     } catch (e) {
@@ -75,20 +67,19 @@ function createInitialState() {
   return {
     language,
     session: null,
-    workOrders: [...seedWorkOrders],
-    organizations: [...INITIAL_ORGANIZATIONS],
-    workers: [...INITIAL_WORKERS],
-    timeEntries: [...seedTimeEntries],
-    messages: [],
-    auditLogs: [],
     selectedTab: ROLE_TABS[0].id,
     filters: {
       status: 'All',
       priority: 'All',
       search: '',
+      worker: 'All',
+      overdueOnly: false,
     },
     online: true,
     pendingActions: [],
+    workOrders: [],
+    messages: [],
+    reports: [],
   }
 }
 
@@ -110,43 +101,12 @@ function reducer(state, action) {
       return { ...state, pendingActions: [...state.pendingActions, action.payload] }
     case 'CLEAR_PENDING_ACTIONS':
       return { ...state, pendingActions: [] }
-    case 'ADD_ORGANIZATION':
-      return { ...state, organizations: [action.payload, ...state.organizations] }
-    case 'UPDATE_ORGANIZATION':
-      return {
-        ...state,
-        organizations: state.organizations.map((org) =>
-          org.code === action.payload.code ? { ...org, ...action.payload.updates } : org
-        ),
-      }
-    case 'ADD_WORKER':
-      return { ...state, workers: [action.payload, ...state.workers] }
-    case 'UPDATE_WORKER':
-      return {
-        ...state,
-        workers: state.workers.map((worker) =>
-          worker.id === action.payload.id ? { ...worker, ...action.payload.updates } : worker
-        ),
-      }
-    case 'UPDATE_WORK_ORDER':
-      return {
-        ...state,
-        workOrders: state.workOrders.map((order) =>
-          order.id === action.payload.id ? { ...order, ...action.payload.updates } : order
-        ),
-      }
-    case 'ADD_WORK_ORDER':
-      return { ...state, workOrders: [action.payload, ...state.workOrders] }
-    case 'ADD_TIME_ENTRY':
-      return { ...state, timeEntries: [action.payload, ...state.timeEntries] }
     case 'SET_WORK_ORDERS':
       return { ...state, workOrders: action.payload }
     case 'SET_MESSAGES':
       return { ...state, messages: action.payload }
     case 'SET_REPORTS':
       return { ...state, reports: action.payload }
-    case 'ADD_AUDIT_LOG':
-      return { ...state, auditLogs: [action.payload, ...state.auditLogs] }
     default:
       return state
   }
