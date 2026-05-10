@@ -30,3 +30,4 @@ server/uploads/
 .claude/
 .vercel
 .env*.local
+.vite/
