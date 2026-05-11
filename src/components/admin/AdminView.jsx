@@ -3,9 +3,8 @@ import { useI18n } from '@/i18n'
 import { useAppContext } from '@/contexts/AppContext'
 import WorkOrdersTable from './WorkOrdersTable'
 import AdminPanel from './AdminPanel'
-import AttendancePanel from './AttendancePanel'
 import MessagePanel from './MessagePanel'
-import OverviewPanel from './OverviewPanel'
+import DashboardPanel from './DashboardPanel'
 import ReportsPanel from './ReportsPanel'
 import WorkerAssignmentDialog from './WorkerAssignmentDialog'
 import BottomNavigation from './BottomNavigation'
@@ -85,8 +84,7 @@ export default function AdminView() {
       </header>
 
 
-      {selectedTab === 'overview' && <OverviewPanel />}
-      {selectedTab === 'monitoring' && <AttendancePanel />}
+      {selectedTab === 'dashboard' && <DashboardPanel />}
       {selectedTab === 'orders' && (
         <AdminPanel onAssignWorkers={handleAssignWorkers} workers={dbWorkers} />
       )}

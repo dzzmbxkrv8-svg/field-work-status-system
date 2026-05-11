@@ -16,8 +16,7 @@ export const STATUS_QUICK_ACTIONS = [
 
 /** Role tabs rendered on the admin dashboard header. */
 export const ROLE_TABS = [
-  { id: 'overview', icon: '🧭' },
-  { id: 'monitoring', icon: '📡' },
+  { id: 'dashboard', icon: '🧭' },
   { id: 'orders', icon: '📋' },
   { id: 'messages', icon: '💬' },
   { id: 'reports', icon: '📈' },
