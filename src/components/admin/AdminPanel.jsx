@@ -4,8 +4,9 @@ import { useAppContext } from '@/contexts/AppContext'
 import { defaultFormState } from '@/utils/constants'
 import { formatAdminDate } from '@/utils/format'
 import WorkOrdersTable from './WorkOrdersTable'
-import { getAssignments, createAssignment, cancelAssignment, assignWorker, setMembers, uploadAttachments } from '@/api/assignments'
+import { getAssignments, createAssignment, updateAssignment, cancelAssignment, assignWorker, setMembers, uploadAttachments } from '@/api/assignments'
 import CreateOrderWizard from './CreateOrderWizard'
+import EditOrderDialog from './EditOrderDialog'
 
 
 export default function AdminPanel({ onAssignWorkers, workers = [] }) {
@@ -18,6 +19,7 @@ export default function AdminPanel({ onAssignWorkers, workers = [] }) {
   const [isAdding, setIsAdding] = useState(false)
   const [notification, setNotification] = useState(null)
   const [showCompleted, setShowCompleted] = useState(false)
+  const [editingOrder, setEditingOrder] = useState(null)
 
   const showNotification = (type, text, duration = 3500) => {
     setNotification({ type, text })
@@ -105,6 +107,23 @@ export default function AdminPanel({ onAssignWorkers, workers = [] }) {
     showNotification('success', '作業指示を作成しました。')
   }
 
+  const handleEdit = async (dbId, data, newFiles) => {
+    const result = await updateAssignment(dbId, data)
+    if (!result.success) {
+      showNotification('error', result.message || '更新に失敗しました。')
+      throw new Error(result.message)
+    }
+    if (newFiles && newFiles.length > 0) {
+      const uploadResult = await uploadAttachments(dbId, newFiles)
+      if (!uploadResult.success) {
+        showNotification('error', `作業指示は更新しましたが、ファイルのアップロードに失敗しました: ${uploadResult.message}`)
+      }
+    }
+    setEditingOrder(null)
+    fetchOrders()
+    showNotification('success', '作業指示を更新しました。')
+  }
+
   const handleCancel = async (order) => {
     if (!window.confirm(`「${order.projectName || order.id}」をキャンセルしますか？`)) return
     const result = await cancelAssignment(order.db_id || order.id)
@@ -160,11 +179,21 @@ export default function AdminPanel({ onAssignWorkers, workers = [] }) {
           )}
         </div>
 
+        {/* 編集ダイアログ */}
+        {editingOrder && (
+          <EditOrderDialog
+            order={editingOrder}
+            onSave={handleEdit}
+            onCancel={() => setEditingOrder(null)}
+          />
+        )}
+
         {/* 進行中・未着手の案件 */}
         <WorkOrdersTable
           orders={activeOrders}
           onCancel={handleCancel}
           onAssignWorkers={onAssignWorkers}
+          onEdit={setEditingOrder}
         />
 
         {/* 完了済み案件（折りたたみ） */}

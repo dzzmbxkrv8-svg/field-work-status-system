@@ -38,6 +38,7 @@ const upload = multer({
 router.get('/', auth, assignmentController.getAssignments);
 router.get('/:id', auth, assignmentController.getAssignment);
 router.post('/', auth, requireAdmin, assignmentController.createAssignment);
+router.put('/:id', auth, requireAdmin, assignmentController.updateAssignment);
 router.patch('/:id/status', auth, assignmentController.updateStatus);
 router.patch('/:id/assign', auth, requireAdmin, assignmentController.assignWorker);
 

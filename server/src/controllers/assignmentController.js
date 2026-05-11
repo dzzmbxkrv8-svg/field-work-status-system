@@ -58,6 +58,28 @@ exports.createAssignment = async (req, res, next) => {
   }
 };
 
+exports.updateAssignment = async (req, res, next) => {
+  try {
+    const { title, location, start_date, end_date, priority, description } = req.body;
+    if (!title || !title.trim()) {
+      return res.status(400).json({ success: false, message: '案件名は必須です' });
+    }
+    const validPriorities = ['low', 'medium', 'high'];
+    if (priority && !validPriorities.includes(priority)) {
+      return res.status(400).json({ success: false, message: '優先度は low/medium/high のいずれかです' });
+    }
+    const { rows } = await db.query(`
+      UPDATE assignments
+      SET title=$1, location=$2, start_date=$3, end_date=$4, priority=$5, description=$6, updated_at=NOW()
+      WHERE id=$7 RETURNING *
+    `, [title.trim(), location || null, start_date || null, end_date || null, priority || 'medium', description || null, req.params.id]);
+    if (rows.length === 0) return res.status(404).json({ success: false, message: '案件が見つかりません' });
+    res.status(200).json({ success: true, data: rows[0] });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.updateStatus = async (req, res, next) => {
   try {
     const { status } = req.body;

@@ -27,6 +27,7 @@ export default function WorkOrdersTable({
   readOnly,
   onCancel,
   onAssignWorkers,
+  onEdit,
 }) {
   const { state } = useAppContext()
   const { text } = useI18n(state.language)
@@ -97,7 +98,18 @@ export default function WorkOrdersTable({
                 {order.dueDate && order.dueDate !== order.startDate && ` 〜 ${formatAdminDate(order.dueDate)}`}
               </span>
               {!readOnly && (
-                <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.4rem' }}>
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    style={{
+                      fontSize: '0.72rem', padding: '0.25rem 0.6rem',
+                      borderRadius: '8px', border: '1px solid #bfdbfe',
+                      background: '#eff6ff', color: '#2563eb', cursor: 'pointer',
+                    }}
+                    onClick={() => onEdit && onEdit(order)}
+                  >
+                    ✏️ 編集
+                  </button>
                   <button
                     type="button"
                     className="fws-button tertiary small"

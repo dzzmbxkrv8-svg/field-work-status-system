@@ -19,6 +19,13 @@ export const createAssignment = async (assignmentData) => {
   });
 };
 
+export const updateAssignment = async (id, data) => {
+  return apiClient(`/api/assignments/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+};
+
 export const updateAssignmentStatus = async (id, status) => {
   return apiClient(`/api/assignments/${id}/status`, {
     method: 'PATCH',
