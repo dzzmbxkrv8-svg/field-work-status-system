@@ -70,11 +70,16 @@ export default function AdminPanel({ onAssignWorkers, workers = [] }) {
   }
 
   const handleWizardCreate = async ({ title, location, startDate, dueDate, priority, leaderId, memberIds, attachments }) => {
+    // leaderまたは最初のメンバーのteam_idを使用、なければnull
+    const leaderWorker = workers.find(w => w.id === leaderId)
+    const firstMemberWorker = memberIds?.length > 0 ? workers.find(w => w.id === memberIds[0]) : null
+    const resolvedTeamId = leaderWorker?.team_id ?? firstMemberWorker?.team_id ?? null
+
     const result = await createAssignment({
       assignment_code: `FW-${Date.now().toString().slice(-4)}`,
       title,
       location,
-      team_id: 1,
+      team_id: resolvedTeamId,
       start_date: startDate,
       end_date: dueDate,
       priority: priority.toLowerCase(),

@@ -211,6 +211,7 @@ export default function WorkerView() {
             formatActionTimestamp={formatActionTimestamp}
             getStatusLabel={getStatusLabel}
             logout={logout}
+            assignments={assignments}
           />
         )}
         {activeTab === 'calendar' && (

@@ -8,6 +8,67 @@ function getGreeting(text) {
   return text.worker.greetingEvening
 }
 
+function TodayAssignmentCard({ assignments }) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const active = assignments.filter(a => {
+    const start = a.startDate ? new Date(a.startDate) : null
+    const end = a.dueDate ? new Date(a.dueDate) : null
+    if (start) start.setHours(0, 0, 0, 0)
+    if (end) end.setHours(23, 59, 59, 999)
+    const notDone = a.raw_status !== 'cancelled' && a.raw_status !== 'completed'
+    const inRange = start && start <= today && (!end || end >= today)
+    return notDone && inRange
+  })
+
+  const upcoming = active.length === 0
+    ? assignments
+        .filter(a => {
+          const start = a.startDate ? new Date(a.startDate) : null
+          if (start) start.setHours(0, 0, 0, 0)
+          return start && start > today && a.raw_status !== 'cancelled' && a.raw_status !== 'completed'
+        })
+        .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+        .slice(0, 1)
+    : []
+
+  const items = active.length > 0 ? active : upcoming
+  const isUpcoming = active.length === 0 && upcoming.length > 0
+
+  if (items.length === 0) return null
+
+  return (
+    <section className="worker-card" style={{ background: 'linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)', border: '1px solid #bfdbfe' }}>
+      <p className="worker-section-label" style={{ color: '#1d4ed8', marginBottom: '0.75rem' }}>
+        {isUpcoming ? '📅 次の担当現場' : '📍 本日の担当現場'}
+      </p>
+      {items.map(a => (
+        <div key={a.db_id || a.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem', color: '#0f172a' }}>{a.projectName || a.id}</p>
+          {a.location && (
+            <a
+              href={`https://maps.google.com/?q=${encodeURIComponent(a.location)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ fontSize: '0.85rem', color: '#2563eb', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+            >
+              📍 {a.location}
+              <span style={{ fontSize: '0.75rem', background: '#dbeafe', color: '#1d4ed8', borderRadius: '4px', padding: '0.1rem 0.4rem' }}>地図で開く</span>
+            </a>
+          )}
+          <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.78rem', color: '#475569', flexWrap: 'wrap' }}>
+            {a.startDate && (
+              <span>🗓 {a.startDate.slice(0, 10)}{a.dueDate && a.dueDate !== a.startDate ? ` 〜 ${a.dueDate.slice(0, 10)}` : ''}</span>
+            )}
+            {a.team_name && <span>👥 {a.team_name}</span>}
+          </div>
+        </div>
+      ))}
+    </section>
+  )
+}
+
 export default function WorkerHomeTab({
   worker,
   text,
@@ -19,6 +80,7 @@ export default function WorkerHomeTab({
   formatActionTimestamp,
   getStatusLabel,
   logout,
+  assignments = [],
 }) {
   const quickLabels = text.worker.statusQuickLabels ?? {}
   const avatarContent = <span>{worker.name.slice(0, 1).toUpperCase()}</span>
@@ -74,10 +136,6 @@ export default function WorkerHomeTab({
             <span className="worker-info-value">{worker.employee_id || worker.workerId}</span>
           </div>
           <div className="worker-info-row">
-            <span className="worker-info-label">{text.login.accessCodeLabel}</span>
-            <span className="worker-info-value">{worker.employee_id}</span>
-          </div>
-          <div className="worker-info-row">
             <span className="worker-info-label">{text.table.headers.team || 'チーム'}</span>
             <span className="worker-info-value">{worker.team_name || worker.team}</span>
           </div>
@@ -100,6 +158,8 @@ export default function WorkerHomeTab({
         </div>
       </section>
 
+      <TodayAssignmentCard assignments={assignments} />
+
       <section className="safety-ticker">
         <span className="safety-icon">⚠️</span>
         <div className="safety-content">{tickerText}</div>
@@ -118,9 +178,12 @@ export default function WorkerHomeTab({
                 className={`worker-action worker-action-${action.variant}`}
                 onClick={() => handleQuickAction(action)}
                 disabled={clockLoading || isRecorded}
+                style={isRecorded ? { opacity: 1, background: '#f0fdf4', border: '2px solid #86efac', color: '#15803d' } : {}}
               >
-                <span className="worker-action-icon" aria-hidden="true">{action.icon}</span>
-                <span>{actionLabel}</span>
+                <span className="worker-action-icon" aria-hidden="true">
+                  {isRecorded ? '✅' : action.icon}
+                </span>
+                <span>{isRecorded ? `${actionLabel} 済み` : actionLabel}</span>
               </button>
             )
           })}
