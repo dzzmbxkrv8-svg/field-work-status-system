@@ -18,6 +18,9 @@ export default function WorkerReportTab({
   const [adminMessage, setAdminMessage] = useState('')
   const [messageView, setMessageView] = useState('received')
   const [reportPhotos, setReportPhotos] = useState([])
+  const [reportSubTab, setReportSubTab] = useState('message')
+  const [dailyPhoto, setDailyPhoto] = useState(null)
+  const [dailyPhotoUploading, setDailyPhotoUploading] = useState(false)
   const messageTextareaRef = useRef(null)
 
   const messageSentLabel = text.worker.adminMessageSentTab ?? 'Sent'
@@ -49,6 +52,35 @@ export default function WorkerReportTab({
       messageTextareaRef.current.style.height = 'auto'
       messageTextareaRef.current.style.height = `${messageTextareaRef.current.scrollHeight}px`
     }
+  }
+
+  const handleDailyPhotoChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const preview = URL.createObjectURL(file)
+    setDailyPhoto({ file, preview })
+  }
+
+  const removeDailyPhoto = () => {
+    if (dailyPhoto?.preview) URL.revokeObjectURL(dailyPhoto.preview)
+    setDailyPhoto(null)
+  }
+
+  const handleDailyReportSubmit = async () => {
+    let photoUrl = null
+    if (dailyPhoto) {
+      setDailyPhotoUploading(true)
+      const res = await uploadFile(dailyPhoto.file)
+      setDailyPhotoUploading(false)
+      if (res.success && res.url) {
+        photoUrl = res.url
+      } else {
+        showToast('error', '写真のアップロードに失敗しました')
+        return
+      }
+    }
+    await handleReportSubmit(photoUrl)
+    removeDailyPhoto()
   }
 
   const handleAdminMessageSubmit = useCallback(async (event) => {
@@ -92,9 +124,42 @@ export default function WorkerReportTab({
 
   return (
     <div className="worker-report-container">
+      {/* ── サブタブ切り替え ── */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+        <button
+          type="button"
+          onClick={() => setReportSubTab('message')}
+          style={{
+            flex: 1, padding: '0.6rem', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem',
+            background: reportSubTab === 'message' ? 'var(--color-primary)' : '#f1f5f9',
+            color: reportSubTab === 'message' ? '#fff' : '#475569',
+          }}
+        >
+          💬 メッセージ
+          {incomingMessages.length > 0 && (
+            <span style={{ marginLeft: '0.4rem', background: '#ef4444', color: '#fff', borderRadius: '999px', padding: '0.05rem 0.45rem', fontSize: '0.72rem', fontWeight: 700 }}>
+              {incomingMessages.length}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setReportSubTab('report')}
+          style={{
+            flex: 1, padding: '0.6rem', borderRadius: '10px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem',
+            background: reportSubTab === 'report' ? 'var(--color-primary)' : '#f1f5f9',
+            color: reportSubTab === 'report' ? '#fff' : '#475569',
+          }}
+        >
+          📝 日報
+        </button>
+      </div>
+
+      {/* ── メッセージタブ ── */}
+      {reportSubTab === 'message' && (
       <section className="worker-card worker-card-message">
         <header>
-          <h3>メッセージ・現場報告</h3>
+          <h3>メッセージ</h3>
         </header>
         <form className="worker-message-form" onSubmit={handleAdminMessageSubmit}>
           <div className="worker-form-group">
@@ -178,7 +243,10 @@ export default function WorkerReportTab({
           </div>
         </div>
       </section>
+      )}
 
+      {/* ── 日報タブ ── */}
+      {reportSubTab === 'report' && (
       <section className="worker-card worker-card-daily-report">
         <header>
           <h3>{text.worker.dailyReportTitle || '日報'}</h3>
@@ -208,17 +276,37 @@ export default function WorkerReportTab({
             onChange={(e) => handleReportChange('note', e.target.value)}
             placeholder={text.worker.dailyReportPlaceholder}
           />
+
+          {/* 写真添付 */}
+          <div style={{ marginTop: '0.75rem' }}>
+            {dailyPhoto ? (
+              <div style={{ position: 'relative', display: 'inline-block' }}>
+                <img src={dailyPhoto.preview} alt="添付写真" style={{ maxWidth: '100%', maxHeight: 160, borderRadius: 8, objectFit: 'cover', display: 'block' }} />
+                <button type="button" onClick={removeDailyPhoto}
+                  style={{ position: 'absolute', top: -6, right: -6, background: '#ef4444', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, fontSize: '0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 0.9rem', background: '#f1f5f9', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem', color: '#475569', border: '1px dashed #cbd5e1', width: 'fit-content' }}>
+                <input type="file" accept="image/*" capture="camera" onChange={handleDailyPhotoChange} style={{ display: 'none' }} />
+                📷 写真を添付
+              </label>
+            )}
+          </div>
+
           <button
             type="button"
             className="worker-clock-button primary"
-            onClick={handleReportSubmit}
-            disabled={!reportForm.note}
+            onClick={handleDailyReportSubmit}
+            disabled={!reportForm.note || dailyPhotoUploading}
             style={{ marginTop: '1rem' }}
           >
-            {text.worker.dailyReportSubmit}
+            {dailyPhotoUploading ? 'アップロード中...' : (text.worker.dailyReportSubmit)}
           </button>
         </div>
       </section>
+      )}
     </div>
   )
 }

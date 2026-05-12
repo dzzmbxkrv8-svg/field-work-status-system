@@ -130,11 +130,12 @@ export default function WorkerView() {
     setReportForm(prev => ({ ...prev, [field]: value }))
   }, [])
 
-  const handleReportSubmit = useCallback(async () => {
+  const handleReportSubmit = useCallback(async (photoUrl) => {
     if (!primaryAssignment) return
     const result = await submitDailyReport({
       assignment_id: primaryAssignment.db_id ?? primaryAssignment.id,
       note: reportForm.note,
+      ...(photoUrl ? { photo_url: photoUrl } : {}),
     })
     if (result.success) {
       setReportForm(prev => ({ ...prev, note: '' }))

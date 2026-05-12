@@ -9,9 +9,10 @@ import ReportsPanel from './ReportsPanel'
 import WorkerAssignmentDialog from './WorkerAssignmentDialog'
 import BottomNavigation from './BottomNavigation'
 import TeamManagementPanel from './TeamManagementPanel'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { assignWorker } from '@/api/assignments'
 import { getWorkers } from '@/api/workers'
+import { useMessages } from '@/hooks/useMessages'
 
 export default function AdminView() {
   const { state, dispatch, logout } = useAppContext()
@@ -20,6 +21,16 @@ export default function AdminView() {
   const [assigningOrder, setAssigningOrder] = useState(null)
   const [assignError, setAssignError] = useState(null)
   const [dbWorkers, setDbWorkers] = useState([])
+
+  // メッセージ未読バッジ
+  const { messages: allMessages } = useMessages()
+  const unreadMessages = useMemo(() => {
+    const lastViewed = parseInt(localStorage.getItem('lastViewedMessagesAt') || '0', 10)
+    return allMessages.filter(m =>
+      m.sender_id !== session?.id &&
+      new Date(m.created_at).getTime() > lastViewed
+    ).length
+  }, [allMessages, session?.id])
 
   useEffect(() => {
     getWorkers().then(res => { if (res.success) setDbWorkers(res.data || []) })
@@ -43,6 +54,9 @@ export default function AdminView() {
   }
 
   const handleTabChange = (tab) => {
+    if (tab === 'messages') {
+      localStorage.setItem('lastViewedMessagesAt', Date.now().toString())
+    }
     dispatch({ type: 'SET_TAB', payload: tab })
   }
 
@@ -62,11 +76,23 @@ export default function AdminView() {
                 type="button"
                 className={`fws-tab ${selectedTab === tab.id ? 'active' : ''}`}
                 onClick={() => handleTabChange(tab.id)}
+                style={{ position: 'relative' }}
               >
                 <span className="fws-tab-icon" aria-hidden="true">
                   {tab.icon}
                 </span>
                 <span className="fws-tab-label">{text.tabs[tab.id]}</span>
+                {tab.id === 'messages' && unreadMessages > 0 && (
+                  <span style={{
+                    position: 'absolute', top: 4, right: 4,
+                    background: '#ef4444', color: '#fff',
+                    borderRadius: '999px', fontSize: '0.6rem', fontWeight: 700,
+                    minWidth: 15, height: 15, lineHeight: '15px',
+                    textAlign: 'center', padding: '0 3px',
+                  }}>
+                    {unreadMessages > 99 ? '99+' : unreadMessages}
+                  </span>
+                )}
               </button>
             ))}
           </nav>
@@ -102,7 +128,7 @@ export default function AdminView() {
         />
       )}
 
-      <BottomNavigation selectedTab={selectedTab} onTabChange={handleTabChange} />
+      <BottomNavigation selectedTab={selectedTab} onTabChange={handleTabChange} unreadMessages={unreadMessages} />
     </div>
   )
 }

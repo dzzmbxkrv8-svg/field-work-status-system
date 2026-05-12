@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { uploadAttachments, getAttachments, deleteAttachment } from '@/api/assignments'
+
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const priorityOptions = [
   { value: 'high',   label: '高' },
@@ -17,6 +19,26 @@ export default function EditOrderDialog({ order, onSave, onCancel }) {
   const [newFiles, setNewFiles]   = useState([])
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState(null)
+  const [existingAttachments, setExistingAttachments] = useState([])
+  const [deletingId, setDeletingId] = useState(null)
+
+  useEffect(() => {
+    if (order.db_id) {
+      getAttachments(order.db_id).then(res => {
+        if (res.success) setExistingAttachments(res.data || [])
+      })
+    }
+  }, [order.db_id])
+
+  const handleDeleteAttachment = async (attId) => {
+    if (!window.confirm('この添付ファイルを削除しますか？')) return
+    setDeletingId(attId)
+    const res = await deleteAttachment(order.db_id, attId)
+    if (res.success) {
+      setExistingAttachments(prev => prev.filter(a => a.id !== attId))
+    }
+    setDeletingId(null)
+  }
 
   const handleFileChange = (e) => {
     setNewFiles(Array.from(e.target.files))
@@ -146,6 +168,40 @@ export default function EditOrderDialog({ order, onSave, onCancel }) {
               placeholder="作業内容や注意事項を入力"
             />
           </div>
+
+          {/* 既存の添付ファイル */}
+          {existingAttachments.length > 0 && (
+            <div>
+              <label style={labelStyle}>既存の添付ファイル</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                {existingAttachments.map(att => {
+                  const url = att.url?.startsWith('http') ? att.url : `${BASE_URL}${att.url}`
+                  const isImage = att.mime_type?.startsWith('image/')
+                  return (
+                    <div key={att.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 0.6rem', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                      {isImage ? (
+                        <img src={url} alt={att.original_name} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} />
+                      ) : (
+                        <span style={{ fontSize: '1.2rem' }}>📄</span>
+                      )}
+                      <a href={url} target="_blank" rel="noreferrer"
+                        style={{ flex: 1, fontSize: '0.8rem', color: '#2563eb', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {att.original_name || att.file_name || 'ファイル'}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAttachment(att.id)}
+                        disabled={deletingId === att.id}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '0.8rem', padding: '0.2rem 0.4rem', borderRadius: 4, flexShrink: 0 }}
+                      >
+                        {deletingId === att.id ? '...' : '削除'}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* 作業資料の追加 */}
           <div>

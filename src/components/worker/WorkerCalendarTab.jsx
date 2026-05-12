@@ -1,4 +1,37 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { getAttachments } from '@/api/assignments'
+
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
+function AssignmentAttachments({ dbId }) {
+  const [attachments, setAttachments] = useState([])
+  useEffect(() => {
+    if (!dbId) return
+    getAttachments(dbId).then(res => {
+      if (res.success) setAttachments(res.data || [])
+    })
+  }, [dbId])
+  if (attachments.length === 0) return null
+  return (
+    <div style={{ marginTop: '0.6rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+      <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>📎 添付ファイル</span>
+      {attachments.map(att => {
+        const url = att.url?.startsWith('http') ? att.url : `${BASE_URL}${att.url}`
+        const isImage = att.mime_type?.startsWith('image/')
+        return isImage ? (
+          <a key={att.id} href={url} target="_blank" rel="noreferrer" style={{ display: 'block' }}>
+            <img src={url} alt={att.original_name} style={{ maxWidth: '100%', maxHeight: 120, borderRadius: 6, objectFit: 'cover', display: 'block' }} />
+          </a>
+        ) : (
+          <a key={att.id} href={url} target="_blank" rel="noreferrer"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.6rem', background: '#f1f5f9', borderRadius: 6, fontSize: '0.78rem', color: '#2563eb', textDecoration: 'none' }}>
+            📄 {att.original_name || att.file_name || 'ファイル'}
+          </a>
+        )
+      })}
+    </div>
+  )
+}
 
 export default function WorkerCalendarTab({
   worker,
@@ -104,6 +137,7 @@ export default function WorkerCalendarTab({
           <span className="worker-meta-label">{text.worker.assignmentMembersLabel}:</span>
           <span>{entry.members || '—'}</span>
         </div>
+        <AssignmentAttachments dbId={entry.db_id} />
         {entry.location && showCompleteButton && (
           <div className="worker-assignment-links">
             <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(entry.location)}`} target="_blank" rel="noreferrer" className="worker-assignment-link">
@@ -273,6 +307,7 @@ export default function WorkerCalendarTab({
                       <span>{order.cautionNote}</span>
                     </div>
                   )}
+                  <AssignmentAttachments dbId={order.db_id} />
                 </div>
                 {(isCompleted(order.id, order.status) || worker.id === order.assigned_worker_id) && (
                   <div className="worker-assignment-actions" style={{ width: '100%' }}>

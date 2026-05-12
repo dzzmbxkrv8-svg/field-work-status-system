@@ -11,3 +11,10 @@ export const getWorker = async (id) => {
     method: 'GET',
   });
 };
+
+export const createWorker = async (data) => {
+  return apiClient('/api/workers', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+};

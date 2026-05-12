@@ -21,6 +21,7 @@ export default function ReportsPanel() {
     const [orders, setOrders] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
+    const [selectedReport, setSelectedReport] = useState(null)
 
     useEffect(() => {
         const fetchData = async () => {
@@ -82,6 +83,7 @@ export default function ReportsPanel() {
     if (error) return <div className="fws-panel"><p className="fws-accent">{error}</p></div>
 
     return (
+        <>
         <div className="fws-panel">
             <div className="fws-panel-header">
                 <h2>{text.tabs.reports}</h2>
@@ -136,7 +138,11 @@ export default function ReportsPanel() {
                                     {reports.map((report) => {
                                         const worker = workers.find(w => w.id === report.worker_id)
                                         return (
-                                            <tr key={report.id}>
+                                            <tr key={report.id} onClick={() => setSelectedReport({ ...report, workerName: worker?.name || `ID: ${report.worker_id}` })}
+                                                style={{ cursor: 'pointer' }}
+                                                onMouseEnter={e => e.currentTarget.style.background = '#f0f9ff'}
+                                                onMouseLeave={e => e.currentTarget.style.background = ''}
+                                            >
                                                 <td data-label="提出日時">{new Date(report.created_at).toLocaleString('ja-JP')}</td>
                                                 <td data-label="作業員名">{worker?.name || `ID: ${report.worker_id}`}</td>
                                                 <td data-label="内容" style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -158,5 +164,35 @@ export default function ReportsPanel() {
                 </div>
             )}
         </div>
+        {/* 日報詳細モーダル */}
+        {selectedReport && (
+            <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+                onClick={() => setSelectedReport(null)}>
+                <div style={{ background: '#fff', borderRadius: 16, padding: '1.5rem', width: '100%', maxWidth: 480, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}
+                    onClick={e => e.stopPropagation()}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                        <div>
+                            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>📝 日報詳細</h3>
+                            <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>
+                                {selectedReport.workerName} · {new Date(selectedReport.created_at).toLocaleString('ja-JP')}
+                            </p>
+                        </div>
+                        <button type="button" onClick={() => setSelectedReport(null)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.3rem', color: '#94a3b8', padding: '0.2rem', lineHeight: 1 }}>×</button>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.92rem', lineHeight: 1.7, color: '#1e293b', whiteSpace: 'pre-wrap', background: '#f8fafc', padding: '1rem', borderRadius: 8 }}>
+                        {selectedReport.content || '（内容なし）'}
+                    </p>
+                    {selectedReport.photo_url && (
+                        <div style={{ marginTop: '1rem' }}>
+                            <p style={{ margin: '0 0 0.5rem', fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600 }}>添付写真</p>
+                            <img src={selectedReport.photo_url.startsWith('http') ? selectedReport.photo_url : `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}${selectedReport.photo_url}`}
+                                alt="日報写真" style={{ maxWidth: '100%', borderRadius: 8 }} />
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
+        </>
     )
 }
