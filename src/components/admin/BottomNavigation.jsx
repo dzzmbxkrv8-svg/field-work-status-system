@@ -1,5 +1,6 @@
 import { ROLE_TABS } from '@/utils/constants'
 import { useI18n } from '@/i18n'
+import { AppIcon } from '@/utils/iconMap'
 
 export default function BottomNavigation({ selectedTab, onTabChange, unreadMessages = 0 }) {
     const { text } = useI18n()
@@ -14,7 +15,7 @@ export default function BottomNavigation({ selectedTab, onTabChange, unreadMessa
                     onClick={() => onTabChange(tab.id)}
                     style={{ position: 'relative' }}
                 >
-                    <span className="fws-bottom-nav-icon">{tab.icon}</span>
+                    <span className="fws-bottom-nav-icon"><AppIcon name={tab.icon} size={20} strokeWidth={1.8} /></span>
                     <span className="fws-bottom-nav-label">{text.tabs[tab.id]}</span>
                     {tab.id === 'messages' && unreadMessages > 0 && (
                         <span style={{

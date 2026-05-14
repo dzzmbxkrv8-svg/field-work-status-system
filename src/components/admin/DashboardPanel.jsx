@@ -5,6 +5,7 @@ import { getWorkers } from '@/api/workers'
 import { getTeamTodayAttendance } from '@/api/attendance'
 import { getAssignments } from '@/api/assignments'
 import SummaryCards from './SummaryCards'
+import { AppIcon } from '@/utils/iconMap'
 
 const STATUS_LABELS = {
   not_reported: '未報告',
@@ -136,7 +137,10 @@ export default function DashboardPanel() {
       {topOrders.length > 0 && (
         <section className="fws-panel" style={{ marginBottom: '1rem' }}>
           <header className="fws-panel-header">
-            <h3 style={{ margin: 0, fontSize: '1rem' }}>📋 進行中の案件（優先度順）</h3>
+            <h3 style={{ margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <AppIcon name="ClipboardList" size={16} style={{ color: '#4f46e5' }} />
+              進行中の案件（優先度順）
+            </h3>
             <span style={{ fontSize: '0.82rem', color: '#64748b' }}>{topOrders.length}件</span>
           </header>
           <div className="fws-priority-list">
@@ -163,7 +167,10 @@ export default function DashboardPanel() {
       <div className="fws-panel">
         <div className="fws-panel-header">
           <div>
-            <h2 style={{ margin: 0, fontSize: '1rem' }}>👷 本日の作業員状況</h2>
+            <h2 style={{ margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <AppIcon name="HardHat" size={16} style={{ color: '#4f46e5' }} />
+              本日の作業員状況
+            </h2>
             {lastUpdated && (
               <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0.2rem 0 0' }}>
                 最終更新: {lastUpdated.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}（30秒ごと自動更新）
@@ -242,10 +249,10 @@ export default function DashboardPanel() {
                   <a
                     href={`https://www.google.com/maps?q=${att.location_lat},${att.location_lng}`}
                     target="_blank" rel="noreferrer"
-                    style={{ fontSize: '0.75rem', color: '#2563eb', textDecoration: 'none',
-                      flexShrink: 0, background: '#eff6ff', padding: '0.25rem 0.6rem',
-                      borderRadius: '6px', border: '1px solid #bfdbfe' }}
-                  >MAP</a>
+                    style={{ fontSize: '0.72rem', color: '#2563eb', textDecoration: 'none',
+                      flexShrink: 0, background: '#eff6ff', padding: '0.2rem 0.55rem',
+                      borderRadius: '6px', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
+                  ><AppIcon name="MapPin" size={11} /> MAP</a>
                 )}
               </div>
             )

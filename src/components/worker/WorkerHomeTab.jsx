@@ -1,4 +1,5 @@
 import { STATUS_QUICK_ACTIONS } from '@/utils/constants'
+import { AppIcon } from '@/utils/iconMap'
 
 function getGreeting(text) {
   const hour = new Date().getHours()
@@ -181,7 +182,9 @@ export default function WorkerHomeTab({
                 style={isRecorded ? { opacity: 1, background: '#f0fdf4', border: '2px solid #86efac', color: '#15803d' } : {}}
               >
                 <span className="worker-action-icon" aria-hidden="true">
-                  {isRecorded ? '✅' : action.icon}
+                  {isRecorded
+                    ? <AppIcon name="CheckCircle" size={20} />
+                    : <AppIcon name={action.icon} size={20} />}
                 </span>
                 <span>{isRecorded ? `${actionLabel} 済み` : actionLabel}</span>
               </button>

@@ -1,34 +1,41 @@
+import { AppIcon } from '@/utils/iconMap'
+
 export default function WorkerBottomNav({ activeTab, setActiveTab, text, incomingMessages }) {
   const unreadCount = incomingMessages.filter(m => !m.isRead).length
 
+  const tabs = [
+    { id: 'home',     icon: 'Home',     label: text.worker.navHome },
+    { id: 'calendar', icon: 'Calendar', label: text.worker.navCalendar },
+    { id: 'report',   icon: 'Send',     label: text.worker.navReport },
+  ]
+
   return (
     <nav className="worker-bottom-nav">
-      <button type="button" className={`worker-nav-item ${activeTab === 'home' ? 'active' : ''}`} onClick={() => setActiveTab('home')}>
-        🏠<span>{text.worker.navHome}</span>
-      </button>
-      <button type="button" className={`worker-nav-item ${activeTab === 'calendar' ? 'active' : ''}`} onClick={() => setActiveTab('calendar')}>
-        📅<span>{text.worker.navCalendar}</span>
-      </button>
-      <button
-        type="button"
-        className={`worker-nav-item ${activeTab === 'report' ? 'active' : ''}`}
-        onClick={() => setActiveTab('report')}
-        style={{ position: 'relative' }}
-      >
-        ✉️
-        {unreadCount > 0 && (
-          <span style={{
-            position: 'absolute', top: '4px', right: '12px',
-            background: '#ef4444', color: '#fff',
-            borderRadius: '999px', fontSize: '0.65rem', fontWeight: 'bold',
-            minWidth: '16px', height: '16px', lineHeight: '16px',
-            textAlign: 'center', padding: '0 3px',
-          }}>
-            {unreadCount}
+      {tabs.map(tab => (
+        <button
+          key={tab.id}
+          type="button"
+          className={`worker-nav-item ${activeTab === tab.id ? 'active' : ''}`}
+          onClick={() => setActiveTab(tab.id)}
+          style={{ position: 'relative' }}
+        >
+          <span className="worker-nav-icon">
+            <AppIcon name={tab.icon} size={22} strokeWidth={1.8} />
           </span>
-        )}
-        <span>{text.worker.navReport}</span>
-      </button>
+          {tab.id === 'report' && unreadCount > 0 && (
+            <span style={{
+              position: 'absolute', top: '6px', left: '50%', transform: 'translateX(6px)',
+              background: '#ef4444', color: '#fff',
+              borderRadius: '999px', fontSize: '0.6rem', fontWeight: 'bold',
+              minWidth: '15px', height: '15px', lineHeight: '15px',
+              textAlign: 'center', padding: '0 3px',
+            }}>
+              {unreadCount}
+            </span>
+          )}
+          <span>{tab.label}</span>
+        </button>
+      ))}
     </nav>
   )
 }

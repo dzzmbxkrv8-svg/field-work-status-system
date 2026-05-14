@@ -12,6 +12,7 @@ import TeamManagementPanel from './TeamManagementPanel'
 import { useState, useEffect, useMemo } from 'react'
 import { assignWorker } from '@/api/assignments'
 import { getWorkers } from '@/api/workers'
+import { AppIcon } from '@/utils/iconMap'
 
 export default function AdminView() {
   const { state, dispatch, logout } = useAppContext()
@@ -77,7 +78,7 @@ export default function AdminView() {
                 style={{ position: 'relative' }}
               >
                 <span className="fws-tab-icon" aria-hidden="true">
-                  {tab.icon}
+                  <AppIcon name={tab.icon} size={16} />
                 </span>
                 <span className="fws-tab-label">{text.tabs[tab.id]}</span>
                 {tab.id === 'messages' && unreadMessages > 0 && (

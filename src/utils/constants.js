@@ -8,19 +8,19 @@ export const ADMIN_ACCESS_LENGTH = 8
 
 /** Quick action presets for the worker dashboard. */
 export const STATUS_QUICK_ACTIONS = [
-  { status: 'woke_up', icon: '🌅', variant: 'primary' },
-  { status: 'departed', icon: '🚗', variant: 'success' },
-  { status: 'arrived', icon: '📍', variant: 'warning' },
-  { status: 'finished', icon: '✅', variant: 'danger' },
+  { status: 'woke_up', icon: 'Sunrise', variant: 'primary' },
+  { status: 'departed', icon: 'Car', variant: 'success' },
+  { status: 'arrived', icon: 'MapPin', variant: 'warning' },
+  { status: 'finished', icon: 'CheckCircle', variant: 'danger' },
 ]
 
 /** Role tabs rendered on the admin dashboard header. */
 export const ROLE_TABS = [
-  { id: 'dashboard', icon: '🧭' },
-  { id: 'orders', icon: '📋' },
-  { id: 'messages', icon: '💬' },
-  { id: 'reports', icon: '📈' },
-  { id: 'teams', icon: '👥' },
+  { id: 'dashboard', icon: 'LayoutDashboard' },
+  { id: 'orders', icon: 'ClipboardList' },
+  { id: 'messages', icon: 'MessageSquare' },
+  { id: 'reports', icon: 'BarChart2' },
+  { id: 'teams', icon: 'Users' },
 ]
 
 
