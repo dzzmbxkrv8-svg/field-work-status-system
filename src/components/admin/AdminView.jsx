@@ -12,18 +12,16 @@ import TeamManagementPanel from './TeamManagementPanel'
 import { useState, useEffect, useMemo } from 'react'
 import { assignWorker } from '@/api/assignments'
 import { getWorkers } from '@/api/workers'
-import { useMessages } from '@/hooks/useMessages'
 
 export default function AdminView() {
   const { state, dispatch, logout } = useAppContext()
-  const { session, selectedTab } = state
+  const { session, selectedTab, messages: allMessages = [] } = state
   const { text } = useI18n(state.language)
   const [assigningOrder, setAssigningOrder] = useState(null)
   const [assignError, setAssignError] = useState(null)
   const [dbWorkers, setDbWorkers] = useState([])
 
-  // メッセージ未読バッジ
-  const { messages: allMessages } = useMessages()
+  // メッセージ未読バッジ（state.messages はMessagePanel初回レンダー時にセットされる）
   const unreadMessages = useMemo(() => {
     const lastViewed = parseInt(localStorage.getItem('lastViewedMessagesAt') || '0', 10)
     return allMessages.filter(m =>
