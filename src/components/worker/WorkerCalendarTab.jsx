@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { getAttachments } from '@/api/assignments'
+import { AppIcon } from '@/utils/iconMap'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -84,8 +85,20 @@ export default function WorkerCalendarTab({
     return { year, month, weeks, assignmentByDate, today }
   }, [assignments, calendarMonth])
 
+  const [historyOpen, setHistoryOpen] = useState(false)
+
   const isCompleted = (id, status) =>
     completedIds.has(id) || status === 'Completed' || status === 'completed'
+
+  // アクティブな案件（完了・キャンセル以外）
+  const activeAssignments = useMemo(() =>
+    assignments.filter(o => !isCompleted(o.id, o.status) && o.raw_status !== 'cancelled' && o.status?.toLowerCase() !== 'cancelled'),
+  [assignments, completedIds])
+
+  // 完了済みの案件（履歴）
+  const completedAssignments = useMemo(() =>
+    assignments.filter(o => isCompleted(o.id, o.status)),
+  [assignments, completedIds])
 
   const AssignmentCard = ({ entry, showCompleteButton }) => (
     <article key={entry.id} className="worker-assignment-card">
@@ -236,7 +249,7 @@ export default function WorkerCalendarTab({
             {selectedSchedule.entries.length > 0 ? (
               <div className="worker-assignment-grid">
                 {selectedSchedule.entries.map((entry) => (
-                  <AssignmentCard key={entry.id} entry={entry} showCompleteButton={true} />
+                  <AssignmentCard key={entry.id} entry={entry} showCompleteButton={!isCompleted(entry.id, entry.status)} />
                 ))}
               </div>
             ) : (
@@ -246,26 +259,26 @@ export default function WorkerCalendarTab({
         )}
       </section>
 
+      {/* ── アクティブな案件一覧 ── */}
       <section className="worker-card worker-card-assignments">
         <header>
           <h3>{text.worker.assignmentHeading}</h3>
           <p className="worker-assignment-count">
-            {text.worker.assignmentCount ? text.worker.assignmentCount(assignments.length) : `${assignments.length}件`}
+            {activeAssignments.length}件
           </p>
         </header>
-        {assignments.length === 0 ? (
-          <p className="worker-empty">{text.worker.empty}</p>
+        {activeAssignments.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
+            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
+              <AppIcon name="CheckCircle" size={36} style={{ color: '#10b981', margin: '0 auto' }} />
+            </div>
+            <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: 0 }}>現在の担当案件はありません</p>
+          </div>
         ) : (
           <div className="worker-assignment-grid">
-            {assignments.map((order) => (
+            {activeAssignments.map((order) => (
               <article key={order.id} className="worker-assignment-card">
                 <div className="worker-assignment-info">
-                  {isCompleted(order.id, order.status) && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem', padding: '0.4rem 0.75rem', background: '#d1fae5', borderRadius: '6px' }}>
-                      <span>✅</span>
-                      <span style={{ fontSize: '0.85rem', color: '#065f46', fontWeight: 600 }}>完了済み</span>
-                    </div>
-                  )}
                   <div className="worker-info-item">
                     <span className="worker-meta-label">{text.worker.assignmentProjectLabel}:</span>
                     <strong>{order.projectName || order.title || order.id}</strong>
@@ -309,17 +322,12 @@ export default function WorkerCalendarTab({
                   )}
                   <AssignmentAttachments dbId={order.db_id} />
                 </div>
-                {(isCompleted(order.id, order.status) || worker.id === order.assigned_worker_id) && (
+                {worker.id === order.assigned_worker_id && (
                   <div className="worker-assignment-actions" style={{ width: '100%' }}>
-                    {isCompleted(order.id, order.status) ? (
-                      <button disabled style={{ width: '100%', padding: '12px', backgroundColor: '#888', color: 'white', border: 'none', borderRadius: '8px', cursor: 'not-allowed', fontSize: '16px' }}>
-                        完了済み
-                      </button>
-                    ) : (
-                      <button type="button" onClick={(e) => { e.stopPropagation(); handleComplete(order) }} style={{ width: '100%', padding: '12px', backgroundColor: '#F59E0B', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold' }}>
-                        完了
-                      </button>
-                    )}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); handleComplete(order) }}
+                      style={{ width: '100%', padding: '12px', backgroundColor: '#F59E0B', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold' }}>
+                      完了
+                    </button>
                   </div>
                 )}
               </article>
@@ -327,6 +335,63 @@ export default function WorkerCalendarTab({
           </div>
         )}
       </section>
+
+      {/* ── 完了済み案件（履歴）── */}
+      {completedAssignments.length > 0 && (
+        <section className="worker-card" style={{ padding: '0' }}>
+          <button
+            type="button"
+            onClick={() => setHistoryOpen(v => !v)}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'none', border: 'none', cursor: 'pointer',
+              padding: '1rem 1.25rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <AppIcon name="CheckCircle" size={16} style={{ color: '#10b981' }} />
+              <span style={{ fontWeight: 600, fontSize: '0.92rem', color: '#475569' }}>
+                完了した案件
+              </span>
+              <span style={{ background: '#f1f5f9', color: '#64748b', borderRadius: '999px', fontSize: '0.72rem', fontWeight: 700, padding: '0.1rem 0.5rem' }}>
+                {completedAssignments.length}件
+              </span>
+            </div>
+            <AppIcon name={historyOpen ? 'ChevronLeft' : 'ChevronRight'} size={16} style={{ color: '#94a3b8', transform: historyOpen ? 'rotate(90deg)' : 'rotate(-90deg)', transition: 'transform 0.2s' }} />
+          </button>
+
+          {historyOpen && (
+            <div style={{ padding: '0 1.25rem 1.25rem', borderTop: '1px solid #f1f5f9' }}>
+              <div className="worker-assignment-grid" style={{ marginTop: '0.75rem' }}>
+                {completedAssignments.map((order) => (
+                  <article key={order.id} className="worker-assignment-card" style={{ opacity: 0.7 }}>
+                    <div className="worker-assignment-info">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem', padding: '0.3rem 0.6rem', background: '#d1fae5', borderRadius: '6px', width: 'fit-content' }}>
+                        <AppIcon name="CheckCircle" size={13} style={{ color: '#059669' }} />
+                        <span style={{ fontSize: '0.8rem', color: '#065f46', fontWeight: 600 }}>完了済み</span>
+                      </div>
+                      <div className="worker-info-item">
+                        <span className="worker-meta-label">{text.worker.assignmentProjectLabel}:</span>
+                        <strong>{order.projectName || order.title || order.id}</strong>
+                      </div>
+                      <div className="worker-info-item">
+                        <span className="worker-meta-label">{text.worker.assignmentDateLabel}:</span>
+                        <span>{formatDate(order.startDate)}</span>
+                      </div>
+                      {order.location && (
+                        <div className="worker-info-item">
+                          <span className="worker-meta-label">{text.worker.assignmentAddressLabel}:</span>
+                          <span>{order.location}</span>
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
     </>
   )
 }
