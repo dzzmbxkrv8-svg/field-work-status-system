@@ -364,28 +364,7 @@ export default function WorkerCalendarTab({
             <div style={{ padding: '0 1.25rem 1.25rem', borderTop: '1px solid #f1f5f9' }}>
               <div className="worker-assignment-grid" style={{ marginTop: '0.75rem' }}>
                 {completedAssignments.map((order) => (
-                  <article key={order.id} className="worker-assignment-card" style={{ opacity: 0.7 }}>
-                    <div className="worker-assignment-info">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem', padding: '0.3rem 0.6rem', background: '#d1fae5', borderRadius: '6px', width: 'fit-content' }}>
-                        <AppIcon name="CheckCircle" size={13} style={{ color: '#059669' }} />
-                        <span style={{ fontSize: '0.8rem', color: '#065f46', fontWeight: 600 }}>完了済み</span>
-                      </div>
-                      <div className="worker-info-item">
-                        <span className="worker-meta-label">{text.worker.assignmentProjectLabel}:</span>
-                        <strong>{order.projectName || order.title || order.id}</strong>
-                      </div>
-                      <div className="worker-info-item">
-                        <span className="worker-meta-label">{text.worker.assignmentDateLabel}:</span>
-                        <span>{formatDate(order.startDate)}</span>
-                      </div>
-                      {order.location && (
-                        <div className="worker-info-item">
-                          <span className="worker-meta-label">{text.worker.assignmentAddressLabel}:</span>
-                          <span>{order.location}</span>
-                        </div>
-                      )}
-                    </div>
-                  </article>
+                  <AssignmentCard key={order.id} entry={order} showCompleteButton={false} />
                 ))}
               </div>
             </div>
