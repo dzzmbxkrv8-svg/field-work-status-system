@@ -1,9 +1,16 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
+import { getWorkers } from '@/api/workers'
 import { uploadFile } from '@/api/messages'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-function Avatar({ name, size = 32, bg = '#475569' }) {
+const AVATAR_COLORS = ['#2563eb', '#7c3aed', '#db2777', '#059669', '#d97706', '#dc2626', '#0891b2']
+const avatarColor = (id) => AVATAR_COLORS[(Number(id) || 0) % AVATAR_COLORS.length]
+
+function Avatar({ name, id, size = 40 }) {
+  const bg = id === 'admin'
+    ? 'linear-gradient(135deg, #4f46e5 0%, #2563eb 100%)'
+    : avatarColor(id || 0)
   return (
     <div style={{
       width: size, height: size, borderRadius: '50%', flexShrink: 0,
@@ -26,41 +33,86 @@ function fmtTime(ts) {
 }
 
 export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, showToast }) {
+  const [workers, setWorkers] = useState([])
+  const [selectedUser, setSelectedUser] = useState(null)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [attachFile, setAttachFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   const bottomRef = useRef(null)
   const imageInputRef = useRef(null)
-  const textareaRef = useRef(null)
+  const fileInputRef = useRef(null)
 
-  const chatMessages = useMemo(() => {
-    return (apiMessages || [])
-      .filter(msg =>
-        msg.sender_id === worker?.id ||           // 自分が送った
-        msg.receiver_id === worker?.id ||          // 自分宛て
-        (msg.team_id != null && msg.sender_id !== worker?.id)  // 全員宛ブロードキャスト
-      )
+  useEffect(() => {
+    getWorkers().then(r => { if (r.success) setWorkers(r.data || []) })
+  }, [])
+
+  const myId = worker?.id
+
+  const messages = useMemo(() =>
+    (apiMessages || [])
       .map(msg => ({
         id: msg.id,
         senderId: msg.sender_id,
         senderName: msg.sender_name || '管理者',
+        receiverId: msg.receiver_id,
+        teamId: msg.team_id,
         content: msg.content,
         photoUrl: msg.photo_url,
+        fileUrl: msg.file_url,
+        fileName: msg.file_name,
         ts: msg.created_at,
-        isMine: msg.sender_id === worker?.id,
+        isMine: msg.sender_id === myId,
       }))
-      .sort((a, b) => new Date(a.ts) - new Date(b.ts))
-  }, [apiMessages, worker])
+      .sort((a, b) => new Date(a.ts) - new Date(b.ts)),
+  [apiMessages, myId])
+
+  // 全作業員IDセット（管理者メッセージ判別用）
+  const workerIdSet = useMemo(() => new Set(workers.map(w => w.id)), [workers])
+
+  // 管理者との会話に含めるメッセージ
+  const adminConvFilter = (msg) =>
+    (msg.isMine && msg.receiverId == null && msg.teamId == null) ||  // 自分→管理者
+    (msg.receiverId === myId) ||                                      // 管理者→自分（直接）
+    (msg.teamId != null && !msg.isMine)                              // 全員宛ブロードキャスト
+
+  const conversations = useMemo(() => {
+    const adminMsgs = messages.filter(adminConvFilter)
+    const adminEntry = {
+      id: 'admin', name: '管理者', teamName: null,
+      latest: adminMsgs[adminMsgs.length - 1] || null,
+    }
+
+    const workerEntries = workers
+      .filter(w => w.id !== myId)
+      .map(w => {
+        const conv = messages.filter(msg =>
+          (msg.senderId === myId && msg.receiverId === w.id) ||
+          (msg.senderId === w.id && msg.receiverId === myId)
+        )
+        return { id: w.id, name: w.name, teamName: w.team_name, latest: conv[conv.length - 1] || null }
+      })
+
+    return [adminEntry, ...workerEntries]
+  }, [messages, workers, myId])
+
+  const chatMessages = useMemo(() => {
+    if (!selectedUser) return []
+    if (selectedUser.id === 'admin') return messages.filter(adminConvFilter)
+    return messages.filter(msg =>
+      (msg.senderId === myId && msg.receiverId === selectedUser.id) ||
+      (msg.senderId === selectedUser.id && msg.receiverId === myId)
+    )
+  }, [messages, selectedUser, myId])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages])
 
-  const handleFileSelect = (e) => {
+  const handleFileSelect = (e, forImage) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const isImg = file.type.startsWith('image/')
+    const isImg = forImage || file.type.startsWith('image/')
     const preview = isImg ? URL.createObjectURL(file) : null
     setAttachFile({ file, preview, isImage: isImg })
     e.target.value = ''
@@ -73,6 +125,7 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
 
   const handleSend = async () => {
     if (!input.trim() && !attachFile) return
+    if (!selectedUser) return
     setSending(true)
 
     let uploadedUrl = null
@@ -92,18 +145,18 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
       }
     }
 
-    const result = await sendMessageApi({
+    const payload = {
       content: input.trim(),
-      receiver_id: null,
+      receiver_id: selectedUser.id === 'admin' ? null : selectedUser.id,
       team_id: null,
       ...(uploadedIsImage && uploadedUrl ? { photo_url: uploadedUrl } : {}),
-      ...(!uploadedIsImage && uploadedUrl ? { file_url: uploadedUrl } : {}),
-    })
+      ...(!uploadedIsImage && uploadedUrl ? { file_url: uploadedUrl, file_name: attachFile?.file?.name } : {}),
+    }
 
+    const result = await sendMessageApi(payload)
     if (result.success) {
       setInput('')
       clearAttach()
-      if (textareaRef.current) textareaRef.current.style.height = 'auto'
     } else {
       showToast('error', result.message || '送信に失敗しました')
     }
@@ -116,182 +169,240 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
 
   const canSend = (input.trim() || attachFile) && !sending && !uploading
 
-  return (
-    <div style={{
-      display: 'flex', flexDirection: 'column',
-      height: 'calc(100vh - 160px)',
-      background: '#f0f2f5',
-      borderRadius: 16, overflow: 'hidden',
-      border: '1px solid #e2e8f0',
-    }}>
-      {/* ── ヘッダー ── */}
+  // ── チャット画面 ──
+  if (selectedUser) {
+    return (
       <div style={{
-        padding: '0.75rem 1rem',
-        background: '#fff', borderBottom: '1px solid #e2e8f0',
-        flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.75rem',
+        display: 'flex', flexDirection: 'column',
+        height: 'calc(100vh - 160px)',
+        background: '#f0f2f5',
+        borderRadius: 16, overflow: 'hidden',
+        border: '1px solid #e2e8f0',
       }}>
+        {/* ヘッダー */}
         <div style={{
-          width: 38, height: 38, borderRadius: '50%',
-          background: 'linear-gradient(135deg, #4f46e5 0%, #2563eb 100%)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#fff', fontWeight: 700, fontSize: '0.9rem', flexShrink: 0,
-        }}>管</div>
-        <div>
-          <p style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>管理者</p>
-          <p style={{ margin: 0, fontSize: '0.72rem', color: '#94a3b8' }}>管理者へのメッセージ</p>
+          display: 'flex', alignItems: 'center', gap: '0.75rem',
+          padding: '0.75rem 1rem',
+          background: '#fff', borderBottom: '1px solid #e2e8f0',
+          flexShrink: 0,
+        }}>
+          <button type="button" onClick={() => setSelectedUser(null)} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: '1.2rem', color: '#2563eb', padding: '0.25rem',
+            display: 'flex', alignItems: 'center',
+          }}>‹</button>
+          <Avatar name={selectedUser.name} id={selectedUser.id} size={36} />
+          <div>
+            <p style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>{selectedUser.name}</p>
+            {selectedUser.teamName && (
+              <p style={{ margin: 0, fontSize: '0.72rem', color: '#94a3b8' }}>{selectedUser.teamName}</p>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* ── メッセージエリア ── */}
-      <div style={{
-        flex: 1, overflowY: 'auto',
-        padding: '1rem 0.75rem',
-        display: 'flex', flexDirection: 'column', gap: '0.5rem',
-      }}>
-        {chatMessages.length === 0 ? (
-          <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', marginTop: '3rem' }}>
-            メッセージはまだありません
-          </p>
-        ) : chatMessages.map(msg => (
-          <div key={msg.id} style={{
-            display: 'flex',
-            flexDirection: msg.isMine ? 'row-reverse' : 'row',
-            alignItems: 'flex-end', gap: '0.4rem',
-          }}>
-            {!msg.isMine && <Avatar name={msg.senderName} size={30} bg="#4f46e5" />}
-            <div style={{
-              maxWidth: '72%', display: 'flex', flexDirection: 'column',
-              alignItems: msg.isMine ? 'flex-end' : 'flex-start', gap: '0.15rem',
+        {/* メッセージエリア */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {chatMessages.length === 0 ? (
+            <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', marginTop: '2rem' }}>
+              メッセージはまだありません
+            </p>
+          ) : chatMessages.map(msg => (
+            <div key={msg.id} style={{
+              display: 'flex',
+              flexDirection: msg.isMine ? 'row-reverse' : 'row',
+              alignItems: 'flex-end', gap: '0.4rem',
             }}>
               {!msg.isMine && (
-                <span style={{ fontSize: '0.68rem', color: '#64748b', marginLeft: '0.25rem' }}>
-                  {msg.senderName}
-                </span>
+                <Avatar
+                  name={msg.senderName}
+                  id={selectedUser.id === 'admin' ? 'admin' : msg.senderId}
+                  size={30}
+                />
               )}
-              {(msg.content || msg.photoUrl) && (
-                <div style={{
-                  padding: (msg.photoUrl && !msg.content) ? 0 : '0.55rem 0.85rem',
-                  borderRadius: msg.isMine ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                  background: msg.isMine ? '#2563eb' : '#fff',
-                  color: msg.isMine ? '#fff' : '#1e293b',
-                  fontSize: '0.88rem', lineHeight: 1.5,
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                  wordBreak: 'break-word', overflow: 'hidden',
-                }}>
-                  {msg.content && <span>{msg.content}</span>}
-                  {msg.photoUrl && (
-                    <img
-                      src={msg.photoUrl.startsWith('http') ? msg.photoUrl : `${BASE_URL}${msg.photoUrl}`}
-                      alt="添付画像"
-                      style={{
-                        display: 'block',
-                        marginTop: msg.content ? '0.4rem' : 0,
-                        maxWidth: '100%',
-                        borderRadius: msg.content ? 8 : (msg.isMine ? '18px 18px 4px 18px' : '18px 18px 18px 4px'),
-                        maxHeight: 220, objectFit: 'cover', cursor: 'pointer',
-                      }}
-                      onClick={() => window.open(
-                        msg.photoUrl.startsWith('http') ? msg.photoUrl : `${BASE_URL}${msg.photoUrl}`,
-                        '_blank'
-                      )}
-                    />
-                  )}
-                </div>
-              )}
-              <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>{fmtTime(msg.ts)}</span>
+              <div style={{
+                maxWidth: '72%', display: 'flex', flexDirection: 'column',
+                alignItems: msg.isMine ? 'flex-end' : 'flex-start', gap: '0.15rem',
+              }}>
+                {!msg.isMine && (
+                  <span style={{ fontSize: '0.68rem', color: '#64748b', marginLeft: '0.25rem' }}>
+                    {msg.senderName}
+                  </span>
+                )}
+                {(msg.content || msg.photoUrl || msg.fileUrl) && (
+                  <div style={{
+                    padding: (msg.photoUrl && !msg.content) ? 0 : '0.55rem 0.85rem',
+                    borderRadius: msg.isMine ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                    background: msg.isMine ? '#2563eb' : '#fff',
+                    color: msg.isMine ? '#fff' : '#1e293b',
+                    fontSize: '0.88rem', lineHeight: 1.5,
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+                    wordBreak: 'break-word', overflow: 'hidden',
+                  }}>
+                    {msg.content && <span>{msg.content}</span>}
+                    {msg.photoUrl && (
+                      <img
+                        src={msg.photoUrl.startsWith('http') ? msg.photoUrl : `${BASE_URL}${msg.photoUrl}`}
+                        alt="添付画像"
+                        style={{
+                          display: 'block', marginTop: msg.content ? '0.4rem' : 0,
+                          maxWidth: '100%',
+                          borderRadius: msg.content ? 8 : (msg.isMine ? '18px 18px 4px 18px' : '18px 18px 18px 4px'),
+                          maxHeight: 220, objectFit: 'cover', cursor: 'pointer',
+                        }}
+                        onClick={() => window.open(
+                          msg.photoUrl.startsWith('http') ? msg.photoUrl : `${BASE_URL}${msg.photoUrl}`,
+                          '_blank'
+                        )}
+                      />
+                    )}
+                    {msg.fileUrl && (
+                      <a
+                        href={msg.fileUrl.startsWith('http') ? msg.fileUrl : `${BASE_URL}${msg.fileUrl}`}
+                        target="_blank" rel="noreferrer"
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.4rem',
+                          marginTop: msg.content ? '0.3rem' : 0,
+                          padding: '0.4rem 0.6rem',
+                          background: msg.isMine ? 'rgba(255,255,255,0.15)' : '#f1f5f9',
+                          borderRadius: 8, textDecoration: 'none',
+                          color: msg.isMine ? '#fff' : '#1e293b',
+                          fontSize: '0.78rem', fontWeight: 600,
+                        }}
+                      >
+                        📎 {msg.fileName || 'ファイル'}
+                      </a>
+                    )}
+                  </div>
+                )}
+                <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>{fmtTime(msg.ts)}</span>
+              </div>
             </div>
-          </div>
-        ))}
-        <div ref={bottomRef} />
-      </div>
-
-      {/* ── 添付プレビュー ── */}
-      {attachFile && (
-        <div style={{
-          padding: '0.5rem 0.75rem',
-          background: '#f8fafc', borderTop: '1px solid #e2e8f0',
-          display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0,
-        }}>
-          {attachFile.isImage && attachFile.preview ? (
-            <img src={attachFile.preview} alt="" style={{ height: 52, width: 52, borderRadius: 8, objectFit: 'cover' }} />
-          ) : (
-            <span style={{ fontSize: '0.78rem', color: '#334155', background: '#e2e8f0', borderRadius: 8, padding: '0.4rem 0.6rem' }}>
-              📎 {attachFile.file.name}
-            </span>
-          )}
-          <button type="button" onClick={clearAttach} style={{
-            background: '#ef4444', border: 'none', borderRadius: '50%',
-            width: 20, height: 20, color: '#fff', fontSize: '0.7rem', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          }}>✕</button>
-          {uploading && <span style={{ fontSize: '0.75rem', color: '#6366f1' }}>アップロード中...</span>}
+          ))}
+          <div ref={bottomRef} />
         </div>
-      )}
 
-      {/* ── 入力エリア ── */}
-      <div style={{
-        display: 'flex', alignItems: 'flex-end', gap: '0.4rem',
-        padding: '0.65rem 0.75rem',
-        background: '#fff', borderTop: '1px solid #e2e8f0',
-        flexShrink: 0,
-      }}>
-        <input
-          ref={imageInputRef}
-          type="file"
-          accept="image/*"
-          style={{ display: 'none' }}
-          onChange={handleFileSelect}
-        />
+        {/* 添付プレビュー */}
+        {attachFile && (
+          <div style={{
+            padding: '0.5rem 0.75rem',
+            background: '#f8fafc', borderTop: '1px solid #e2e8f0',
+            display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0,
+          }}>
+            {attachFile.isImage && attachFile.preview ? (
+              <img src={attachFile.preview} alt="" style={{ height: 52, width: 52, borderRadius: 8, objectFit: 'cover' }} />
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#e2e8f0', borderRadius: 8, padding: '0.4rem 0.6rem' }}>
+                <span>📎</span>
+                <span style={{ fontSize: '0.78rem', color: '#334155', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {attachFile.file.name}
+                </span>
+              </div>
+            )}
+            <button type="button" onClick={clearAttach} style={{
+              background: '#ef4444', border: 'none', borderRadius: '50%',
+              width: 20, height: 20, color: '#fff', fontSize: '0.7rem', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>✕</button>
+            {uploading && <span style={{ fontSize: '0.75rem', color: '#6366f1' }}>アップロード中...</span>}
+          </div>
+        )}
 
-        {/* カメラアイコン */}
-        <button
-          type="button"
-          onClick={() => imageInputRef.current?.click()}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: '#94a3b8', flexShrink: 0, display: 'flex', alignItems: 'center' }}
-          title="画像を添付"
-        >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-            <circle cx="12" cy="13" r="4"/>
-          </svg>
-        </button>
+        {/* 入力エリア */}
+        <div style={{
+          display: 'flex', alignItems: 'flex-end', gap: '0.4rem',
+          padding: '0.65rem 0.75rem',
+          background: '#fff', borderTop: '1px solid #e2e8f0',
+          flexShrink: 0,
+        }}>
+          <input ref={imageInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => handleFileSelect(e, true)} />
+          <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" style={{ display: 'none' }} onChange={e => handleFileSelect(e, false)} />
 
-        <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={e => {
-            setInput(e.target.value)
-            e.target.style.height = 'auto'
-            e.target.style.height = `${Math.min(e.target.scrollHeight, 100)}px`
-          }}
-          onKeyDown={handleKeyDown}
-          placeholder="メッセージを入力..."
-          rows={1}
-          style={{
-            flex: 1, resize: 'none',
-            border: '1px solid #e2e8f0',
-            borderRadius: 20, padding: '0.55rem 0.9rem',
-            fontSize: '0.9rem', outline: 'none',
-            background: '#f8fafc', lineHeight: 1.5,
-            maxHeight: 100, overflowY: 'auto',
-          }}
-        />
+          {/* カメラ */}
+          <button type="button" onClick={() => imageInputRef.current?.click()}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: '#94a3b8', flexShrink: 0, display: 'flex', alignItems: 'center' }}
+            title="画像を添付">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+          </button>
 
-        <button
-          type="button"
-          onClick={handleSend}
-          disabled={!canSend}
-          style={{
+          {/* クリップ */}
+          <button type="button" onClick={() => fileInputRef.current?.click()}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: '#94a3b8', flexShrink: 0, display: 'flex', alignItems: 'center' }}
+            title="ファイルを添付">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+          </button>
+
+          <textarea
+            value={input}
+            onChange={e => {
+              setInput(e.target.value)
+              e.target.style.height = 'auto'
+              e.target.style.height = `${Math.min(e.target.scrollHeight, 100)}px`
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder="メッセージを入力..."
+            rows={1}
+            style={{
+              flex: 1, resize: 'none', border: '1px solid #e2e8f0',
+              borderRadius: 20, padding: '0.55rem 0.9rem',
+              fontSize: '0.9rem', outline: 'none',
+              background: '#f8fafc', lineHeight: 1.5,
+              maxHeight: 100, overflowY: 'auto',
+            }}
+          />
+          <button type="button" onClick={handleSend} disabled={!canSend} style={{
             width: 40, height: 40, borderRadius: '50%', border: 'none',
             background: canSend ? '#2563eb' : '#e2e8f0',
             color: canSend ? '#fff' : '#94a3b8',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: canSend ? 'pointer' : 'default',
-            fontSize: '1rem', flexShrink: 0,
-            transition: 'all 0.15s',
-          }}
-        >➤</button>
+            fontSize: '1rem', flexShrink: 0, transition: 'all 0.15s',
+          }}>➤</button>
+        </div>
       </div>
+    )
+  }
+
+  // ── トーク一覧画面 ──
+  return (
+    <div style={{ background: '#fff', borderRadius: 16, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+      <div style={{ padding: '0.85rem 1rem 0.75rem', borderBottom: '1px solid #f1f5f9' }}>
+        <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>メッセージ</h2>
+      </div>
+
+      {conversations.map(conv => {
+        const latest = conv.latest
+        const latestText = latest
+          ? (latest.photoUrl ? '📷 写真' : latest.fileUrl ? `📎 ${latest.fileName || 'ファイル'}` : latest.content || '')
+          : 'メッセージなし'
+        return (
+          <div
+            key={conv.id}
+            onClick={() => setSelectedUser(conv)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.75rem',
+              padding: '0.85rem 1rem', cursor: 'pointer',
+              borderBottom: '1px solid #f8fafc', background: '#fff',
+            }}
+          >
+            <Avatar name={conv.name} id={conv.id} size={48} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <p style={{ margin: 0, fontWeight: 700, fontSize: '0.92rem', color: '#0f172a' }}>{conv.name}</p>
+                {latest && <span style={{ fontSize: '0.68rem', color: '#94a3b8', flexShrink: 0 }}>{fmtTime(latest.ts)}</span>}
+              </div>
+              <p style={{ margin: '0.1rem 0 0', fontSize: '0.78rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {latestText}
+              </p>
+            </div>
+            <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}>›</span>
+          </div>
+        )
+      })}
     </div>
   )
 }
