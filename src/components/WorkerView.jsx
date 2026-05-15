@@ -3,9 +3,7 @@ import { useAppContext } from '@/contexts/AppContext'
 import { useReports } from '@/hooks/useReports'
 import { useTimeEntries } from '@/hooks/useTimeEntries'
 import { useMessages } from '@/hooks/useMessages'
-import { useDailyReports } from '@/hooks/useDailyReports'
 import { useI18n } from '@/i18n'
-import { getWorkers } from '@/api/workers'
 import WorkerBottomNav from '@/components/worker/WorkerBottomNav'
 import WorkerHomeTab from '@/components/worker/WorkerHomeTab'
 import WorkerCalendarTab from '@/components/worker/WorkerCalendarTab'
@@ -16,27 +14,17 @@ export default function WorkerView() {
   const { sortedOrders: assignments, updateStatus: updateAssignmentStatus, refresh: refreshAssignments } = useReports()
   const { todayAttendance, updateStatus: updateAttendance, refreshToday } = useTimeEntries()
   const { messages: apiMessages, send: sendMessageApi } = useMessages()
-  const { submitReport: submitDailyReport } = useDailyReports()
   const { text, formatDate, getStatusLabel } = useI18n(state.language)
 
   const [clockLoading, setClockLoading] = useState(false)
-  const [reportForm, setReportForm] = useState({ assignment_id: '', note: '' })
   const [completedIds, setCompletedIds] = useState(new Set())
-  const [adminMessageRecipient, setAdminMessageRecipient] = useState('')
   const [activeTab, setActiveTab] = useState('home')
-  const [apiWorkers, setApiWorkers] = useState([])
   const [toast, setToast] = useState(null)
   const [lastCheckedDate, setLastCheckedDate] = useState(() => new Date().toDateString())
 
   const worker = state.session
 
-  useEffect(() => {
-    if (!worker) return
-    getWorkers().then(res => {
-      if (res.success) setApiWorkers(res.data || [])
-    })
-  }, [worker])
-
+  // 日付をまたいだらリセット
   useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date().toDateString()
@@ -53,6 +41,7 @@ export default function WorkerView() {
     setTimeout(() => setToast(null), duration)
   }, [])
 
+  // 受信メッセージ（ホームのティッカー・バッジ用）
   const incomingMessages = useMemo(() => {
     return apiMessages
       .filter(msg => msg.sender_id !== worker?.id)
@@ -67,83 +56,11 @@ export default function WorkerView() {
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
   }, [apiMessages, worker])
 
-  const sentMessages = useMemo(() => {
-    return apiMessages
-      .filter(msg => msg.sender_id === worker?.id)
-      .map(msg => {
-        let receiver = '管理者'
-        if (msg.receiver_name) {
-          receiver = msg.receiver_name
-        } else if (msg.receiver_id) {
-          const found = apiWorkers.find(w => w.id === msg.receiver_id)
-          receiver = found ? found.name : `作業員 #${msg.receiver_id}`
-        } else if (msg.team_id) {
-          receiver = 'チーム全体'
-        }
-        return {
-          id: msg.id,
-          receiver,
-          message: msg.content,
-          photo_url: msg.photo_url,
-          timestamp: msg.created_at,
-        }
-      })
-      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-  }, [apiMessages, worker, apiWorkers])
-
-  const recipientOptions = useMemo(() => {
-    const adminOption = { value: 'admin:0', label: '管理者' }
-    const workerRecipients = apiWorkers
-      .filter(w => w.id !== worker?.id)
-      .map(w => ({
-        value: `worker:${w.id}`,
-        label: `${w.name}（${w.team_name || w.team || `チーム ${w.team_id}`}）`,
-        receiverId: w.id,
-      }))
-    return [adminOption, ...workerRecipients]
-  }, [apiWorkers, worker])
-
-  useEffect(() => {
-    if (recipientOptions.length === 0) {
-      if (adminMessageRecipient !== '') setAdminMessageRecipient('')
-      return
-    }
-    const currentExists = recipientOptions.some(o => o.value === adminMessageRecipient)
-    if (!currentExists) setAdminMessageRecipient(recipientOptions[0].value)
-  }, [recipientOptions, adminMessageRecipient])
-
-  const primaryAssignment = assignments[0]
-
-  useEffect(() => {
-    if (primaryAssignment && !reportForm.assignment_id) {
-      setReportForm(prev => ({ ...prev, assignment_id: String(primaryAssignment.db_id) }))
-    }
-  }, [primaryAssignment, reportForm.assignment_id])
-
   const formatActionTimestamp = useCallback((timestamp) => {
     const locale = state.language === 'ja' ? 'ja-JP' : 'en-US'
     const timeString = new Date(timestamp).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
     return `${formatDate(timestamp)} ${timeString}`
   }, [state.language, formatDate])
-
-  const handleReportChange = useCallback((field, value) => {
-    setReportForm(prev => ({ ...prev, [field]: value }))
-  }, [])
-
-  const handleReportSubmit = useCallback(async (photoUrl) => {
-    if (!primaryAssignment) return
-    const result = await submitDailyReport({
-      assignment_id: primaryAssignment.db_id ?? primaryAssignment.id,
-      note: reportForm.note,
-      ...(photoUrl ? { photo_url: photoUrl } : {}),
-    })
-    if (result.success) {
-      setReportForm(prev => ({ ...prev, note: '' }))
-      showToast('success', text.worker.reportSubmittedSuccess || '日報を提出しました。')
-    } else {
-      showToast('error', result.message || '日報の提出に失敗しました。')
-    }
-  }, [primaryAssignment, reportForm.note, submitDailyReport, showToast, text.worker.reportSubmittedSuccess])
 
   const handleQuickAction = useCallback(async (action) => {
     setClockLoading(true)
@@ -228,16 +145,8 @@ export default function WorkerView() {
         )}
         {activeTab === 'report' && (
           <WorkerReportTab
-            text={text}
-            assignments={assignments}
-            reportForm={reportForm}
-            handleReportChange={handleReportChange}
-            handleReportSubmit={handleReportSubmit}
-            incomingMessages={incomingMessages}
-            sentMessages={sentMessages}
-            recipientOptions={recipientOptions}
-            adminMessageRecipient={adminMessageRecipient}
-            setAdminMessageRecipient={setAdminMessageRecipient}
+            worker={worker}
+            apiMessages={apiMessages}
             sendMessageApi={sendMessageApi}
             showToast={showToast}
           />
