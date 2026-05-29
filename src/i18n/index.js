@@ -41,7 +41,7 @@ const translationPacks = {
       logout: 'Sign out',
     },
     header: {
-      title: 'Field Work Status System',
+      title: 'Fieldo',
       subtitle: 'Monitor crews, share updates, and keep every site aligned in one workspace.',
       roleNavAria: 'Role views',
     },
