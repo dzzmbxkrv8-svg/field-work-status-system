@@ -5,8 +5,12 @@ import {
   HardHat, Clock, Bell, AlertTriangle,
   Plus, Pencil, Trash2, X, Check,
   Search, LogOut, ChevronLeft, ChevronRight,
-  Paperclip, Image, FileText, Download,
+  Paperclip, Camera, FileText, Download,
   Eye, Filter, RefreshCw,
+  User, UserCheck, CalendarDays, Flag,
+  ArrowLeft, ArrowRight, CircleCheck, CircleX,
+  TriangleAlert, Bookmark, Building2,
+  Fingerprint, ShieldCheck,
 } from 'lucide-react'
 
 const ICON_MAP = {
@@ -40,12 +44,25 @@ const ICON_MAP = {
   ChevronLeft,
   ChevronRight,
   Paperclip,
-  Image,
+  Camera,
   FileText,
   Download,
   Eye,
   Filter,
   RefreshCw,
+  User,
+  UserCheck,
+  CalendarDays,
+  Flag,
+  ArrowLeft,
+  ArrowRight,
+  CircleCheck,
+  CircleX,
+  TriangleAlert,
+  Bookmark,
+  Building2,
+  Fingerprint,
+  ShieldCheck,
 }
 
 /**

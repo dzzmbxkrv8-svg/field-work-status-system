@@ -1,14 +1,17 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAppContext } from '@/contexts/AppContext'
 import * as messagesApi from '@/api/messages'
+
+const POLL_INTERVAL = 30_000 // 30秒
 
 export function useMessages() {
   const { state, dispatch } = useAppContext()
   const { messages = [] } = state
   const [loading, setLoading] = useState(false)
+  const intervalRef = useRef(null)
 
   const fetchMessages = useCallback(async () => {
-    if (!localStorage.getItem('token')) return;
+    if (!localStorage.getItem('token')) return
     setLoading(true)
     const result = await messagesApi.getMessages()
     if (result.success) {
@@ -17,9 +20,39 @@ export function useMessages() {
     setLoading(false)
   }, [dispatch])
 
+  // 初回取得 + ポーリング（30秒間隔）
   useEffect(() => {
-    if (state.session) {
-      fetchMessages()
+    if (!state.session) return
+
+    fetchMessages()
+
+    const startPolling = () => {
+      if (intervalRef.current) return
+      intervalRef.current = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          fetchMessages()
+        }
+      }, POLL_INTERVAL)
+    }
+
+    const stopPolling = () => {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+
+    // タブが表示に戻ったら即時再取得
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchMessages()
+      }
+    }
+
+    startPolling()
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      stopPolling()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [state.session, fetchMessages])
 

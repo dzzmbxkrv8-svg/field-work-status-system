@@ -4,8 +4,8 @@ exports.getReports = async (req, res, next) => {
   try {
     let query, params;
     if (req.user.role === 'admin') {
-      query = 'SELECT r.*, u.name as worker_name FROM reports r JOIN users u ON r.worker_id=u.id ORDER BY submitted_at DESC';
-      params = [];
+      query = 'SELECT r.*, u.name as worker_name FROM reports r JOIN users u ON r.worker_id=u.id WHERE u.company_id=$1 ORDER BY submitted_at DESC';
+      params = [req.user.company_id];
     } else {
       query = `
         SELECT r.*, a.title as assignment_title, a.assignment_code 
@@ -25,7 +25,12 @@ exports.getReports = async (req, res, next) => {
 
 exports.getReport = async (req, res, next) => {
   try {
-    const { rows } = await db.query('SELECT * FROM reports WHERE id=$1', [req.params.id]);
+    const { rows } = await db.query(
+      `SELECT r.* FROM reports r
+       JOIN users u ON r.worker_id = u.id
+       WHERE r.id=$1 AND u.company_id=$2`,
+      [req.params.id, req.user.company_id]
+    );
     if (rows.length === 0) return res.status(404).json({ success: false, message: 'Not found' });
     res.status(200).json({ success: true, data: rows[0] });
   } catch (error) {

@@ -14,11 +14,28 @@ services:
         sync: false
       - key: JWT_EXPIRES_IN
         value: 24h
+      - key: CORS_ORIGIN
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
 
   - type: static
     name: field-work-app
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false
     routes:
       - type: rewrite
         source: /*

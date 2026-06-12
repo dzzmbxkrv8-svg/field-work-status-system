@@ -50,9 +50,14 @@ export default function AttendancePanel() {
 
         fetchData(true)
 
-        // 30秒ごとに自動更新
+        // 30秒ごとに自動更新 + 作業員からのSSE通知で即時更新
         const intervalId = setInterval(() => fetchData(false), 30000)
-        return () => clearInterval(intervalId)
+        const handleAttendanceUpdated = () => fetchData(false)
+        window.addEventListener('fieldo:attendance-updated', handleAttendanceUpdated)
+        return () => {
+          clearInterval(intervalId)
+          window.removeEventListener('fieldo:attendance-updated', handleAttendanceUpdated)
+        }
     }, [])
 
     const workersWithAttendance = useMemo(() => {
@@ -189,7 +194,7 @@ export default function AttendancePanel() {
                                     href={`https://www.google.com/maps?q=${attendance.location_lat},${attendance.location_lng}`}
                                     target="_blank"
                                     rel="noreferrer"
-                                    style={{ fontSize: '0.75rem', color: '#2563eb', textDecoration: 'none', flexShrink: 0, background: '#eff6ff', padding: '0.25rem 0.6rem', borderRadius: '6px', border: '1px solid #bfdbfe' }}
+                                    style={{ fontSize: '0.75rem', color: '#4f46e5', textDecoration: 'none', flexShrink: 0, background: '#eef2ff', padding: '0.25rem 0.6rem', borderRadius: '6px', border: '1px solid #c7c7f0' }}
                                 >
                                     MAP
                                 </a>

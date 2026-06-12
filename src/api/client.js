@@ -34,11 +34,13 @@ export const apiClient = async (endpoint, options = {}) => {
 
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
-      throw new Error(data.message || `APIエラー: ${response.status}`);
+      const err = new Error(data.message || `APIエラー: ${response.status}`);
+      err.code = data.code;
+      throw err;
     }
 
     return await response.json();
   } catch (error) {
-    return { success: false, message: error.message };
+    return { success: false, message: error.message, code: error.code };
   }
 };

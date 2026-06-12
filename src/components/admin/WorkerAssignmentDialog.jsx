@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useI18n } from '@/i18n'
+import { AppIcon } from '@/utils/iconMap'
 
 export default function WorkerAssignmentDialog({ order, workers, onSave, onClose, error }) {
     const { text } = useI18n()
@@ -29,7 +30,7 @@ export default function WorkerAssignmentDialog({ order, workers, onSave, onClose
                     </p>
                     {error && (
                         <p style={{ color: '#991b1b', background: '#fee2e2', padding: '0.5rem 0.75rem', borderRadius: '4px', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
-                            ❌ {error}
+                            <AppIcon name="CircleX" size={14} strokeWidth={2} style={{ flexShrink: 0 }} /> {error}
                         </p>
                     )}
                     <div className="fws-worker-list">

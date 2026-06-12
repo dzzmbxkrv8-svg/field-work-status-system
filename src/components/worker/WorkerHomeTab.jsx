@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react'
 import { STATUS_QUICK_ACTIONS } from '@/utils/constants'
 import { AppIcon } from '@/utils/iconMap'
+import { getAnnouncement } from '@/api/settings'
 
 function getGreeting(text) {
   const hour = new Date().getHours()
@@ -40,9 +42,10 @@ function TodayAssignmentCard({ assignments }) {
   if (items.length === 0) return null
 
   return (
-    <section className="worker-card" style={{ background: 'linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)', border: '1px solid #bfdbfe' }}>
-      <p className="worker-section-label" style={{ color: '#1d4ed8', marginBottom: '0.75rem' }}>
-        {isUpcoming ? '📅 次の担当現場' : '📍 本日の担当現場'}
+    <section className="worker-card" style={{ background: '#ffffff', border: '1px solid #ebebf5' }}>
+      <p className="worker-section-label" style={{ color: '#4f46e5', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.82rem', letterSpacing: '0.03em' }}>
+        <AppIcon name={isUpcoming ? 'CalendarDays' : 'MapPin'} size={14} />
+        {isUpcoming ? '次の担当現場' : '本日の担当現場'}
       </p>
       {items.map(a => (
         <div key={a.db_id || a.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -52,17 +55,26 @@ function TodayAssignmentCard({ assignments }) {
               href={`https://maps.google.com/?q=${encodeURIComponent(a.location)}`}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ fontSize: '0.85rem', color: '#2563eb', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+              style={{ fontSize: '0.85rem', color: '#4f46e5', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
             >
-              📍 {a.location}
-              <span style={{ fontSize: '0.75rem', background: '#dbeafe', color: '#1d4ed8', borderRadius: '4px', padding: '0.1rem 0.4rem' }}>地図で開く</span>
+              <AppIcon name="MapPin" size={13} />
+              {a.location}
+              <span style={{ fontSize: '0.75rem', background: '#eef2ff', color: '#4f46e5', borderRadius: '4px', padding: '0.1rem 0.4rem' }}>地図で開く</span>
             </a>
           )}
           <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.78rem', color: '#475569', flexWrap: 'wrap' }}>
             {a.startDate && (
-              <span>🗓 {a.startDate.slice(0, 10)}{a.dueDate && a.dueDate !== a.startDate ? ` 〜 ${a.dueDate.slice(0, 10)}` : ''}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <AppIcon name="CalendarDays" size={12} />
+                {a.startDate.slice(0, 10)}{a.dueDate && a.dueDate !== a.startDate ? ` 〜 ${a.dueDate.slice(0, 10)}` : ''}
+              </span>
             )}
-            {a.team_name && <span>👥 {a.team_name}</span>}
+            {a.team_name && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <AppIcon name="Users" size={12} />
+                {a.team_name}
+              </span>
+            )}
           </div>
         </div>
       ))}
@@ -75,22 +87,36 @@ export default function WorkerHomeTab({
   text,
   state,
   todayAttendance,
-  incomingMessages,
   clockLoading,
   handleQuickAction,
   formatActionTimestamp,
   getStatusLabel,
   logout,
   assignments = [],
+  announcementRefreshKey = 0,
 }) {
   const quickLabels = text.worker.statusQuickLabels ?? {}
   const avatarContent = <span>{worker.name.slice(0, 1).toUpperCase()}</span>
 
+  // お知らせをAPIから取得（SSEでキーが変わるたびに再取得）
+  // refreshKeyRef を使って依存配列サイズを常に1に固定（HMR警告を防ぐ）
+  const [announcement, setAnnouncement] = useState('')
+  const refreshKeyRef = useRef(announcementRefreshKey)
+  useEffect(() => {
+    // ref の値が変わっていたら再取得
+    if (refreshKeyRef.current !== announcementRefreshKey) {
+      refreshKeyRef.current = announcementRefreshKey
+    }
+    getAnnouncement()
+      .then(res => setAnnouncement(res.value ?? ''))
+      .catch(() => {})
+  }, [announcementRefreshKey])
+
   const statusSteps = [
-    { key: 'woke_up_at',  label: '起床済み', color: '#f59e0b', icon: '🌅' },
-    { key: 'departed_at', label: '出発済み', color: '#3b82f6', icon: '🚗' },
-    { key: 'arrived_at',  label: '現場到着', color: '#10b981', icon: '📍' },
-    { key: 'finished_at', label: '作業終了', color: '#6b7280', icon: '✅' },
+    { key: 'woke_up_at',  label: '起床済み', color: '#f59e0b', iconName: 'Sunrise' },
+    { key: 'departed_at', label: '出発済み', color: '#4f46e5', iconName: 'Car' },
+    { key: 'arrived_at',  label: '現場到着', color: '#10b981', iconName: 'MapPin' },
+    { key: 'finished_at', label: '作業終了', color: '#6b7280', iconName: 'CheckCircle' },
   ]
   const currentStep = [...statusSteps].reverse().find(s => todayAttendance?.[s.key])
 
@@ -103,10 +129,7 @@ export default function WorkerHomeTab({
     .map(item => ({ ...item, timestamp: todayAttendance[item.key] }))
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
 
-  const latestAdminMsg = incomingMessages[0]
-  const tickerText = latestAdminMsg
-    ? `【管理者からのお知らせ】${latestAdminMsg.message}`
-    : '【安全通知】作業前に安全確認を必ず行ってください。ヘルメット・安全帯の着用を徹底してください。'
+  const tickerText = announcement || '【安全通知】作業前に安全確認を必ず行ってください。ヘルメット・安全帯の着用を徹底してください。'
 
   return (
     <>
@@ -151,7 +174,7 @@ export default function WorkerHomeTab({
               borderRadius: '999px', fontSize: '0.8rem', fontWeight: 'bold',
               padding: '0.2rem 0.75rem',
             }}>
-              {currentStep.icon} {currentStep.label}
+              <AppIcon name={currentStep.iconName} size={13} /> {currentStep.label}
             </span>
           ) : (
             <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>未報告</span>
@@ -162,7 +185,7 @@ export default function WorkerHomeTab({
       <TodayAssignmentCard assignments={assignments} />
 
       <section className="safety-ticker">
-        <span className="safety-icon">⚠️</span>
+        <span className="safety-icon"><AppIcon name="AlertTriangle" size={16} strokeWidth={2} /></span>
         <div className="safety-content">{tickerText}</div>
       </section>
 
@@ -207,7 +230,9 @@ export default function WorkerHomeTab({
                 borderBottom: idx === historyItems.length - 1 ? 'none' : '1px solid var(--color-border-light)',
                 fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem',
               }}>
-                <span style={{ fontSize: '1.1rem' }}>{item.icon}</span>
+                <span style={{ display: 'flex', alignItems: 'center', color: item.color }}>
+                  <AppIcon name={item.iconName} size={16} strokeWidth={2} />
+                </span>
                 <span style={{ fontWeight: '500', color: 'var(--color-text-primary)' }}>{item.label}</span>
                 <span style={{ color: 'var(--color-text-secondary)', marginLeft: 'auto' }}>{formatActionTimestamp(item.timestamp)}</span>
               </div>

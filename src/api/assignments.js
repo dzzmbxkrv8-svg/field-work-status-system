@@ -77,9 +77,6 @@ export const setMembers = async (assignmentDbId, memberIds) => {
   });
 };
 
-export const getMembers = async (assignmentDbId) => {
-  return apiClient(`/api/assignments/${assignmentDbId}/members`, { method: 'GET' });
-};
 
 export const getAttachments = async (assignmentDbId) => {
   return apiClient(`/api/assignments/${assignmentDbId}/attachments`, { method: 'GET' });

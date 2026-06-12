@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { uploadAttachments, getAttachments, deleteAttachment } from '@/api/assignments'
+import { AppIcon } from '@/utils/iconMap'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -95,7 +96,9 @@ export default function EditOrderDialog({ order, onSave, onCancel }) {
         boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
       }}>
         <h3 style={{ margin: '0 0 1.2rem', fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
-          ✏️ 作業指示を編集
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <AppIcon name="Pencil" size={15} strokeWidth={2} style={{ color: '#4f46e5' }} />作業指示を編集
+          </span>
         </h3>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -182,10 +185,10 @@ export default function EditOrderDialog({ order, onSave, onCancel }) {
                       {isImage ? (
                         <img src={url} alt={att.original_name} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4 }} />
                       ) : (
-                        <span style={{ fontSize: '1.2rem' }}>📄</span>
+                        <AppIcon name="FileText" size={20} strokeWidth={1.8} style={{ color: '#64748b' }} />
                       )}
                       <a href={url} target="_blank" rel="noreferrer"
-                        style={{ flex: 1, fontSize: '0.8rem', color: '#2563eb', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        style={{ flex: 1, fontSize: '0.8rem', color: '#4f46e5', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {att.original_name || att.file_name || 'ファイル'}
                       </a>
                       <button
@@ -214,14 +217,14 @@ export default function EditOrderDialog({ order, onSave, onCancel }) {
               style={{ fontSize: '0.85rem', color: '#475569' }}
             />
             {newFiles.length > 0 && (
-              <p style={{ margin: '0.3rem 0 0', fontSize: '0.78rem', color: '#2563eb' }}>
+              <p style={{ margin: '0.3rem 0 0', fontSize: '0.78rem', color: '#4f46e5' }}>
                 {newFiles.length}件のファイルを追加
               </p>
             )}
           </div>
 
           {error && (
-            <p style={{ margin: 0, fontSize: '0.85rem', color: '#dc2626' }}>❌ {error}</p>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><AppIcon name="CircleX" size={14} strokeWidth={2} />{error}</p>
           )}
 
           {/* ボタン */}
@@ -243,7 +246,7 @@ export default function EditOrderDialog({ order, onSave, onCancel }) {
               disabled={saving}
               style={{
                 padding: '0.5rem 1.4rem', borderRadius: '8px',
-                border: 'none', background: '#2563eb',
+                border: 'none', background: '#4f46e5',
                 color: 'white', cursor: saving ? 'not-allowed' : 'pointer',
                 fontSize: '0.9rem', fontWeight: 600,
                 opacity: saving ? 0.7 : 1,

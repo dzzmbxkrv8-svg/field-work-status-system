@@ -1,15 +1,16 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { getWorkers } from '@/api/workers'
 import { uploadFile } from '@/api/messages'
+import { AppIcon } from '@/utils/iconMap'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-const AVATAR_COLORS = ['#2563eb', '#7c3aed', '#db2777', '#059669', '#d97706', '#dc2626', '#0891b2']
+const AVATAR_COLORS = ['#4f46e5', '#7c3aed', '#db2777', '#059669', '#d97706', '#dc2626', '#0891b2']
 const avatarColor = (id) => AVATAR_COLORS[(Number(id) || 0) % AVATAR_COLORS.length]
 
 function Avatar({ name, id, size = 40 }) {
   const bg = id === 'admin'
-    ? 'linear-gradient(135deg, #4f46e5 0%, #2563eb 100%)'
+    ? 'linear-gradient(135deg, #4f46e5 0%, #4f46e5 100%)'
     : avatarColor(id || 0)
   return (
     <div style={{
@@ -32,7 +33,7 @@ function fmtTime(ts) {
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
 
-export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, showToast }) {
+export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, showToast, markRead }) {
   const [workers, setWorkers] = useState([])
   const [selectedUser, setSelectedUser] = useState(null)
   const [input, setInput] = useState('')
@@ -63,6 +64,7 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
         fileName: msg.file_name,
         ts: msg.created_at,
         isMine: msg.sender_id === myId,
+        isRead: msg.is_read,
       }))
       .sort((a, b) => new Date(a.ts) - new Date(b.ts)),
   [apiMessages, myId])
@@ -108,6 +110,15 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages])
+
+  // チャットを開いたとき、相手から来た未読メッセージを既読にする
+  useEffect(() => {
+    if (!selectedUser || !markRead || !myId) return
+    const unread = chatMessages.filter(
+      msg => !msg.isMine && msg.receiverId === myId && !msg.isRead
+    )
+    unread.forEach(msg => markRead(msg.id))
+  }, [selectedUser, chatMessages, markRead, myId])
 
   const handleFileSelect = (e, forImage) => {
     const file = e.target.files?.[0]
@@ -188,9 +199,11 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
         }}>
           <button type="button" onClick={() => setSelectedUser(null)} style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: '1.2rem', color: '#2563eb', padding: '0.25rem',
+            color: '#4f46e5', padding: '0.25rem',
             display: 'flex', alignItems: 'center',
-          }}>‹</button>
+          }}>
+            <AppIcon name="ArrowLeft" size={18} strokeWidth={2} />
+          </button>
           <Avatar name={selectedUser.name} id={selectedUser.id} size={36} />
           <div>
             <p style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>{selectedUser.name}</p>
@@ -232,7 +245,7 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
                   <div style={{
                     padding: (msg.photoUrl && !msg.content) ? 0 : '0.55rem 0.85rem',
                     borderRadius: msg.isMine ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                    background: msg.isMine ? '#2563eb' : '#fff',
+                    background: msg.isMine ? '#4f46e5' : '#fff',
                     color: msg.isMine ? '#fff' : '#1e293b',
                     fontSize: '0.88rem', lineHeight: 1.5,
                     boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
@@ -269,7 +282,7 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
                           fontSize: '0.78rem', fontWeight: 600,
                         }}
                       >
-                        📎 {msg.fileName || 'ファイル'}
+                        <AppIcon name="Paperclip" size={12} strokeWidth={2} style={{ flexShrink: 0 }} /> {msg.fileName || 'ファイル'}
                       </a>
                     )}
                   </div>
@@ -292,7 +305,7 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
               <img src={attachFile.preview} alt="" style={{ height: 52, width: 52, borderRadius: 8, objectFit: 'cover' }} />
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#e2e8f0', borderRadius: 8, padding: '0.4rem 0.6rem' }}>
-                <span>📎</span>
+                <AppIcon name="Paperclip" size={14} strokeWidth={2} style={{ color: '#64748b', flexShrink: 0 }} />
                 <span style={{ fontSize: '0.78rem', color: '#334155', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {attachFile.file.name}
                 </span>
@@ -300,9 +313,9 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
             )}
             <button type="button" onClick={clearAttach} style={{
               background: '#ef4444', border: 'none', borderRadius: '50%',
-              width: 20, height: 20, color: '#fff', fontSize: '0.7rem', cursor: 'pointer',
+              width: 20, height: 20, color: '#fff', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            }}>✕</button>
+            }}><AppIcon name="X" size={11} strokeWidth={2.5} /></button>
             {uploading && <span style={{ fontSize: '0.75rem', color: '#6366f1' }}>アップロード中...</span>}
           </div>
         )}
@@ -356,12 +369,12 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
           />
           <button type="button" onClick={handleSend} disabled={!canSend} style={{
             width: 40, height: 40, borderRadius: '50%', border: 'none',
-            background: canSend ? '#2563eb' : '#e2e8f0',
+            background: canSend ? '#4f46e5' : '#e2e8f0',
             color: canSend ? '#fff' : '#94a3b8',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: canSend ? 'pointer' : 'default',
-            fontSize: '1rem', flexShrink: 0, transition: 'all 0.15s',
-          }}>➤</button>
+            flexShrink: 0, transition: 'all 0.15s',
+          }}><AppIcon name="Send" size={16} strokeWidth={2} /></button>
         </div>
       </div>
     )
@@ -377,7 +390,7 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
       {conversations.map(conv => {
         const latest = conv.latest
         const latestText = latest
-          ? (latest.photoUrl ? '📷 写真' : latest.fileUrl ? `📎 ${latest.fileName || 'ファイル'}` : latest.content || '')
+          ? (latest.photoUrl ? '[写真]' : latest.fileUrl ? `[ファイル] ${latest.fileName || ''}` : latest.content || '')
           : 'メッセージなし'
         return (
           <div
@@ -399,7 +412,7 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
                 {latestText}
               </p>
             </div>
-            <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}>›</span>
+            <AppIcon name="ChevronRight" size={16} strokeWidth={2} style={{ color: '#cbd5e1', flexShrink: 0 }} />
           </div>
         )
       })}

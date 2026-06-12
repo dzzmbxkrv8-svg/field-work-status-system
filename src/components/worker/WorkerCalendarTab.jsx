@@ -15,7 +15,9 @@ function AssignmentAttachments({ dbId }) {
   if (attachments.length === 0) return null
   return (
     <div style={{ marginTop: '0.6rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-      <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>📎 添付ファイル</span>
+      <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+        <AppIcon name="Paperclip" size={12} strokeWidth={2} />添付ファイル
+      </span>
       {attachments.map(att => {
         const url = att.url?.startsWith('http') ? att.url : `${BASE_URL}${att.url}`
         const isImage = att.mime_type?.startsWith('image/')
@@ -25,8 +27,8 @@ function AssignmentAttachments({ dbId }) {
           </a>
         ) : (
           <a key={att.id} href={url} target="_blank" rel="noreferrer"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.6rem', background: '#f1f5f9', borderRadius: 6, fontSize: '0.78rem', color: '#2563eb', textDecoration: 'none' }}>
-            📄 {att.original_name || att.file_name || 'ファイル'}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.6rem', background: '#f1f5f9', borderRadius: 6, fontSize: '0.78rem', color: '#4f46e5', textDecoration: 'none' }}>
+            <AppIcon name="FileText" size={13} strokeWidth={2} />{att.original_name || att.file_name || 'ファイル'}
           </a>
         )
       })}
@@ -105,7 +107,7 @@ export default function WorkerCalendarTab({
       <div className="worker-assignment-info">
         {isCompleted(entry.id, entry.status) && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.75rem', padding: '0.4rem 0.75rem', background: '#d1fae5', borderRadius: '6px' }}>
-            <span>✅</span>
+            <AppIcon name="CheckCircle" size={14} strokeWidth={2} style={{ color: '#059669', flexShrink: 0 }} />
             <span style={{ fontSize: '0.85rem', color: '#065f46', fontWeight: 600 }}>完了済み</span>
           </div>
         )}
@@ -154,7 +156,7 @@ export default function WorkerCalendarTab({
         {entry.location && showCompleteButton && (
           <div className="worker-assignment-links">
             <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(entry.location)}`} target="_blank" rel="noreferrer" className="worker-assignment-link">
-              📍 {text.worker.assignmentDocsLabel}
+              <AppIcon name="MapPin" size={13} strokeWidth={2} style={{ flexShrink: 0 }} />{text.worker.assignmentDocsLabel}
             </a>
           </div>
         )}

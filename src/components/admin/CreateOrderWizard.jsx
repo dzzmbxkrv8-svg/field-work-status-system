@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { AppIcon } from '@/utils/iconMap'
 
 const STEPS = ['案件情報', 'メンバーを選ぶ', '確認']
 
@@ -83,12 +84,12 @@ function DateRangePicker({ startDate, endDate, onChangeStart, onChangeEnd }) {
           return (
             <button key={key} type="button" onClick={() => openPicker(key)} style={{
               padding: '0.65rem 0.75rem', borderRadius: 10,
-              border: `1.5px solid ${isActive ? '#2563eb' : val ? '#bfdbfe' : '#e2e8f0'}`,
-              background: isActive ? '#2563eb' : val ? '#eff6ff' : '#f8fafc',
+              border: `1.5px solid ${isActive ? '#4f46e5' : val ? '#c7c7f0' : '#e2e8f0'}`,
+              background: isActive ? '#4f46e5' : val ? '#eef2ff' : '#f8fafc',
               cursor: 'pointer', textAlign: 'left',
             }}>
               <div style={{ fontSize: '0.68rem', fontWeight: 600, color: isActive ? '#fff' : '#94a3b8', marginBottom: '0.15rem' }}>{label}</div>
-              <div style={{ fontSize: '0.88rem', fontWeight: 600, color: isActive ? '#fff' : val ? '#1d4ed8' : '#94a3b8' }}>
+              <div style={{ fontSize: '0.88rem', fontWeight: 600, color: isActive ? '#fff' : val ? '#1e1b4b' : '#94a3b8' }}>
                 {fmtDisplay(val)}
               </div>
             </button>
@@ -101,15 +102,18 @@ function DateRangePicker({ startDate, endDate, onChangeStart, onChangeEnd }) {
         <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid #e2e8f0', background: '#fff' }}>
 
           {/* 選択中モード表示 */}
-          <div style={{ padding: '0.6rem 1rem', background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ padding: '0.6rem 1rem', background: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fff' }}>
-              {picking === 'start' ? '📅 開始日を選択' : '🏁 終了日を選択'}
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <AppIcon name={picking === 'start' ? 'CalendarDays' : 'Flag'} size={13} strokeWidth={2} />
+                {picking === 'start' ? '開始日を選択' : '終了日を選択'}
+              </span>
             </span>
             <button type="button" onClick={() => setPicking(null)} style={{
               background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%',
-              width: 24, height: 24, cursor: 'pointer', color: '#fff', fontSize: '0.9rem',
+              width: 24, height: 24, cursor: 'pointer', color: '#fff',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>✕</button>
+            }}><AppIcon name="X" size={14} strokeWidth={2.5} /></button>
           </div>
 
           {/* 月ナビ */}
@@ -137,7 +141,7 @@ function DateRangePicker({ startDate, endDate, onChangeStart, onChangeEnd }) {
               <div key={d} style={{
                 textAlign: 'center', fontSize: '0.72rem', fontWeight: 600,
                 padding: '0.2rem 0 0.4rem',
-                color: i === 0 ? '#ef4444' : i === 6 ? '#2563eb' : '#94a3b8',
+                color: i === 0 ? '#ef4444' : i === 6 ? '#4f46e5' : '#94a3b8',
               }}>{d}</div>
             ))}
           </div>
@@ -162,7 +166,7 @@ function DateRangePicker({ startDate, endDate, onChangeStart, onChangeEnd }) {
                   height: 32,
                   left: (isStart || col === 0) ? '50%' : 0,
                   right: (isEnd || col === 6) ? '50%' : 0,
-                  background: '#dbeafe', zIndex: 0,
+                  background: '#eef2ff', zIndex: 0,
                 }} />
               )}
               <button
@@ -173,16 +177,16 @@ function DateRangePicker({ startDate, endDate, onChangeStart, onChangeEnd }) {
                   width: 34, height: 34, borderRadius: '50%', border: 'none',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer',
-                  background: (isStart || isEnd) ? '#2563eb' : 'transparent',
+                  background: (isStart || isEnd) ? '#4f46e5' : 'transparent',
                   color: (isStart || isEnd) ? '#fff'
-                    : isToday ? '#2563eb'
-                    : inRange ? '#1d4ed8'
+                    : isToday ? '#4f46e5'
+                    : inRange ? '#1e1b4b'
                     : col === 0 ? '#ef4444'
-                    : col === 6 ? '#2563eb'
+                    : col === 6 ? '#4f46e5'
                     : '#0f172a',
                   fontWeight: (isStart || isEnd || isToday) ? 700 : 400,
                   fontSize: '0.9rem',
-                  outline: isToday && !isStart && !isEnd ? '2px solid #93c5fd' : 'none',
+                  outline: isToday && !isStart && !isEnd ? '2px solid #a5b4fc' : 'none',
                   outlineOffset: 1,
                 }}
               >{d}</button>
@@ -224,7 +228,7 @@ function AvatarCircle({ name, selected, onClick }) {
         width: 56,
         height: 56,
         borderRadius: '50%',
-        background: selected ? '#2563eb' : '#e2e8f0',
+        background: selected ? '#4f46e5' : '#e2e8f0',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -232,7 +236,7 @@ function AvatarCircle({ name, selected, onClick }) {
         fontWeight: 700,
         color: selected ? '#fff' : '#475569',
         transition: 'all 0.15s ease',
-        boxShadow: selected ? '0 0 0 3px #93c5fd' : 'none',
+        boxShadow: selected ? '0 0 0 3px #a5b4fc' : 'none',
       }}>
         {initial}
         {selected && (
@@ -248,14 +252,13 @@ function AvatarCircle({ name, selected, onClick }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '0.65rem',
             color: '#fff',
-          }}>✓</div>
+          }}><AppIcon name="Check" size={10} strokeWidth={3} /></div>
         )}
       </div>
       <span style={{
         fontSize: '0.75rem',
-        color: selected ? '#2563eb' : '#64748b',
+        color: selected ? '#4f46e5' : '#64748b',
         fontWeight: selected ? 600 : 400,
         maxWidth: 60,
         textAlign: 'center',
@@ -267,14 +270,12 @@ function AvatarCircle({ name, selected, onClick }) {
   )
 }
 
-const FILE_ICONS = {
-  'application/pdf': '📄',
-  'image/jpeg': '🖼️',
-  'image/png': '🖼️',
-  'image/heic': '🖼️',
-  'image/webp': '🖼️',
+const getFileIconName = (type) => {
+  if (!type) return 'Paperclip'
+  if (type.startsWith('image/')) return 'Camera'
+  if (type === 'application/pdf') return 'FileText'
+  return 'Paperclip'
 }
-const getFileIcon = (type) => FILE_ICONS[type] || '📎'
 
 const formatBytes = (bytes) => {
   if (bytes < 1024) return `${bytes} B`
@@ -385,7 +386,7 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
                 width: 32,
                 height: 32,
                 borderRadius: '50%',
-                background: i < step ? '#22c55e' : i === step ? '#2563eb' : '#e2e8f0',
+                background: i < step ? '#22c55e' : i === step ? '#4f46e5' : '#e2e8f0',
                 color: i <= step ? '#fff' : '#94a3b8',
                 display: 'flex',
                 alignItems: 'center',
@@ -394,11 +395,11 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
                 fontWeight: 700,
                 transition: 'all 0.2s',
               }}>
-                {i < step ? '✓' : i + 1}
+                {i < step ? <AppIcon name="Check" size={11} strokeWidth={3} /> : i + 1}
               </div>
               <span style={{
                 fontSize: '0.72rem',
-                color: i === step ? '#2563eb' : '#94a3b8',
+                color: i === step ? '#4f46e5' : '#94a3b8',
                 fontWeight: i === step ? 600 : 400,
                 whiteSpace: 'nowrap',
               }}>{label}</span>
@@ -425,13 +426,13 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
           borderRadius: 6,
           fontSize: '0.85rem',
           marginBottom: '1rem',
-        }}>❌ {error}</p>
+        }}><AppIcon name="CircleX" size={14} strokeWidth={2} style={{ flexShrink: 0, verticalAlign: 'middle', marginRight: '0.3rem' }} />{error}</p>
       )}
 
       {/* Step 0: 案件情報 */}
       {step === 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <h4 style={{ margin: 0, color: '#1e293b', fontSize: '1rem' }}>📋 案件情報を入力</h4>
+          <h4 style={{ margin: 0, color: '#1e293b', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><AppIcon name="ClipboardList" size={16} strokeWidth={2} style={{ color: '#4f46e5' }} />案件情報を入力</h4>
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', fontSize: '0.9rem', color: '#374151' }}>
             案件名 <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>必須</span>
@@ -502,9 +503,9 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
               style={{
-                border: `2px dashed ${dragOver ? '#2563eb' : '#cbd5e1'}`,
+                border: `2px dashed ${dragOver ? '#4f46e5' : '#cbd5e1'}`,
                 borderRadius: 10,
-                background: dragOver ? '#eff6ff' : '#f8fafc',
+                background: dragOver ? '#eef2ff' : '#f8fafc',
                 padding: '1.25rem',
                 textAlign: 'center',
                 transition: 'all 0.15s',
@@ -513,7 +514,7 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
               onClick={() => document.getElementById('wiz-file-input').click()}
             >
               <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
-                📎 ファイルをドラッグ＆ドロップ、または<span style={{ color: '#2563eb', fontWeight: 600 }}>クリックして選択</span>
+                <AppIcon name="Paperclip" size={14} strokeWidth={2} style={{ verticalAlign: 'middle', marginRight: '0.3rem' }} />ファイルをドラッグ＆ドロップ、または<span style={{ color: '#4f46e5', fontWeight: 600 }}>クリックして選択</span>
               </p>
               <p style={{ margin: '0.25rem 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>
                 PDF・画像・Word・Excel（1ファイル最大20MB）
@@ -542,7 +543,7 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
                     borderRadius: 8,
                     fontSize: '0.85rem',
                   }}>
-                    <span style={{ fontSize: '1.1rem' }}>{getFileIcon(file.type)}</span>
+                    <AppIcon name={getFileIconName(file.type)} size={16} strokeWidth={2} style={{ flexShrink: 0, color: '#64748b' }} />
                     <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#1e293b' }}>
                       {file.name}
                     </span>
@@ -569,7 +570,7 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
       {step === 1 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <div>
-            <h4 style={{ margin: '0 0 0.2rem', color: '#1e293b', fontSize: '1rem' }}>👥 メンバーを選んでください</h4>
+            <h4 style={{ margin: '0 0 0.2rem', color: '#1e293b', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><AppIcon name="Users" size={16} strokeWidth={2} style={{ color: '#4f46e5' }} />メンバーを選んでください</h4>
             <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>複数選択可・選択後にリーダーを指定してください</p>
           </div>
 
@@ -590,16 +591,16 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
                         <span style={{
                           position: 'absolute', top: -8, right: -2,
                           fontSize: '0.55rem', fontWeight: 700,
-                          color: '#2563eb', background: '#dbeafe',
+                          color: '#4f46e5', background: '#eef2ff',
                           padding: '0.1rem 0.3rem', borderRadius: 4,
                           lineHeight: 1.4, whiteSpace: 'nowrap',
-                          border: '1px solid #bfdbfe',
+                          border: '1px solid #c7c7f0',
                         }}>リーダー</span>
                       )}
                       <div style={{
                         padding: '0.25rem 0.6rem', borderRadius: 20,
-                        background: isLeader ? '#2563eb' : '#fff',
-                        border: `1px solid ${isLeader ? '#2563eb' : '#e2e8f0'}`,
+                        background: isLeader ? '#4f46e5' : '#fff',
+                        border: `1px solid ${isLeader ? '#4f46e5' : '#e2e8f0'}`,
                         fontSize: '0.78rem',
                         color: isLeader ? '#fff' : '#374151', fontWeight: 600,
                       }}>{w.name}</div>
@@ -626,15 +627,15 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
                 <div key={worker.id} style={{
                   display: 'flex', alignItems: 'center', gap: '0.75rem',
                   padding: '0.65rem 0.75rem', borderRadius: 10,
-                  background: isSelected ? (isLeader ? '#eff6ff' : '#f8fafc') : '#fff',
-                  border: `1.5px solid ${isLeader ? '#2563eb' : isSelected ? '#bfdbfe' : '#e2e8f0'}`,
+                  background: isSelected ? (isLeader ? '#eef2ff' : '#f8fafc') : '#fff',
+                  border: `1.5px solid ${isLeader ? '#4f46e5' : isSelected ? '#c7c7f0' : '#e2e8f0'}`,
                   cursor: 'pointer',
                   transition: 'all 0.15s',
                 }} onClick={() => toggleWorker(worker.id)}>
                   {/* アバター */}
                   <div style={{
                     width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                    background: isSelected ? '#2563eb' : '#e2e8f0',
+                    background: isSelected ? '#4f46e5' : '#e2e8f0',
                     color: isSelected ? '#fff' : '#64748b',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontWeight: 700, fontSize: '0.95rem',
@@ -643,15 +644,15 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
                   {/* 名前・チーム */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
-                      <p style={{ margin: 0, fontWeight: 600, fontSize: '0.88rem', color: isSelected ? '#1e40af' : '#374151' }}>
+                      <p style={{ margin: 0, fontWeight: 600, fontSize: '0.88rem', color: isSelected ? '#1e1b4b' : '#374151' }}>
                         {worker.name}
                       </p>
                       {isLeader && (
                         <span style={{
                           fontSize: '0.6rem', fontWeight: 700,
-                          color: '#2563eb', background: '#dbeafe',
+                          color: '#4f46e5', background: '#eef2ff',
                           padding: '0.05rem 0.35rem', borderRadius: 4,
-                          border: '1px solid #bfdbfe', lineHeight: 1.6,
+                          border: '1px solid #c7c7f0', lineHeight: 1.6,
                           position: 'relative', top: '-4px',
                         }}>リーダー</span>
                       )}
@@ -676,10 +677,10 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
                     )}
                     <div style={{
                       width: 20, height: 20, borderRadius: '50%',
-                      background: isSelected ? '#2563eb' : '#e2e8f0',
+                      background: isSelected ? '#4f46e5' : '#e2e8f0',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>
-                      {isSelected && <span style={{ color: '#fff', fontSize: '0.7rem' }}>✓</span>}
+                      {isSelected && <AppIcon name="Check" size={11} strokeWidth={3} style={{ color: '#fff' }} />}
                     </div>
                   </div>
                 </div>
@@ -692,7 +693,7 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
       {/* Step 2: 確認 */}
       {step === 2 && (
         <div>
-          <h4 style={{ margin: '0 0 1rem', color: '#1e293b', fontSize: '1rem' }}>✅ 内容を確認してください</h4>
+          <h4 style={{ margin: '0 0 1rem', color: '#1e293b', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><AppIcon name="CheckCircle" size={16} strokeWidth={2} style={{ color: '#059669' }} />内容を確認してください</h4>
 
           <div style={{
             background: '#f8fafc',
@@ -701,12 +702,12 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
             overflow: 'hidden',
           }}>
             <div style={{
-              background: '#2563eb',
+              background: '#4f46e5',
               padding: '0.85rem 1rem',
               color: '#fff',
             }}>
               <p style={{ margin: 0, fontWeight: 700, fontSize: '1rem' }}>{form.title}</p>
-              <p style={{ margin: '0.2rem 0 0', fontSize: '0.82rem', opacity: 0.85 }}>📍 {form.location}</p>
+              <p style={{ margin: '0.2rem 0 0', fontSize: '0.82rem', opacity: 0.85, display: 'flex', alignItems: 'center', gap: '0.25rem' }}><AppIcon name="MapPin" size={12} strokeWidth={2} />{form.location}</p>
             </div>
 
             <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -743,13 +744,13 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
                         <div key={id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <div style={{
                             width: 22, height: 22, borderRadius: '50%',
-                            background: '#2563eb', color: '#fff',
+                            background: '#4f46e5', color: '#fff',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             fontWeight: 700, fontSize: '0.72rem', flexShrink: 0,
                           }}>{w.name[0]}</div>
                           <span style={{ color: '#1e293b', fontWeight: 500 }}>{w.name}</span>
                           {leaderId === id && (
-                            <span style={{ fontSize: '0.6rem', color: '#2563eb', fontWeight: 700, background: '#dbeafe', padding: '0.1rem 0.35rem', borderRadius: 4, border: '1px solid #bfdbfe', position: 'relative', top: '-2px' }}>リーダー</span>
+                            <span style={{ fontSize: '0.6rem', color: '#4f46e5', fontWeight: 700, background: '#eef2ff', padding: '0.1rem 0.35rem', borderRadius: 4, border: '1px solid #c7c7f0', position: 'relative', top: '-2px' }}>リーダー</span>
                           )}
                         </div>
                       )
@@ -765,7 +766,7 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
                   </div>
                   {attachments.map((file, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', color: '#475569', marginBottom: '0.2rem' }}>
-                      <span>{getFileIcon(file.type)}</span>
+                      <AppIcon name={getFileIconName(file.type)} size={13} strokeWidth={2} style={{ flexShrink: 0, color: '#94a3b8' }} />
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
                       <span style={{ color: '#94a3b8', whiteSpace: 'nowrap' }}>({formatBytes(file.size)})</span>
                     </div>
@@ -799,7 +800,7 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
             fontSize: '0.9rem',
           }}
         >
-          {step === 0 ? 'キャンセル' : '← 戻る'}
+          {step === 0 ? 'キャンセル' : <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><AppIcon name="ArrowLeft" size={13} strokeWidth={2} />戻る</span>}
         </button>
 
         {step < 2 ? (
@@ -810,14 +811,18 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
               padding: '0.65rem 1.5rem',
               borderRadius: 8,
               border: 'none',
-              background: '#2563eb',
+              background: '#4f46e5',
               color: '#fff',
               fontWeight: 600,
               cursor: 'pointer',
               fontSize: '0.9rem',
             }}
           >
-            {step === 1 ? (selectedWorkerIds.length > 0 ? '次へ →' : 'スキップ →') : '次へ →'}
+            {step === 1 ? (
+              selectedWorkerIds.length > 0
+                ? <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>次へ<AppIcon name="ArrowRight" size={13} strokeWidth={2} /></span>
+                : <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>スキップ<AppIcon name="ArrowRight" size={13} strokeWidth={2} /></span>
+            ) : <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>次へ<AppIcon name="ArrowRight" size={13} strokeWidth={2} /></span>}
           </button>
         ) : (
           <button
@@ -828,14 +833,14 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
               padding: '0.65rem 1.5rem',
               borderRadius: 8,
               border: 'none',
-              background: saving ? '#93c5fd' : '#2563eb',
+              background: saving ? '#a5b4fc' : '#4f46e5',
               color: '#fff',
               fontWeight: 600,
               cursor: saving ? 'not-allowed' : 'pointer',
               fontSize: '0.9rem',
             }}
           >
-            {saving ? '作成中...' : '✅ 作成する'}
+            {saving ? '作成中...' : <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><AppIcon name="CheckCircle" size={14} strokeWidth={2} />作成する</span>}
           </button>
         )}
       </div>

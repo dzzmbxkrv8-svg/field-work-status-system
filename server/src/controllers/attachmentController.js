@@ -6,8 +6,11 @@ exports.uploadAttachments = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Verify the assignment exists
-    const assignmentCheck = await db.query('SELECT id FROM assignments WHERE id = $1', [id]);
+    // Verify the assignment exists (自社の案件のみ)
+    const assignmentCheck = await db.query(
+      'SELECT id FROM assignments WHERE id = $1 AND company_id = $2',
+      [id, req.user.company_id]
+    );
     if (assignmentCheck.rows.length === 0) {
       return res.status(404).json({ success: false, message: '案件が見つかりません' });
     }
@@ -38,8 +41,10 @@ exports.getAttachments = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { rows } = await db.query(
-      'SELECT * FROM assignment_attachments WHERE assignment_id = $1 ORDER BY uploaded_at DESC',
-      [id]
+      `SELECT aa.* FROM assignment_attachments aa
+       JOIN assignments a ON aa.assignment_id = a.id AND a.company_id = $2
+       WHERE aa.assignment_id = $1 ORDER BY aa.uploaded_at DESC`,
+      [id, req.user.company_id]
     );
     res.status(200).json({ success: true, data: rows });
   } catch (error) {
@@ -51,8 +56,11 @@ exports.deleteAttachment = async (req, res, next) => {
   try {
     const { attachmentId } = req.params;
     const { rows } = await db.query(
-      'DELETE FROM assignment_attachments WHERE id = $1 RETURNING *',
-      [attachmentId]
+      `DELETE FROM assignment_attachments aa
+       USING assignments a
+       WHERE aa.id = $1 AND aa.assignment_id = a.id AND a.company_id = $2
+       RETURNING aa.*`,
+      [attachmentId, req.user.company_id]
     );
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'ファイルが見つかりません' });

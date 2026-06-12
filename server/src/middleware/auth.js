@@ -23,7 +23,8 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'アカウントが無効化されています' });
     }
 
-    req.user = decoded;
+    // 会社ID・チームID・名前はDBの最新値を使う（マイグレーション前の古いトークンにも対応）
+    req.user = { ...decoded, company_id: user.company_id, team_id: user.team_id, name: user.name };
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {

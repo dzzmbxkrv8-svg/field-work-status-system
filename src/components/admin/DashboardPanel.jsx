@@ -4,6 +4,7 @@ import { useI18n } from '@/i18n'
 import { getWorkers } from '@/api/workers'
 import { getTeamTodayAttendance } from '@/api/attendance'
 import { getAssignments } from '@/api/assignments'
+import { getAnnouncement, updateAnnouncement, getAccessCode } from '@/api/settings'
 import SummaryCards from './SummaryCards'
 import { AppIcon } from '@/utils/iconMap'
 
@@ -42,6 +43,47 @@ export default function DashboardPanel() {
   const [teamFilter, setTeamFilter]   = useState('All')
   const [lastUpdated, setLastUpdated] = useState(null)
 
+  // お知らせ編集
+  const [announcementText, setAnnouncementText] = useState('')
+  const [announcementSaving, setAnnouncementSaving] = useState(false)
+  const [announcementSaved, setAnnouncementSaved] = useState(false)
+
+  useEffect(() => {
+    getAnnouncement().then(res => setAnnouncementText(res.value ?? '')).catch(() => {})
+  }, [])
+
+  const handleAnnouncementSave = async () => {
+    setAnnouncementSaving(true)
+    try {
+      await updateAnnouncement(announcementText)
+      setAnnouncementSaved(true)
+      setTimeout(() => setAnnouncementSaved(false), 2500)
+    } catch (e) {
+      // ignore
+    } finally {
+      setAnnouncementSaving(false)
+    }
+  }
+
+  // 会社アクセスコード（Fieldo運営発行・読み取り専用）
+  const [accessCodeText, setAccessCodeText] = useState('')
+  const [accessCodeCopied, setAccessCodeCopied] = useState(false)
+
+  useEffect(() => {
+    getAccessCode().then(res => setAccessCodeText(res.value ?? '')).catch(() => {})
+  }, [])
+
+  const handleAccessCodeCopy = async () => {
+    if (!accessCodeText) return
+    try {
+      await navigator.clipboard.writeText(accessCodeText)
+      setAccessCodeCopied(true)
+      setTimeout(() => setAccessCodeCopied(false), 2500)
+    } catch (e) {
+      // ignore
+    }
+  }
+
   const fetchData = async (isInitial = false) => {
     if (isInitial) setLoading(true)
     try {
@@ -66,7 +108,16 @@ export default function DashboardPanel() {
   useEffect(() => {
     fetchData(true)
     const id = setInterval(() => fetchData(false), 30000)
-    return () => clearInterval(id)
+    // 作業員からの案件・出退勤ステータス変更通知で即時更新
+    const handleAssignmentUpdated = () => fetchData(false)
+    const handleAttendanceUpdated = () => fetchData(false)
+    window.addEventListener('fieldo:assignment-updated', handleAssignmentUpdated)
+    window.addEventListener('fieldo:attendance-updated', handleAttendanceUpdated)
+    return () => {
+      clearInterval(id)
+      window.removeEventListener('fieldo:assignment-updated', handleAssignmentUpdated)
+      window.removeEventListener('fieldo:attendance-updated', handleAttendanceUpdated)
+    }
   }, [])
 
   // 作業員 + 出勤状況を結合
@@ -132,6 +183,89 @@ export default function DashboardPanel() {
     <>
       {/* ── 案件サマリーカード ── */}
       <SummaryCards summary={summary} outstandingCount={outstandingCount} />
+
+      {/* ── 作業員へのお知らせ編集 ── */}
+      <section className="fws-panel" style={{ marginBottom: '1rem' }}>
+        <header className="fws-panel-header" style={{ marginBottom: '0.75rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AppIcon name="Bell" size={16} style={{ color: '#d97706' }} />
+            作業員へのお知らせ
+          </h3>
+          <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>作業員ホーム画面に表示されます</span>
+        </header>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <textarea
+            value={announcementText}
+            onChange={e => setAnnouncementText(e.target.value)}
+            rows={3}
+            placeholder="例：【安全通知】作業前に安全確認を必ず行ってください。"
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              border: '1.5px solid #ebebf5', borderRadius: '10px',
+              padding: '0.7rem 0.9rem', fontSize: '0.9rem',
+              fontFamily: 'inherit', resize: 'vertical',
+              background: '#fafafa', color: '#0f0e2e',
+              lineHeight: 1.6, transition: 'border-color 0.15s',
+            }}
+            onFocus={e => e.target.style.borderColor = '#4f46e5'}
+            onBlur={e => e.target.style.borderColor = '#ebebf5'}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'flex-end' }}>
+            {announcementSaved && (
+              <span style={{ fontSize: '0.82rem', color: '#059669', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <AppIcon name="CheckCircle" size={14} /> 保存しました
+              </span>
+            )}
+            <button
+              type="button"
+              className="fws-button"
+              onClick={handleAnnouncementSave}
+              disabled={announcementSaving}
+              style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem' }}
+            >
+              {announcementSaving ? '保存中...' : '保存する'}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 会社アクセスコード ── */}
+      <section className="fws-panel" style={{ marginBottom: '1rem' }}>
+        <header className="fws-panel-header" style={{ marginBottom: '0.75rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AppIcon name="Bookmark" size={16} style={{ color: '#4f46e5' }} />
+            会社アクセスコード
+          </h3>
+          <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>新規作業員登録に使用するコード</span>
+        </header>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{
+              flex: 1, boxSizing: 'border-box',
+              border: '1.5px solid #ebebf5', borderRadius: '10px',
+              padding: '0.7rem 0.9rem', fontSize: '1rem',
+              fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.1em',
+              background: '#fafafa', color: '#1e1b4b',
+            }}>
+              {accessCodeText || '―'}
+            </span>
+            <button
+              type="button"
+              className="fws-button"
+              onClick={handleAccessCodeCopy}
+              disabled={!accessCodeText}
+              style={{ padding: '0.6rem 1.25rem', fontSize: '0.85rem', flexShrink: 0 }}
+            >
+              {accessCodeCopied ? 'コピーしました' : 'コピー'}
+            </button>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.6 }}>
+            このコードはFieldo運営が会社ごとに発行する固有のコードです。
+            作業員がアカウント作成時にこのコードを入力すると、貴社にチーム未所属で登録されます。
+            その後「チーム管理」から各作業員をチームに割り振ってください。
+          </p>
+        </div>
+      </section>
 
       {/* ── 優先度の高い案件 ── */}
       {topOrders.length > 0 && (
@@ -249,9 +383,9 @@ export default function DashboardPanel() {
                   <a
                     href={`https://www.google.com/maps?q=${att.location_lat},${att.location_lng}`}
                     target="_blank" rel="noreferrer"
-                    style={{ fontSize: '0.72rem', color: '#2563eb', textDecoration: 'none',
-                      flexShrink: 0, background: '#eff6ff', padding: '0.2rem 0.55rem',
-                      borderRadius: '6px', border: '1px solid #bfdbfe', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
+                    style={{ fontSize: '0.72rem', color: '#4f46e5', textDecoration: 'none',
+                      flexShrink: 0, background: '#eef2ff', padding: '0.2rem 0.55rem',
+                      borderRadius: '6px', border: '1px solid #c7c7f0', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
                   ><AppIcon name="MapPin" size={11} /> MAP</a>
                 )}
               </div>

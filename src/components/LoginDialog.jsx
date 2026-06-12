@@ -1,18 +1,59 @@
 import { useState } from 'react'
 import { useI18n } from '@/i18n'
 
+/** パスワード強度チェック */
+function checkPassword(pw) {
+  return {
+    length:    pw.length >= 8,
+    lower:     /[a-z]/.test(pw),
+    upper:     /[A-Z]/.test(pw),
+    number:    /[0-9]/.test(pw),
+  }
+}
+function isPasswordValid(pw) {
+  const r = checkPassword(pw)
+  return r.length && r.lower && r.upper && r.number
+}
+
+function PasswordStrength({ password }) {
+  if (!password) return null
+  const r = checkPassword(password)
+  const rules = [
+    { key: 'length', label: '8文字以上' },
+    { key: 'lower',  label: '小文字を含む' },
+    { key: 'upper',  label: '大文字を含む' },
+    { key: 'number', label: '数字を含む' },
+  ]
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem 0.6rem', marginTop: '0.4rem' }}>
+      {rules.map(({ key, label }) => (
+        <span key={key} style={{
+          fontSize: '0.72rem', fontWeight: 600,
+          color: r[key] ? '#059669' : '#94a3b8',
+          display: 'flex', alignItems: 'center', gap: '0.2rem',
+        }}>
+          {r[key] ? '✓' : '○'} {label}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 export default function LoginDialog({
   language,
   onLanguageChange,
   onWorkerLogin,
   onAdminLogin,
   onRegisterWorker,
+  onRegisterCompany,
   onWorkerReset,
 }) {
   const { text } = useI18n()
   const [role, setRole] = useState('worker')
-  const [workerCode, setWorkerCode] = useState('')
+  // Remember Me: localStorage から ID を復元
+  const [workerCode, setWorkerCode] = useState(() => localStorage.getItem('remembered_worker_id') || '')
   const [workerPassword, setWorkerPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(() => !!localStorage.getItem('remembered_worker_id'))
   const [adminCode, setAdminCode] = useState('')
   const [adminPassword, setAdminPassword] = useState('')
   const [error, setError] = useState('')
@@ -20,11 +61,14 @@ export default function LoginDialog({
 
   const [workerRegisterOpen, setWorkerRegisterOpen] = useState(false)
   const [workerResetOpen, setWorkerResetOpen] = useState(false)
+  const [companyRegisterOpen, setCompanyRegisterOpen] = useState(false)
 
   const [workerRegisterState, setWorkerRegisterState] = useState({
     accessCode: '',
-    employeeId: '',
+    furigana: '',
     name: '',
+    phone: '',
+    email: '',
     password: '',
     confirm: '',
   })
@@ -34,12 +78,22 @@ export default function LoginDialog({
     password: '',
     confirm: '',
   })
+  const [companyRegisterState, setCompanyRegisterState] = useState({
+    companyName: '',
+    furigana: '',
+    adminName: '',
+    phone: '',
+    email: '',
+    password: '',
+    confirm: '',
+  })
 
   const resetPanels = () => {
     setError('')
     setInfo('')
     setWorkerRegisterOpen(false)
     setWorkerResetOpen(false)
+    setCompanyRegisterOpen(false)
   }
 
   const handleLanguageChange = (nextLanguage) => {
@@ -58,6 +112,12 @@ export default function LoginDialog({
     }
     try {
       await onWorkerLogin({ code: workerCode, password: workerPassword })
+      // Remember Me の保存・削除
+      if (rememberMe) {
+        localStorage.setItem('remembered_worker_id', workerCode)
+      } else {
+        localStorage.removeItem('remembered_worker_id')
+      }
       setWorkerPassword('')
     } catch (exception) {
       const messageKey = exception.code ?? 'invalidWorkerCredentials'
@@ -79,7 +139,50 @@ export default function LoginDialog({
       setAdminPassword('')
     } catch (exception) {
       const messageKey = exception.code ?? 'invalidAdmin'
-      setError(text.login.errors[messageKey] ?? text.login.errors.invalidAdmin)
+      setError(text.login.errors[messageKey] ?? exception.message ?? text.login.errors.invalidAdmin)
+    }
+  }
+
+  const handleCompanyRegisterSubmit = async (event) => {
+    event.preventDefault()
+    setInfo('')
+    if (!companyRegisterState.companyName.trim()) {
+      setInfo('会社名を入力してください')
+      return
+    }
+    if (!companyRegisterState.adminName.trim()) {
+      setInfo('管理者の氏名を入力してください')
+      return
+    }
+    if (!companyRegisterState.furigana.trim()) {
+      setInfo('ふりがなを入力してください')
+      return
+    }
+    if (!companyRegisterState.email.trim()) {
+      setInfo('メールアドレスを入力してください')
+      return
+    }
+    if (!companyRegisterState.password || !isPasswordValid(companyRegisterState.password)) {
+      setInfo('パスワードは大文字・小文字・数字を含む8文字以上で設定してください')
+      return
+    }
+    if (companyRegisterState.password !== companyRegisterState.confirm) {
+      setInfo(text.login.errors.passwordMismatch)
+      return
+    }
+    try {
+      await onRegisterCompany({
+        companyName: companyRegisterState.companyName,
+        adminName: companyRegisterState.adminName,
+        furigana: companyRegisterState.furigana,
+        phone: companyRegisterState.phone,
+        email: companyRegisterState.email,
+        password: companyRegisterState.password,
+      })
+      setInfo('登録申請を受け付けました。\nFieldo運営の承認後、アクセスコードとログインのご案内をメールでお送りします。')
+      setCompanyRegisterState({ companyName: '', furigana: '', adminName: '', phone: '', email: '', password: '', confirm: '' })
+    } catch (exception) {
+      setInfo(exception.message || 'エラーが発生しました。しばらく待ってから再試行してください。')
     }
   }
 
@@ -101,28 +204,38 @@ export default function LoginDialog({
       setInfo(text.login.errors.accessCodeRequired)
       return
     }
-    if (!workerRegisterState.employeeId.trim()) {
-      setInfo(text.login.errors.workerIdRequired)
-      return
-    }
     if (!workerRegisterState.name.trim()) {
       setInfo(text.login.workerNameLabel)
       return
     }
-    if (!workerRegisterState.password || workerRegisterState.password !== workerRegisterState.confirm) {
+    if (!workerRegisterState.password || !isPasswordValid(workerRegisterState.password)) {
+      setInfo('パスワードは大文字・小文字・数字を含む8文字以上で設定してください')
+      return
+    }
+    if (workerRegisterState.password !== workerRegisterState.confirm) {
       setInfo(text.login.errors.passwordMismatch)
       return
     }
+    if (!workerRegisterState.furigana.trim()) {
+      setInfo('ふりがなを入力してください')
+      return
+    }
     try {
-      await onRegisterWorker({
+      const result = await onRegisterWorker({
         accessCode: workerRegisterState.accessCode,
-        employeeId: workerRegisterState.employeeId,
+        furigana: workerRegisterState.furigana,
         name: workerRegisterState.name,
+        phone: workerRegisterState.phone,
+        email: workerRegisterState.email,
         password: workerRegisterState.password,
       })
-      setInfo(text.login.workerRegisterSuccess)
-      setWorkerRegisterState({ accessCode: '', employeeId: '', name: '', password: '', confirm: '' })
-      setWorkerRegisterOpen(false)
+      // 自動採番された作業員IDと承認待ちメッセージを表示
+      const assignedId = result?.employeeId || result?.data?.employee_id
+      setInfo(assignedId
+        ? `登録申請が完了しました。あなたの作業員IDは「${assignedId}」です。\n管理者の承認後にログインできるようになります。`
+        : text.login.workerRegisterSuccess
+      )
+      setWorkerRegisterState({ accessCode: '', furigana: '', name: '', phone: '', email: '', password: '', confirm: '' })
     } catch (exception) {
       const messageKey = exception.code ?? 'unknownOrganization'
       setInfo(text.login.errors[messageKey] ?? text.login.errors.unknownOrganization ?? exception.message)
@@ -133,29 +246,26 @@ export default function LoginDialog({
     event.preventDefault()
     setInfo('')
     if (!workerResetState.employeeId.trim()) {
-      setInfo(text.login.errors.workerIdRequired)
+      setInfo('メールアドレスを入力してください')
       return
     }
-    if (!workerResetState.name.trim()) {
-      setInfo(text.login.workerNameLabel)
+    if (!workerResetState.password || !isPasswordValid(workerResetState.password)) {
+      setInfo('パスワードは大文字・小文字・数字を含む8文字以上で設定してください')
       return
     }
-    if (!workerResetState.password || workerResetState.password !== workerResetState.confirm) {
+    if (workerResetState.password !== workerResetState.confirm) {
       setInfo(text.login.errors.passwordMismatch)
       return
     }
     try {
       await onWorkerReset({
-        employeeId: workerResetState.employeeId,
-        name: workerResetState.name,
+        email: workerResetState.employeeId,
         password: workerResetState.password,
       })
-      setInfo(text.login.resetSuccess)
+      setInfo('確認メールを送信しました。メールに記載のURLをクリックしてパスワードを更新してください。')
       setWorkerResetState({ employeeId: '', name: '', password: '', confirm: '' })
-      setWorkerResetOpen(false)
     } catch (exception) {
-      const messageKey = exception.code ?? 'unknownWorker'
-      setInfo(text.login.errors[messageKey] ?? text.login.errors.unknownWorker ?? exception.message)
+      setInfo(exception.message || 'エラーが発生しました。しばらく待ってから再試行してください。')
     }
   }
 
@@ -163,10 +273,9 @@ export default function LoginDialog({
     <div className="fws-login-shell">
       <div className="fws-login-card">
         <header className="fws-login-header">
-          <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#2563eb', letterSpacing: '0.05em', textTransform: 'uppercase', margin: '0 0 0.5rem' }}>
+          <p style={{ fontSize: '0.9rem', fontWeight: 700, color: '#4f46e5', letterSpacing: '0.05em', textTransform: 'uppercase', margin: '0 0 0.3rem' }}>
             Fieldo
           </p>
-          <h1>{text.login.title}</h1>
           <p>{text.login.subtitle}</p>
         </header>
         <div className="fws-role-toggle" role="radiogroup" aria-label={text.login.roleLabel}>
@@ -202,8 +311,14 @@ export default function LoginDialog({
             {role === 'worker' ? (
               <>
                 <label>
-                  {text.login.workerIdLabel}
-                  <input value={workerCode} onChange={(event) => setWorkerCode(event.target.value)} />
+                  メールアドレス
+                  <input
+                    type="email"
+                    placeholder="例：tanaka@example.com"
+                    value={workerCode}
+                    onChange={(event) => setWorkerCode(event.target.value)}
+                    autoComplete="email"
+                  />
                 </label>
                 <label>
                   {text.login.workerPasswordLabel}
@@ -231,7 +346,31 @@ export default function LoginDialog({
               </>
             )}
           </div>
-          <p className="fws-login-hint">{role === 'admin' ? text.login.adminHint : text.login.workerHint}</p>
+          {role === 'admin' && (
+            <p className="fws-login-hint">{text.login.adminHint}</p>
+          )}
+          {role === 'worker' && (
+            <label style={{
+              display: 'flex', flexDirection: 'row', alignItems: 'center',
+              gap: '0.5rem', cursor: 'pointer',
+              fontSize: '0.85rem', color: '#475569', fontWeight: 500,
+              textTransform: 'none', letterSpacing: 0,
+              width: '100%', justifyContent: 'flex-start',
+            }}>
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={e => setRememberMe(e.target.checked)}
+                style={{ width: 15, height: 15, cursor: 'pointer', accentColor: '#4f46e5', flexShrink: 0 }}
+              />
+              ログイン情報を保存する
+            </label>
+          )}
+          {error && <p className="fws-login-error">{error}</p>}
+          {info && <p className="fws-login-info">{info}</p>}
+          <button type="submit" className="fws-button">
+            {role === 'admin' ? text.login.submit.admin : text.login.submit.worker}
+          </button>
           {role === 'worker' && (
             <div className="fws-login-links stacked">
               <button
@@ -250,11 +389,17 @@ export default function LoginDialog({
               </button>
             </div>
           )}
-          {error && <p className="fws-login-error">{error}</p>}
-          {info && <p className="fws-login-info">{info}</p>}
-          <button type="submit" className="fws-button">
-            {role === 'admin' ? text.login.submit.admin : text.login.submit.worker}
-          </button>
+          {role === 'admin' && (
+            <div className="fws-login-links stacked">
+              <button
+                type="button"
+                className="fws-link-button"
+                onClick={() => setCompanyRegisterOpen((v) => !v)}
+              >
+                会社の新規登録（管理者の方）
+              </button>
+            </div>
+          )}
         </form>
 
         {workerRegisterOpen && (
@@ -272,19 +417,37 @@ export default function LoginDialog({
                 />
               </label>
               <label>
-                {text.login.workerIdLabel}
+                ふりがな
                 <input
-                  value={workerRegisterState.employeeId}
-                  onChange={(event) =>
-                    setWorkerRegisterState((prev) => ({ ...prev, employeeId: event.target.value }))
-                  }
+                  value={workerRegisterState.furigana}
+                  placeholder="例：たなかたろう"
+                  onChange={(event) => setWorkerRegisterState((prev) => ({ ...prev, furigana: event.target.value }))}
                 />
               </label>
               <label>
-                {text.login.workerNameLabel}
+                {text.login.workerNameLabel}（漢字）
                 <input
                   value={workerRegisterState.name}
+                  placeholder="例：田中太郎"
                   onChange={(event) => setWorkerRegisterState((prev) => ({ ...prev, name: event.target.value }))}
+                />
+              </label>
+              <label>
+                電話番号
+                <input
+                  type="tel"
+                  value={workerRegisterState.phone}
+                  placeholder="例：090-1234-5678"
+                  onChange={(event) => setWorkerRegisterState((prev) => ({ ...prev, phone: event.target.value }))}
+                />
+              </label>
+              <label>
+                メールアドレス
+                <input
+                  type="email"
+                  value={workerRegisterState.email}
+                  placeholder="例：tanaka@example.com"
+                  onChange={(event) => setWorkerRegisterState((prev) => ({ ...prev, email: event.target.value }))}
                 />
               </label>
               <label>
@@ -294,6 +457,7 @@ export default function LoginDialog({
                   value={workerRegisterState.password}
                   onChange={(event) => setWorkerRegisterState((prev) => ({ ...prev, password: event.target.value }))}
                 />
+                <PasswordStrength password={workerRegisterState.password} />
               </label>
               <label>
                 {text.login.resetConfirmPasswordLabel}
@@ -315,32 +479,109 @@ export default function LoginDialog({
           </div>
         )}
 
+        {companyRegisterOpen && (
+          <div className="fws-reset-panel">
+            <h3>会社の新規登録</h3>
+            <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0 0 0.5rem' }}>
+              会社情報と管理者情報を入力してください。Fieldo運営の承認後、
+              アクセスコードとログインのご案内をメールでお送りします。
+            </p>
+            <form className="fws-login-grid" onSubmit={handleCompanyRegisterSubmit}>
+              <label>
+                会社名
+                <input
+                  value={companyRegisterState.companyName}
+                  placeholder="例：株式会社フィールド工業"
+                  onChange={(event) => setCompanyRegisterState((prev) => ({ ...prev, companyName: event.target.value }))}
+                />
+              </label>
+              <label>
+                ふりがな（管理者）
+                <input
+                  value={companyRegisterState.furigana}
+                  placeholder="例：やまだいちろう"
+                  onChange={(event) => setCompanyRegisterState((prev) => ({ ...prev, furigana: event.target.value }))}
+                />
+              </label>
+              <label>
+                管理者氏名（漢字）
+                <input
+                  value={companyRegisterState.adminName}
+                  placeholder="例：山田一郎"
+                  onChange={(event) => setCompanyRegisterState((prev) => ({ ...prev, adminName: event.target.value }))}
+                />
+              </label>
+              <label>
+                電話番号
+                <input
+                  type="tel"
+                  value={companyRegisterState.phone}
+                  placeholder="例：090-1234-5678"
+                  onChange={(event) => setCompanyRegisterState((prev) => ({ ...prev, phone: event.target.value }))}
+                />
+              </label>
+              <label>
+                メールアドレス
+                <input
+                  type="email"
+                  value={companyRegisterState.email}
+                  placeholder="例：yamada@example.com"
+                  onChange={(event) => setCompanyRegisterState((prev) => ({ ...prev, email: event.target.value }))}
+                />
+              </label>
+              <label>
+                パスワード
+                <input
+                  type="password"
+                  value={companyRegisterState.password}
+                  onChange={(event) => setCompanyRegisterState((prev) => ({ ...prev, password: event.target.value }))}
+                />
+                <PasswordStrength password={companyRegisterState.password} />
+              </label>
+              <label>
+                {text.login.resetConfirmPasswordLabel}
+                <input
+                  type="password"
+                  value={companyRegisterState.confirm}
+                  onChange={(event) => setCompanyRegisterState((prev) => ({ ...prev, confirm: event.target.value }))}
+                />
+              </label>
+              <div className="fws-reset-actions">
+                <button type="submit" className="fws-button secondary">
+                  登録を申請する
+                </button>
+                <button type="button" className="fws-link-button" onClick={() => setCompanyRegisterOpen(false)}>
+                  {text.login.backToSignIn}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
         {workerResetOpen && (
           <div className="fws-reset-panel">
-            <h3>{text.login.resetTitle}</h3>
-            <p>{text.login.resetInstructions}</p>
+            <h3>パスワードを再設定する</h3>
+            <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0 0 0.5rem' }}>
+              登録済みのメールアドレスと新しいパスワードを入力してください。確認メールが届きます。
+            </p>
             <form className="fws-login-grid" onSubmit={handleWorkerResetSubmit}>
               <label>
-                {text.login.workerIdLabel}
+                メールアドレス
                 <input
+                  type="email"
+                  placeholder="例：tanaka@example.com"
                   value={workerResetState.employeeId}
                   onChange={(event) => setWorkerResetState((prev) => ({ ...prev, employeeId: event.target.value }))}
                 />
               </label>
               <label>
-                {text.login.workerNameLabel}
-                <input
-                  value={workerResetState.name}
-                  onChange={(event) => setWorkerResetState((prev) => ({ ...prev, name: event.target.value }))}
-                />
-              </label>
-              <label>
-                {text.login.resetNewPasswordLabel}
+                新しいパスワード
                 <input
                   type="password"
                   value={workerResetState.password}
                   onChange={(event) => setWorkerResetState((prev) => ({ ...prev, password: event.target.value }))}
                 />
+                <PasswordStrength password={workerResetState.password} />
               </label>
               <label>
                 {text.login.resetConfirmPasswordLabel}
@@ -352,7 +593,7 @@ export default function LoginDialog({
               </label>
               <div className="fws-reset-actions">
                 <button type="submit" className="fws-button secondary">
-                  {text.login.resetSubmit}
+                  確認メールを送信する
                 </button>
                 <button type="button" className="fws-link-button" onClick={() => setWorkerResetOpen(false)}>
                   {text.login.backToSignIn}

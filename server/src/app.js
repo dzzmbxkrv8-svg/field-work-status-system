@@ -14,6 +14,10 @@ const messageRoutes = require('./routes/messages');
 const reportRoutes = require('./routes/reports');
 const uploadRoutes = require('./routes/uploads');
 const teamRoutes = require('./routes/teams');
+const settingsRoutes = require('./routes/settings');
+const eventsRoutes = require('./routes/events');
+const companyRoutes = require('./routes/companies');
+const adminRoutes = require('./routes/admins');
 
 const app = express();
 
@@ -40,7 +44,7 @@ const apiLimiter = rateLimit({
 // Middleware
 app.use(helmet());
 app.use(cors({ origin: allowedOrigins, credentials: true }));
-app.use(morgan('dev'));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json());
 app.use('/api/', apiLimiter);
 
@@ -49,6 +53,8 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Routes
 app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/companies', authLimiter, companyRoutes);
+app.use('/api/admins', adminRoutes);
 app.use('/api/workers', workerRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/attendance', attendanceRoutes);
@@ -56,6 +62,8 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/teams', teamRoutes);
+app.use('/api/settings', settingsRoutes);
+app.use('/api/events', eventsRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

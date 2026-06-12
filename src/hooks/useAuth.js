@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useAppContext } from '@/contexts/AppContext'
 import * as authApi from '@/api/auth'
+import * as companiesApi from '@/api/companies'
 
 export function useAuth() {
   const { state, dispatch, login, logout } = useAppContext()
@@ -10,7 +11,7 @@ export function useAuth() {
       const result = await authApi.login({ employee_id: code, password, role: 'worker' })
       if (!result.success) {
         const error = new Error(result.message || 'invalidWorkerCredentials')
-        error.code = 'invalidWorkerCredentials'
+        error.code = result.code || 'invalidWorkerCredentials'
         throw error
       }
       localStorage.setItem('token', result.token)
@@ -26,7 +27,7 @@ export function useAuth() {
       const result = await authApi.login({ employee_id: code, password, role: 'admin' })
       if (!result.success) {
         const error = new Error(result.message || 'invalidAdmin')
-        error.code = 'invalidAdmin'
+        error.code = result.code || 'invalidAdmin'
         throw error
       }
       localStorage.setItem('token', result.token)
@@ -38,11 +39,13 @@ export function useAuth() {
     [login, dispatch]
   )
 
-  const registerWorker = useCallback(async ({ accessCode, employeeId, name, password }) => {
+  const registerWorker = useCallback(async ({ accessCode, furigana, name, phone, email, password }) => {
     const result = await authApi.registerWorker({
       access_code: accessCode,
-      employee_id: employeeId,
+      furigana,
       name,
+      phone,
+      email,
       password,
     })
     if (!result.success) {
@@ -50,28 +53,58 @@ export function useAuth() {
       error.code = result.message?.includes('アクセスコード') ? 'unknownOrganization' : 'unknownError'
       throw error
     }
-    return result.data
+    // 自動採番された employeeId を返す
+    return { data: result.data, employeeId: result.employeeId }
   }, [])
 
-  const resetWorkerPassword = useCallback(async ({ employeeId, name, password }) => {
-    const result = await authApi.resetPassword({
-      employee_id: employeeId,
-      name,
-      new_password: password,
+  // 会社登録申請（管理者アカウント作成・運営承認待ち）
+  const registerCompany = useCallback(async ({ companyName, adminName, furigana, phone, email, password }) => {
+    const result = await companiesApi.registerCompany({
+      company_name: companyName,
+      admin_name: adminName,
+      furigana,
+      phone,
+      email,
+      password,
     })
     if (!result.success) {
-      const error = new Error(result.message || 'unknownWorker')
-      error.code = 'unknownWorker'
+      throw new Error(result.message || '登録申請に失敗しました')
+    }
+    return result
+  }, [])
+
+  // 新フロー: メール送信
+  const forgotPassword = useCallback(async ({ email, password }) => {
+    const result = await authApi.forgotPassword({ email, new_password: password })
+    if (!result.success) {
+      const error = new Error(result.message || 'リセットに失敗しました')
       throw error
     }
     return result
   }, [])
+
+  // 新フロー: トークン確認
+  const resetConfirm = useCallback(async ({ token }) => {
+    const result = await authApi.resetConfirm({ token })
+    if (!result.success) {
+      const error = new Error(result.message || 'トークンが無効です')
+      error.code = result.code || 'tokenExpired'
+      throw error
+    }
+    return result
+  }, [])
+
+  // 旧互換
+  const resetWorkerPassword = forgotPassword
 
   return {
     state,
     loginWorker,
     loginAdmin,
     registerWorker,
+    registerCompany,
+    forgotPassword,
+    resetConfirm,
     resetWorkerPassword,
     logout,
   }

@@ -19,13 +19,30 @@ export const getMe = async () => {
   });
 };
 
-export const registerWorker = async ({ access_code, employee_id, name, password }) => {
+export const registerWorker = async (data) => {
   return apiClient('/api/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ access_code, employee_id, name, password }),
+    body: JSON.stringify(data),
   });
 };
 
+// 新フロー: メールアドレス + 新パスワード → 確認メール送信
+export const forgotPassword = async ({ email, new_password }) => {
+  return apiClient('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email, new_password }),
+  });
+};
+
+// 新フロー: URLトークンを検証 → パスワード適用
+export const resetConfirm = async ({ token }) => {
+  return apiClient('/api/auth/reset-confirm', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
+};
+
+// 旧互換
 export const resetPassword = async ({ employee_id, name, new_password }) => {
   return apiClient('/api/auth/reset-password', {
     method: 'POST',

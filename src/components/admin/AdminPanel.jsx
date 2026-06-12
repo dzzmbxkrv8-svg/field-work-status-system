@@ -7,6 +7,7 @@ import WorkOrdersTable from './WorkOrdersTable'
 import { getAssignments, createAssignment, updateAssignment, cancelAssignment, assignWorker, setMembers, uploadAttachments } from '@/api/assignments'
 import CreateOrderWizard from './CreateOrderWizard'
 import EditOrderDialog from './EditOrderDialog'
+import { AppIcon } from '@/utils/iconMap'
 
 
 export default function AdminPanel({ onAssignWorkers, workers = [] }) {
@@ -155,12 +156,14 @@ export default function AdminPanel({ onAssignWorkers, workers = [] }) {
     <section className="fws-panel">
         {notification && (
           <div style={{
-            padding: '0.75rem 1rem', borderRadius: '6px', marginBottom: '1rem', fontSize: '0.9rem',
+            padding: '0.75rem 1rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.88rem',
             background: notification.type === 'success' ? '#d1fae5' : '#fee2e2',
             color: notification.type === 'success' ? '#065f46' : '#991b1b',
             border: `1px solid ${notification.type === 'success' ? '#6ee7b7' : '#fca5a5'}`,
+            display: 'flex', alignItems: 'center', gap: '0.5rem',
           }}>
-            {notification.type === 'success' ? '✅ ' : '❌ '}{notification.text}
+            <AppIcon name={notification.type === 'success' ? 'CircleCheck' : 'CircleX'} size={15} strokeWidth={2} style={{ flexShrink: 0 }} />
+            {notification.text}
           </div>
         )}
         <header className="fws-panel-header">
@@ -213,11 +216,11 @@ export default function AdminPanel({ onAssignWorkers, workers = [] }) {
               padding: '0.4rem 0', width: '100%',
             }}
           >
-            <span style={{
-              display: 'inline-block', transition: 'transform 0.2s',
-              transform: showCompleted ? 'rotate(90deg)' : 'rotate(0deg)',
-              fontSize: '0.8rem',
-            }}>▶</span>
+            <AppIcon
+              name="ChevronRight"
+              size={14} strokeWidth={2}
+              style={{ transition: 'transform 0.2s', transform: showCompleted ? 'rotate(90deg)' : 'rotate(0deg)', flexShrink: 0 }}
+            />
             完了済み案件
             <span style={{
               marginLeft: '0.4rem', fontSize: '0.75rem', fontWeight: 700,
@@ -246,13 +249,15 @@ export default function AdminPanel({ onAssignWorkers, workers = [] }) {
                           {order.projectName || order.id}
                         </p>
                         {order.location && (
-                          <p style={{ margin: '0.1rem 0 0', fontSize: '0.78rem', color: '#166534' }}>📍 {order.location}</p>
+                          <p style={{ margin: '0.1rem 0 0', fontSize: '0.78rem', color: '#166534', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                            <AppIcon name="MapPin" size={11} strokeWidth={2} />{order.location}
+                          </p>
                         )}
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
                         {order.assignedWorkerName && (
-                          <p style={{ margin: 0, fontSize: '0.8rem', color: '#15803d', fontWeight: 500 }}>
-                            👤 {order.assignedWorkerName}
+                          <p style={{ margin: 0, fontSize: '0.8rem', color: '#15803d', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.2rem', justifyContent: 'flex-end' }}>
+                            <AppIcon name="User" size={11} strokeWidth={2} />{order.assignedWorkerName}
                           </p>
                         )}
                         <p style={{ margin: '0.1rem 0 0', fontSize: '0.72rem', color: '#64748b' }}>

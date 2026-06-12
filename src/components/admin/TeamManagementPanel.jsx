@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getTeams, createTeam, updateTeam, deleteTeam, updateWorkerTeam } from '@/api/teams'
-import { getWorkers, createWorker } from '@/api/workers'
+import { getWorkers, createWorker, getPendingWorkers, approveWorker } from '@/api/workers'
+import { AppIcon } from '@/utils/iconMap'
+import { useAppContext } from '@/contexts/AppContext'
+import AdminManagementSection from './AdminManagementSection'
 
 function TeamForm({ initial, onSave, onCancel, saving }) {
   const [name, setName] = useState(initial?.name || '')
@@ -193,6 +196,7 @@ function WorkerForm({ teams, onSave, onCancel, saving }) {
 }
 
 export default function TeamManagementPanel() {
+  const { state } = useAppContext()
   const [teams, setTeams] = useState([])
   const [workers, setWorkers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -206,12 +210,19 @@ export default function TeamManagementPanel() {
   const [savingWorker, setSavingWorker] = useState(false)
   const [workerSectionOpen, setWorkerSectionOpen] = useState(false)
 
+  // 承認待ち作業員
+  const [pendingWorkers, setPendingWorkers] = useState([])
+  const [approvingId, setApprovingId] = useState(null)
+
   const fetchAll = useCallback(async (isInitial = false) => {
     if (isInitial) setLoading(true)
     try {
-      const [teamsRes, workersRes] = await Promise.all([getTeams(), getWorkers()])
+      const [teamsRes, workersRes, pendingRes] = await Promise.all([
+        getTeams(), getWorkers(), getPendingWorkers()
+      ])
       if (teamsRes.success) setTeams(teamsRes.data || [])
       if (workersRes.success) setWorkers(workersRes.data || [])
+      if (pendingRes.success) setPendingWorkers(pendingRes.data || [])
       setError(null)
     } catch {
       if (isInitial) setError('データを取得できませんでした')
@@ -219,6 +230,16 @@ export default function TeamManagementPanel() {
       if (isInitial) setLoading(false)
     }
   }, [])
+
+  const handleApprove = async (id) => {
+    setApprovingId(id)
+    try {
+      await approveWorker(id)
+      await fetchAll()
+    } finally {
+      setApprovingId(null)
+    }
+  }
 
   useEffect(() => { fetchAll(true) }, [fetchAll])
 
@@ -269,6 +290,57 @@ export default function TeamManagementPanel() {
   if (error) return <div className="fws-panel"><p className="fws-accent">{error}</p></div>
 
   return (
+    <>
+    {/* ── 承認待ち作業員パネル ── */}
+    {pendingWorkers.length > 0 && (
+      <div className="fws-panel" style={{ marginBottom: '1rem', border: '1.5px solid #fde68a', background: '#fffbeb' }}>
+        <header className="fws-panel-header" style={{ marginBottom: '0.75rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AppIcon name="Bell" size={16} style={{ color: '#d97706' }} />
+            承認待ちの作業員
+          </h3>
+          <span style={{
+            background: '#f97316', color: '#fff',
+            fontSize: '0.72rem', fontWeight: 700,
+            padding: '0.2rem 0.55rem', borderRadius: 99,
+          }}>
+            {pendingWorkers.length}件
+          </span>
+        </header>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          {pendingWorkers.map(w => (
+            <div key={w.id} style={{
+              display: 'flex', alignItems: 'center', gap: '0.75rem',
+              background: '#fff', borderRadius: 10, padding: '0.75rem 1rem',
+              border: '1px solid #fde68a',
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.92rem', color: '#1e293b' }}>{w.name}</span>
+                  {w.furigana && <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>（{w.furigana}）</span>}
+                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontFamily: 'monospace' }}>{w.employee_id}</span>
+                </div>
+                <div style={{ display: 'flex', gap: '1rem', marginTop: '0.2rem', fontSize: '0.78rem', color: '#64748b', flexWrap: 'wrap' }}>
+                  {w.phone && <span><AppIcon name="User" size={11} strokeWidth={2} style={{ verticalAlign: 'middle' }} /> {w.phone}</span>}
+                  {w.email && <span>{w.email}</span>}
+                  <span style={{ color: '#94a3b8' }}>{new Date(w.created_at).toLocaleDateString('ja-JP')} 登録</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="fws-button"
+                style={{ fontSize: '0.82rem', padding: '0.45rem 1rem', flexShrink: 0 }}
+                disabled={approvingId === w.id}
+                onClick={() => handleApprove(w.id)}
+              >
+                {approvingId === w.id ? '処理中...' : '承認する'}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
     <div className="fws-panel">
       <div className="fws-panel-header">
         <div>
@@ -289,13 +361,13 @@ export default function TeamManagementPanel() {
 
       {creatingNew && (
         <div style={{
-          background: '#eff6ff',
-          border: '1px solid #bfdbfe',
+          background: '#eef2ff',
+          border: '1px solid #c7c7f0',
           borderRadius: 12,
           padding: '1rem 1.25rem',
           marginBottom: '1rem',
         }}>
-          <p style={{ margin: '0 0 0.75rem', fontWeight: 600, color: '#1e40af', fontSize: '0.9rem' }}>新しいチーム</p>
+          <p style={{ margin: '0 0 0.75rem', fontWeight: 600, color: '#1e1b4b', fontSize: '0.9rem' }}>新しいチーム</p>
           <TeamForm
             onSave={handleCreate}
             onCancel={() => setCreatingNew(false)}
@@ -367,7 +439,9 @@ export default function TeamManagementPanel() {
       <div style={{ marginTop: '2rem', borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#1e293b' }}>👷 作業員を追加</h3>
+            <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <AppIcon name="UserCheck" size={16} strokeWidth={2} style={{ color: '#4f46e5' }} />作業員を追加
+            </h3>
             <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>新しい作業員アカウントを作成します</p>
           </div>
           {!creatingWorker && (
@@ -405,7 +479,11 @@ export default function TeamManagementPanel() {
           <span style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.95rem' }}>
             作業員のチーム所属
           </span>
-          <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>{workerSectionOpen ? '▲ 閉じる' : '▼ 開く'}</span>
+          <AppIcon
+            name={workerSectionOpen ? 'ChevronLeft' : 'ChevronRight'}
+            size={16} strokeWidth={2}
+            style={{ color: '#94a3b8', transform: workerSectionOpen ? 'rotate(90deg)' : 'rotate(-90deg)', transition: 'transform 0.2s' }}
+          />
         </button>
 
         {workerSectionOpen && (
@@ -426,5 +504,9 @@ export default function TeamManagementPanel() {
         )}
       </div>
     </div>
+
+    {/* ── 管理者の管理 ── */}
+    <AdminManagementSection currentUserId={state.session?.id} />
+    </>
   )
 }

@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { sendToAdmins } = require('../events/sseManager');
 
 exports.getToday = async (req, res, next) => {
   try {
@@ -42,26 +43,45 @@ exports.updateStatus = async (req, res, next) => {
     params = [req.user.id, status, lat || null, lng || null];
     const { rows } = await db.query(query, params);
 
+    const companyId = req.user.company_id;
+
+    // 出退勤ステータス変更を管理者にSSE通知
+    sendToAdmins('attendance_status_changed', {
+      workerId: req.user.id,
+      workerName: req.user.name || req.user.employee_id,
+      status,
+    }, companyId);
+
     // 到着 → 担当案件を「進行中」に自動更新
     if (status === 'arrived') {
-      await db.query(`
+      const { rows: updated } = await db.query(`
         UPDATE assignments
         SET status = 'in_progress', updated_at = NOW()
         WHERE assigned_worker_id = $1
           AND status = 'pending'
           AND start_date <= CURRENT_DATE
           AND (end_date IS NULL OR end_date >= CURRENT_DATE)
+        RETURNING id, title
       `, [req.user.id]);
+      updated.forEach(a => sendToAdmins('assignment_status_changed', {
+        id: a.id, title: a.title, status: 'in_progress',
+        workerName: req.user.name || req.user.employee_id,
+      }, companyId));
     }
 
     // 終了 → 担当案件を「完了」に自動更新
     if (status === 'finished') {
-      await db.query(`
+      const { rows: updated } = await db.query(`
         UPDATE assignments
         SET status = 'completed', updated_at = NOW()
         WHERE assigned_worker_id = $1
           AND status = 'in_progress'
+        RETURNING id, title
       `, [req.user.id]);
+      updated.forEach(a => sendToAdmins('assignment_status_changed', {
+        id: a.id, title: a.title, status: 'completed',
+        workerName: req.user.name || req.user.employee_id,
+      }, companyId));
     }
 
     res.status(200).json({ success: true, data: rows[0] });
@@ -79,18 +99,18 @@ exports.getTeamToday = async (req, res, next) => {
                a.woke_up_at, a.departed_at, a.arrived_at, a.finished_at, a.updated_at
         FROM users u
         LEFT JOIN attendance a ON u.id = a.worker_id AND a.date = CURRENT_DATE
-        WHERE u.role = 'worker'
+        WHERE u.role = 'worker' AND u.company_id = $1
       `;
-      params = [];
+      params = [req.user.company_id];
     } else {
       query = `
         SELECT u.id as worker_id, u.name, u.employee_id, u.team_id, a.status,
                a.woke_up_at, a.departed_at, a.arrived_at, a.finished_at, a.updated_at
         FROM users u
         LEFT JOIN attendance a ON u.id = a.worker_id AND a.date = CURRENT_DATE
-        WHERE u.role = 'worker' AND u.team_id = $1
+        WHERE u.role = 'worker' AND u.team_id = $1 AND u.company_id = $2
       `;
-      params = [req.user.team_id];
+      params = [req.user.team_id, req.user.company_id];
     }
     const { rows } = await db.query(query, params);
     res.status(200).json({ success: true, data: rows, total: rows.length });
@@ -116,9 +136,9 @@ exports.getSummary = async (req, res, next) => {
       `SELECT a.*, u.name as worker_name, u.employee_id
        FROM attendance a
        JOIN users u ON a.worker_id = u.id
-       WHERE a.date >= $1 AND a.date <= $2
+       WHERE a.date >= $1 AND a.date <= $2 AND u.company_id = $3
        ORDER BY a.date DESC, u.name ASC`,
-      [start_date, end_date]
+      [start_date, end_date, req.user.company_id]
     );
     res.status(200).json({ success: true, data: rows, total: rows.length });
   } catch (error) {

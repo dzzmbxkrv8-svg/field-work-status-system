@@ -9,10 +9,12 @@ import ReportsPanel from './ReportsPanel'
 import WorkerAssignmentDialog from './WorkerAssignmentDialog'
 import BottomNavigation from './BottomNavigation'
 import TeamManagementPanel from './TeamManagementPanel'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { assignWorker } from '@/api/assignments'
 import { getWorkers } from '@/api/workers'
 import { AppIcon } from '@/utils/iconMap'
+import { useServerEvents } from '@/hooks/useServerEvents'
+import * as messagesApi from '@/api/messages'
 
 export default function AdminView() {
   const { state, dispatch, logout } = useAppContext()
@@ -34,6 +36,26 @@ export default function AdminView() {
   useEffect(() => {
     getWorkers().then(res => { if (res.success) setDbWorkers(res.data || []) })
   }, [])
+
+  // SSE: 作業員からのメッセージをリアルタイムで受け取る
+  const refreshAdminMessages = useCallback(async () => {
+    const result = await messagesApi.getMessages()
+    if (result.success) {
+      dispatch({ type: 'SET_MESSAGES', payload: result.data })
+    }
+  }, [dispatch])
+
+  useServerEvents({
+    enabled: !!session,
+    onTokenExpired: () => logout(),
+    onNewMessage: () => refreshAdminMessages(),
+    onAssignmentStatusChanged: (data) => {
+      window.dispatchEvent(new CustomEvent('fieldo:assignment-updated', { detail: data }))
+    },
+    onAttendanceStatusChanged: (data) => {
+      window.dispatchEvent(new CustomEvent('fieldo:attendance-updated', { detail: data }))
+    },
+  })
 
   const handleAssignWorkers = (order) => {
     setAssigningOrder(order)

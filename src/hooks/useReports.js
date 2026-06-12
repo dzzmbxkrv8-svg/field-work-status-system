@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useEffect } from 'react'
+import { useCallback, useMemo, useEffect, useRef, useState } from 'react'
 import { useAppContext } from '@/contexts/AppContext'
 import { PRIORITY_OPTIONS, STATUS_ORDER } from '@/utils/constants'
 import * as assignmentsApi from '@/api/assignments'
@@ -36,9 +36,18 @@ function summarizeWorkOrders(orders) {
   return summary
 }
 
+const POLL_INTERVAL = 60_000 // 60秒
+
 export function useReports() {
   const { state, dispatch } = useAppContext()
   const { workOrders, filters } = state
+  const intervalRef = useRef(null)
+
+  // 新規案件通知用
+  const seenIdsRef = useRef(null)           // null = 初回未取得
+  const [newAssignmentsCount, setNewAssignmentsCount] = useState(0)
+
+  const clearNewAssignments = useCallback(() => setNewAssignmentsCount(0), [])
 
   // DBのstatus値（snake_case/lowercase）をフロントエンド表示用（PascalCase）に変換
   const normalizeStatus = (raw) => {
@@ -57,35 +66,77 @@ export function useReports() {
   }
 
   const fetchAssignments = useCallback(async () => {
-    if (!localStorage.getItem('token')) return;
+    if (!localStorage.getItem('token')) return
     const result = await assignmentsApi.getAssignments()
     if (result.success) {
-      dispatch({
-        type: 'SET_WORK_ORDERS',
-        payload: result.data.map(o => {
-          const normalizedStatus = normalizeStatus(o.status)
-          return {
-            ...o,
-            db_id: o.id,
-            id: o.assignment_code || o.id,
-            projectName: o.title,
-            location: o.location,
-            startDate: o.start_date,
-            endDate: o.end_date,
-            dueDate: o.end_date || o.start_date,
-            raw_status: o.status,
-            status: normalizedStatus,
-            priority: o.priority ? o.priority.charAt(0).toUpperCase() + o.priority.slice(1) : 'Medium',
-            progress: normalizedStatus === 'Completed' ? 100 : (normalizedStatus === 'In Progress' ? 50 : 0)
-          }
-        })
+      const normalized = result.data.map(o => {
+        const normalizedStatus = normalizeStatus(o.status)
+        return {
+          ...o,
+          db_id: o.id,
+          id: o.assignment_code || o.id,
+          projectName: o.title,
+          location: o.location,
+          startDate: o.start_date,
+          endDate: o.end_date,
+          dueDate: o.end_date || o.start_date,
+          raw_status: o.status,
+          status: normalizedStatus,
+          priority: o.priority ? o.priority.charAt(0).toUpperCase() + o.priority.slice(1) : 'Medium',
+          progress: normalizedStatus === 'Completed' ? 100 : (normalizedStatus === 'In Progress' ? 50 : 0)
+        }
       })
+
+      dispatch({ type: 'SET_WORK_ORDERS', payload: normalized })
+
+      // 新規案件を検出（初回ロードはスキップ）
+      const currentIds = new Set(normalized.map(o => o.db_id))
+      if (seenIdsRef.current === null) {
+        // 初回：IDを記録するだけ、通知しない
+        seenIdsRef.current = currentIds
+      } else {
+        const newIds = [...currentIds].filter(id => !seenIdsRef.current.has(id))
+        if (newIds.length > 0) {
+          setNewAssignmentsCount(prev => prev + newIds.length)
+          seenIdsRef.current = currentIds
+        }
+      }
     }
   }, [dispatch])
 
+  // 初回取得 + ポーリング（60秒間隔）
   useEffect(() => {
-    if (state.session) {
-      fetchAssignments()
+    if (!state.session) return
+
+    fetchAssignments()
+
+    const startPolling = () => {
+      if (intervalRef.current) return
+      intervalRef.current = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          fetchAssignments()
+        }
+      }, POLL_INTERVAL)
+    }
+
+    const stopPolling = () => {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    }
+
+    // タブが表示に戻ったら即時再取得
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchAssignments()
+      }
+    }
+
+    startPolling()
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      stopPolling()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [state.session, fetchAssignments])
 
@@ -217,7 +268,10 @@ export function useReports() {
     createOrder,
     updateOrder,
     getAssignmentsForTeam,
-    refresh: fetchAssignments
+    refresh: fetchAssignments,
+    // 新規案件通知
+    newAssignmentsCount,
+    clearNewAssignments,
   }
 }
 

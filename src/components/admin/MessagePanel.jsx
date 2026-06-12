@@ -3,8 +3,9 @@ import { useAppContext } from '@/contexts/AppContext'
 import { useMessages } from '@/hooks/useMessages'
 import { getWorkers } from '@/api/workers'
 import { uploadFile } from '@/api/messages'
+import { AppIcon } from '@/utils/iconMap'
 
-const AVATAR_COLORS = ['#2563eb','#7c3aed','#db2777','#059669','#d97706','#dc2626','#0891b2']
+const AVATAR_COLORS = ['#4f46e5','#7c3aed','#db2777','#059669','#d97706','#dc2626','#0891b2']
 const avatarColor = (id) => AVATAR_COLORS[(Number(id) || 0) % AVATAR_COLORS.length]
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -44,13 +45,11 @@ function isImage(mimeType) {
 
 // ファイルアイコン（種類別）
 function FileIcon({ mimeType }) {
-    let icon = '📄'
-    if (!mimeType) return <span>{icon}</span>
-    if (mimeType.includes('pdf')) icon = '📕'
-    else if (mimeType.includes('word') || mimeType.includes('document')) icon = '📘'
-    else if (mimeType.includes('excel') || mimeType.includes('sheet')) icon = '📗'
-    else if (mimeType.includes('text')) icon = '📝'
-    return <span style={{ fontSize: '1.4rem', lineHeight: 1 }}>{icon}</span>
+    const iconName = !mimeType ? 'FileText'
+        : mimeType.includes('pdf') ? 'FileText'
+        : mimeType.includes('image') ? 'Camera'
+        : 'Paperclip'
+    return <AppIcon name={iconName} size={20} strokeWidth={1.8} style={{ color: 'currentColor', flexShrink: 0 }} />
 }
 
 // ファイル添付カード（画像以外）
@@ -71,7 +70,7 @@ function FileCard({ url, fileName, isMine }) {
                 border: isMine ? '1px solid rgba(255,255,255,0.2)' : '1px solid #e2e8f0',
             }}
         >
-            <span style={{ fontSize: '1.3rem' }}>📎</span>
+            <AppIcon name="Paperclip" size={18} strokeWidth={2} />
             <span style={{ fontSize: '0.78rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>
                 {fileName || 'ファイル'}
             </span>
@@ -251,9 +250,11 @@ export default function MessagePanel({ workers: propWorkers }) {
                 }}>
                     <button type="button" onClick={() => setSelectedUser(null)} style={{
                         background: 'none', border: 'none', cursor: 'pointer',
-                        fontSize: '1.2rem', color: '#2563eb', padding: '0.25rem',
+                        color: '#4f46e5', padding: '0.25rem',
                         display: 'flex', alignItems: 'center',
-                    }}>‹</button>
+                    }}>
+                        <AppIcon name="ArrowLeft" size={18} strokeWidth={2} />
+                    </button>
                     <Avatar name={selectedUser.name} id={selectedUser.id === 'all' ? 0 : selectedUser.id} size={36} />
                     <div>
                         <p style={{ margin: 0, fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>{selectedUser.name}</p>
@@ -285,7 +286,7 @@ export default function MessagePanel({ workers: propWorkers }) {
                                     <div style={{
                                         padding: (msg.photoUrl && !msg.content) ? 0 : '0.55rem 0.85rem',
                                         borderRadius: msg.isMine ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                                        background: msg.isMine ? '#2563eb' : '#fff',
+                                        background: msg.isMine ? '#4f46e5' : '#fff',
                                         color: msg.isMine ? '#fff' : '#1e293b',
                                         fontSize: '0.88rem', lineHeight: 1.5,
                                         boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
@@ -334,7 +335,9 @@ export default function MessagePanel({ workers: propWorkers }) {
                                 <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>{fmtSize(attachFile.file.size)}</span>
                             </div>
                         )}
-                        <button type="button" onClick={clearAttach} style={{ background: '#ef4444', border: 'none', borderRadius: '50%', width: 20, height: 20, color: '#fff', fontSize: '0.7rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
+                        <button type="button" onClick={clearAttach} style={{ background: '#ef4444', border: 'none', borderRadius: '50%', width: 20, height: 20, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <AppIcon name="X" size={11} strokeWidth={2.5} />
+                        </button>
                         {uploading && <span style={{ fontSize: '0.75rem', color: '#6366f1' }}>アップロード中...</span>}
                     </div>
                 )}
@@ -384,14 +387,14 @@ export default function MessagePanel({ workers: propWorkers }) {
                         disabled={!canSend}
                         style={{
                             width: 40, height: 40, borderRadius: '50%', border: 'none',
-                            background: canSend ? '#2563eb' : '#e2e8f0',
+                            background: canSend ? '#4f46e5' : '#e2e8f0',
                             color: canSend ? '#fff' : '#94a3b8',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             cursor: canSend ? 'pointer' : 'default',
                             fontSize: '1rem', flexShrink: 0,
                             transition: 'all 0.15s',
                         }}
-                    >➤</button>
+                    ><AppIcon name="Send" size={16} strokeWidth={2} /></button>
                 </div>
             </div>
         )
@@ -413,7 +416,7 @@ export default function MessagePanel({ workers: propWorkers }) {
                     background: '#f1f5f9', borderRadius: 20,
                     padding: '0.4rem 0.75rem', marginBottom: '0.75rem',
                 }}>
-                    <span style={{ fontSize: '0.85rem', color: '#94a3b8', flexShrink: 0 }}>🔍</span>
+                    <AppIcon name="Search" size={14} strokeWidth={2} style={{ color: '#94a3b8', flexShrink: 0 }} />
                     <input
                         type="text"
                         value={search}
@@ -425,7 +428,9 @@ export default function MessagePanel({ workers: propWorkers }) {
                         }}
                     />
                     {search && (
-                        <button type="button" onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '0.9rem', padding: 0, lineHeight: 1 }}>✕</button>
+                        <button type="button" onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0, display: 'flex', alignItems: 'center' }}>
+                          <AppIcon name="X" size={14} strokeWidth={2} />
+                        </button>
                     )}
                 </div>
             </div>
@@ -442,7 +447,7 @@ export default function MessagePanel({ workers: propWorkers }) {
                 >
                     <div style={{
                         width: 48, height: 48, borderRadius: '50%', flexShrink: 0,
-                        background: '#2563eb',
+                        background: '#4f46e5',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         color: '#fff', fontWeight: 700, fontSize: '1.1rem',
                     }}>全</div>
@@ -452,7 +457,7 @@ export default function MessagePanel({ workers: propWorkers }) {
                             全作業員へ一斉送信
                         </p>
                     </div>
-                    <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}>›</span>
+                    <AppIcon name="ChevronRight" size={16} strokeWidth={2} style={{ color: '#cbd5e1', flexShrink: 0 }} />
                 </div>
             )}
 
@@ -465,7 +470,7 @@ export default function MessagePanel({ workers: propWorkers }) {
                 const conv = conversations.find(c => c.id === worker.id)
                 const latest = conv?.latest
                 const latestText = latest
-                    ? (latest.photoUrl ? '📷 写真' : latest.fileUrl ? `📎 ${latest.fileName || 'ファイル'}` : latest.content)
+                    ? (latest.photoUrl ? '[写真]' : latest.fileUrl ? `[ファイル] ${latest.fileName || ''}` : latest.content)
                     : 'メッセージなし'
                 return (
                     <div
@@ -487,7 +492,7 @@ export default function MessagePanel({ workers: propWorkers }) {
                                 {latestText}
                             </p>
                         </div>
-                        <span style={{ fontSize: '0.9rem', color: '#cbd5e1' }}>›</span>
+                        <AppIcon name="ChevronRight" size={16} strokeWidth={2} style={{ color: '#cbd5e1', flexShrink: 0 }} />
                     </div>
                 )
             })}

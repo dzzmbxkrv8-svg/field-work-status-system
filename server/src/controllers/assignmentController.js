@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { sendToWorkers, sendToAdmins } = require('../events/sseManager');
 
 exports.getAssignments = async (req, res, next) => {
   try {
@@ -12,11 +13,11 @@ exports.getAssignments = async (req, res, next) => {
       LEFT JOIN users  w ON a.assigned_worker_id = w.id
     `;
     if (req.user.role === 'admin') {
-      query = baseSelect + ' ORDER BY a.created_at DESC';
-      params = [];
+      query = baseSelect + ' WHERE a.company_id = $1 ORDER BY a.created_at DESC';
+      params = [req.user.company_id];
     } else {
-      query = baseSelect + ' WHERE a.team_id = (SELECT team_id FROM users WHERE id=$1) ORDER BY a.created_at DESC';
-      params = [req.user.id];
+      query = baseSelect + ' WHERE a.company_id = $1 AND a.team_id = (SELECT team_id FROM users WHERE id=$2) ORDER BY a.created_at DESC';
+      params = [req.user.company_id, req.user.id];
     }
     const { rows } = await db.query(query, params);
     res.status(200).json({ success: true, data: rows, total: rows.length });
@@ -27,7 +28,10 @@ exports.getAssignments = async (req, res, next) => {
 
 exports.getAssignment = async (req, res, next) => {
   try {
-    const { rows } = await db.query('SELECT * FROM assignments WHERE id=$1', [req.params.id]);
+    const { rows } = await db.query(
+      'SELECT * FROM assignments WHERE id=$1 AND company_id=$2',
+      [req.params.id, req.user.company_id]
+    );
     if (rows.length === 0) return res.status(404).json({ success: false, message: 'Not found' });
     res.status(200).json({ success: true, data: rows[0] });
   } catch (error) {
@@ -49,9 +53,11 @@ exports.createAssignment = async (req, res, next) => {
       return res.status(400).json({ success: false, message: '優先度は low/medium/high のいずれかです' });
     }
     const { rows } = await db.query(`
-      INSERT INTO assignments (assignment_code, title, location, team_id, priority, start_date, end_date, description)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
-    `, [assignment_code.trim(), title.trim(), location || null, team_id || null, priority || 'medium', start_date || null, end_date || null, description || null]);
+      INSERT INTO assignments (assignment_code, title, location, team_id, priority, start_date, end_date, description, company_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *
+    `, [assignment_code.trim(), title.trim(), location || null, team_id || null, priority || 'medium', start_date || null, end_date || null, description || null, req.user.company_id]);
+    // 新規案件作成 → 作業員にSSEプッシュ
+    sendToWorkers('new_assignment', { id: rows[0].id, title: rows[0].title }, req.user.company_id)
     res.status(201).json({ success: true, data: rows[0] });
   } catch (error) {
     next(error);
@@ -71,9 +77,11 @@ exports.updateAssignment = async (req, res, next) => {
     const { rows } = await db.query(`
       UPDATE assignments
       SET title=$1, location=$2, start_date=$3, end_date=$4, priority=$5, description=$6, updated_at=NOW()
-      WHERE id=$7 RETURNING *
-    `, [title.trim(), location || null, start_date || null, end_date || null, priority || 'medium', description || null, req.params.id]);
+      WHERE id=$7 AND company_id=$8 RETURNING *
+    `, [title.trim(), location || null, start_date || null, end_date || null, priority || 'medium', description || null, req.params.id, req.user.company_id]);
     if (rows.length === 0) return res.status(404).json({ success: false, message: '案件が見つかりません' });
+    // 案件更新 → 作業員にSSEプッシュ
+    sendToWorkers('assignment_updated', { id: rows[0].id, title: rows[0].title }, req.user.company_id)
     res.status(200).json({ success: true, data: rows[0] });
   } catch (error) {
     next(error);
@@ -99,8 +107,20 @@ exports.updateStatus = async (req, res, next) => {
       }
     }
 
-    const { rows } = await db.query('UPDATE assignments SET status=$1, updated_at=NOW() WHERE id=$2 RETURNING *', [status, req.params.id]);
+    const { rows } = await db.query(
+      'UPDATE assignments SET status=$1, updated_at=NOW() WHERE id=$2 AND company_id=$3 RETURNING *',
+      [status, req.params.id, req.user.company_id]
+    );
     if (rows.length === 0) return res.status(404).json({ success: false, message: 'Not found' });
+    // 作業員が完了・ステータス変更 → 管理者にSSEプッシュ
+    if (req.user.role === 'worker') {
+      sendToAdmins('assignment_status_changed', {
+        id: rows[0].id,
+        title: rows[0].title,
+        status,
+        workerName: req.user.name || req.user.employee_id,
+      }, req.user.company_id)
+    }
     res.status(200).json({ success: true, data: rows[0] });
   } catch (error) {
     next(error);
@@ -111,14 +131,17 @@ exports.assignWorker = async (req, res, next) => {
   try {
     const { worker_id } = req.body;
     if (worker_id !== null && worker_id !== undefined) {
-      const workerCheck = await db.query('SELECT id FROM users WHERE id=$1 AND role=$2', [worker_id, 'worker']);
+      const workerCheck = await db.query(
+        'SELECT id FROM users WHERE id=$1 AND role=$2 AND company_id=$3',
+        [worker_id, 'worker', req.user.company_id]
+      );
       if (workerCheck.rows.length === 0) {
         return res.status(400).json({ success: false, message: '指定された作業員が見つかりません' });
       }
     }
     const { rows } = await db.query(
-      'UPDATE assignments SET assigned_worker_id=$1, updated_at=NOW() WHERE id=$2 RETURNING *',
-      [worker_id || null, req.params.id]
+      'UPDATE assignments SET assigned_worker_id=$1, updated_at=NOW() WHERE id=$2 AND company_id=$3 RETURNING *',
+      [worker_id || null, req.params.id, req.user.company_id]
     );
     if (rows.length === 0) return res.status(404).json({ success: false, message: '案件が見つかりません' });
     res.status(200).json({ success: true, data: rows[0] });
@@ -134,6 +157,14 @@ exports.setMembers = async (req, res, next) => {
     const { member_ids } = req.body; // number[]
     if (!Array.isArray(member_ids)) {
       return res.status(400).json({ success: false, message: 'member_ids must be an array' });
+    }
+    // 自社の案件であることを確認
+    const check = await db.query(
+      'SELECT id FROM assignments WHERE id=$1 AND company_id=$2',
+      [assignmentId, req.user.company_id]
+    );
+    if (check.rows.length === 0) {
+      return res.status(404).json({ success: false, message: '案件が見つかりません' });
     }
     // 既存メンバーを全削除して再登録
     await db.query('DELETE FROM assignment_members WHERE assignment_id=$1', [assignmentId]);
@@ -156,10 +187,11 @@ exports.getMembers = async (req, res, next) => {
     const { rows } = await db.query(
       `SELECT u.id, u.name, u.employee_id, t.name AS team_name
        FROM assignment_members am
+       JOIN assignments a ON am.assignment_id = a.id AND a.company_id = $2
        JOIN users u ON am.user_id = u.id
        LEFT JOIN teams t ON u.team_id = t.id
        WHERE am.assignment_id = $1`,
-      [req.params.id]
+      [req.params.id, req.user.company_id]
     );
     res.status(200).json({ success: true, data: rows });
   } catch (error) {
