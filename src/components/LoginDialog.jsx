@@ -131,7 +131,7 @@ export default function LoginDialog({
 
   const handleAdminSubmit = async () => {
     if (adminCode.trim().length === 0) {
-      setError(text.login.errors.accessCodeRequired)
+      setError('メールアドレスを入力してください')
       return
     }
     if (adminPassword.length === 0) {
@@ -345,8 +345,14 @@ export default function LoginDialog({
             ) : (
               <>
                 <label>
-                  {text.login.workerIdLabel}
-                  <input value={adminCode} onChange={(event) => setAdminCode(event.target.value)} />
+                  メールアドレス
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    placeholder="例：yamada@example.com"
+                    value={adminCode}
+                    onChange={(event) => setAdminCode(event.target.value)}
+                  />
                 </label>
                 <label>
                   {text.login.workerPasswordLabel}

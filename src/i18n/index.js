@@ -107,7 +107,7 @@ const translationPacks = {
       resetConfirmPasswordLabel: 'Confirm password',
       submit: {
         worker: 'Sign in',
-        admin: 'Continue',
+        admin: 'Sign in',
       },
       errors: {
         accessCodeRequired: 'Access code is required.',
@@ -390,7 +390,7 @@ const translationPacks = {
       workerIdLabel: '作業者ID',
       workerPasswordLabel: 'パスワード',
       accessCodeLabel: 'アクセスコード',
-      adminHint: '管理者アクセスコードを使用します。',
+      adminHint: 'メールアドレスとパスワードでログインします。',
       workerHint: 'メールアドレスとパスワードでログインします。',
       forgotPassword: 'パスワードを忘れた場合',
       workerRegisterTitle: '作業者アカウント作成',
@@ -417,7 +417,7 @@ const translationPacks = {
       resetConfirmPasswordLabel: '確認用パスワード',
       submit: {
         worker: 'ログイン',
-        admin: '続行',
+        admin: 'ログイン',
       },
       errors: {
         accessCodeRequired: 'アクセスコードは必須です。',
