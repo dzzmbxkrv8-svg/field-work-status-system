@@ -62,6 +62,7 @@ export default function LoginDialog({
   const [workerRegisterOpen, setWorkerRegisterOpen] = useState(false)
   const [workerResetOpen, setWorkerResetOpen] = useState(false)
   const [companyRegisterOpen, setCompanyRegisterOpen] = useState(false)
+  const [companyRegisterDone, setCompanyRegisterDone] = useState(false)
 
   const [workerRegisterState, setWorkerRegisterState] = useState({
     accessCode: '',
@@ -94,7 +95,10 @@ export default function LoginDialog({
     setWorkerRegisterOpen(false)
     setWorkerResetOpen(false)
     setCompanyRegisterOpen(false)
+    setCompanyRegisterDone(false)
   }
+
+  const isKatakana = (str) => /^[゠-ヿ\s　]+$/.test(str.trim())
 
   const handleLanguageChange = (nextLanguage) => {
     resetPanels()
@@ -155,7 +159,11 @@ export default function LoginDialog({
       return
     }
     if (!companyRegisterState.furigana.trim()) {
-      setInfo('ふりがなを入力してください')
+      setInfo('フリガナを入力してください')
+      return
+    }
+    if (!isKatakana(companyRegisterState.furigana)) {
+      setInfo('フリガナはカタカナで入力してください')
       return
     }
     if (!companyRegisterState.email.trim()) {
@@ -179,8 +187,9 @@ export default function LoginDialog({
         email: companyRegisterState.email,
         password: companyRegisterState.password,
       })
-      setInfo('登録申請を受け付けました。\nFieldo運営の承認後、アクセスコードとログインのご案内をメールでお送りします。')
       setCompanyRegisterState({ companyName: '', furigana: '', adminName: '', phone: '', email: '', password: '', confirm: '' })
+      setCompanyRegisterOpen(false)
+      setCompanyRegisterDone(true)
     } catch (exception) {
       setInfo(exception.message || 'エラーが発生しました。しばらく待ってから再試行してください。')
     }
@@ -217,7 +226,11 @@ export default function LoginDialog({
       return
     }
     if (!workerRegisterState.furigana.trim()) {
-      setInfo('ふりがなを入力してください')
+      setInfo('フリガナを入力してください')
+      return
+    }
+    if (!isKatakana(workerRegisterState.furigana)) {
+      setInfo('フリガナはカタカナで入力してください')
       return
     }
     try {
@@ -417,10 +430,10 @@ export default function LoginDialog({
                 />
               </label>
               <label>
-                ふりがな
+                フリガナ
                 <input
                   value={workerRegisterState.furigana}
-                  placeholder="例：たなかたろう"
+                  placeholder="例：タナカタロウ"
                   onChange={(event) => setWorkerRegisterState((prev) => ({ ...prev, furigana: event.target.value }))}
                 />
               </label>
@@ -479,6 +492,25 @@ export default function LoginDialog({
           </div>
         )}
 
+        {companyRegisterDone && (
+          <div className="fws-reset-panel" style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>✉️</div>
+            <h3 style={{ marginBottom: '0.5rem' }}>登録申請を受け付けました</h3>
+            <p style={{ fontSize: '0.85rem', color: '#64748b', lineHeight: 1.7, marginBottom: '1.25rem' }}>
+              ご登録のメールアドレスに確認メールをお送りしました。<br />
+              Fieldo運営の審査・承認後、アクセスコードとログイン案内をお送りします。<br />
+              しばらくお待ちください。
+            </p>
+            <button
+              type="button"
+              className="fws-link-button"
+              onClick={() => setCompanyRegisterDone(false)}
+            >
+              ログイン画面に戻る
+            </button>
+          </div>
+        )}
+
         {companyRegisterOpen && (
           <div className="fws-reset-panel">
             <h3>会社の新規登録</h3>
@@ -496,10 +528,10 @@ export default function LoginDialog({
                 />
               </label>
               <label>
-                ふりがな（管理者）
+                フリガナ（管理者）
                 <input
                   value={companyRegisterState.furigana}
-                  placeholder="例：やまだいちろう"
+                  placeholder="例：ヤマダイチロウ"
                   onChange={(event) => setCompanyRegisterState((prev) => ({ ...prev, furigana: event.target.value }))}
                 />
               </label>
