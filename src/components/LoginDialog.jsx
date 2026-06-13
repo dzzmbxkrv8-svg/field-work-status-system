@@ -54,8 +54,9 @@ export default function LoginDialog({
   const [workerCode, setWorkerCode] = useState(() => localStorage.getItem('remembered_worker_id') || '')
   const [workerPassword, setWorkerPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(() => !!localStorage.getItem('remembered_worker_id'))
-  const [adminCode, setAdminCode] = useState('')
+  const [adminCode, setAdminCode] = useState(() => localStorage.getItem('remembered_admin_email') || '')
   const [adminPassword, setAdminPassword] = useState('')
+  const [adminRememberMe, setAdminRememberMe] = useState(() => !!localStorage.getItem('remembered_admin_email'))
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
 
@@ -139,6 +140,11 @@ export default function LoginDialog({
       return
     }
     try {
+      if (adminRememberMe) {
+        localStorage.setItem('remembered_admin_email', adminCode.trim())
+      } else {
+        localStorage.removeItem('remembered_admin_email')
+      }
       await onAdminLogin({ code: adminCode, password: adminPassword })
       setAdminPassword('')
     } catch (exception) {
@@ -365,26 +371,24 @@ export default function LoginDialog({
               </>
             )}
           </div>
-          {role === 'admin' && (
-            <p className="fws-login-hint">{text.login.adminHint}</p>
-          )}
-          {role === 'worker' && (
-            <label style={{
-              display: 'flex', flexDirection: 'row', alignItems: 'center',
-              gap: '0.5rem', cursor: 'pointer',
-              fontSize: '0.85rem', color: '#475569', fontWeight: 500,
-              textTransform: 'none', letterSpacing: 0,
-              width: '100%', justifyContent: 'flex-start',
-            }}>
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={e => setRememberMe(e.target.checked)}
-                style={{ width: 15, height: 15, cursor: 'pointer', accentColor: '#4f46e5', flexShrink: 0 }}
-              />
-              ログイン情報を保存する
-            </label>
-          )}
+          <label style={{
+            display: 'flex', flexDirection: 'row', alignItems: 'center',
+            gap: '0.5rem', cursor: 'pointer',
+            fontSize: '0.85rem', color: '#475569', fontWeight: 500,
+            textTransform: 'none', letterSpacing: 0,
+            width: '100%', justifyContent: 'flex-start',
+          }}>
+            <input
+              type="checkbox"
+              checked={role === 'worker' ? rememberMe : adminRememberMe}
+              onChange={e => role === 'worker'
+                ? setRememberMe(e.target.checked)
+                : setAdminRememberMe(e.target.checked)
+              }
+              style={{ width: 15, height: 15, cursor: 'pointer', accentColor: '#4f46e5', flexShrink: 0 }}
+            />
+            ログイン情報を保存する
+          </label>
           {error && <p className="fws-login-error">{error}</p>}
           {info && <p className="fws-login-info">{info}</p>}
           <button type="submit" className="fws-button">
@@ -416,6 +420,13 @@ export default function LoginDialog({
                 onClick={() => setCompanyRegisterOpen((v) => !v)}
               >
                 会社の新規登録（管理者の方）
+              </button>
+              <button
+                type="button"
+                className="fws-link-button"
+                onClick={() => setWorkerResetOpen((v) => !v)}
+              >
+                {text.login.forgotPassword}
               </button>
             </div>
           )}
