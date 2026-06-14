@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { STATUS_QUICK_ACTIONS } from '@/utils/constants'
 import { AppIcon } from '@/utils/iconMap'
 import { getAnnouncement } from '@/api/settings'
