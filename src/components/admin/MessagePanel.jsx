@@ -93,6 +93,7 @@ export default function MessagePanel({ workers: propWorkers }) {
     const bottomRef = useRef(null)
     const imageInputRef = useRef(null)
     const fileInputRef = useRef(null)
+    const composingRef = useRef(false)
 
     useEffect(() => {
         if (propWorkers && propWorkers.length > 0) {
@@ -234,7 +235,7 @@ export default function MessagePanel({ workers: propWorkers }) {
     }
 
     const handleKeyDown = (e) => {
-        if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); handleSend() }
+        if (e.key === 'Enter' && !e.shiftKey && !composingRef.current) { e.preventDefault(); handleSend() }
     }
 
     const canSend = (input.trim() || attachFile) && !sending && !uploading
@@ -380,6 +381,8 @@ export default function MessagePanel({ workers: propWorkers }) {
                     <textarea
                         value={input}
                         onChange={e => setInput(e.target.value)}
+                        onCompositionStart={() => { composingRef.current = true }}
+                        onCompositionEnd={() => { composingRef.current = false }}
                         onKeyDown={handleKeyDown}
                         placeholder="メッセージを入力..."
                         rows={1}

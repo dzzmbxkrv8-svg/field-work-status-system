@@ -43,6 +43,7 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
   const bottomRef = useRef(null)
   const imageInputRef = useRef(null)
   const fileInputRef = useRef(null)
+  const composingRef = useRef(false)
 
   useEffect(() => {
     getWorkers().then(r => { if (r.success) setWorkers(r.data || []) })
@@ -178,7 +179,7 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
   }
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); handleSend() }
+    if (e.key === 'Enter' && !e.shiftKey && !composingRef.current) { e.preventDefault(); handleSend() }
   }
 
   const canSend = (input.trim() || attachFile) && !sending && !uploading
@@ -359,6 +360,8 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
               e.target.style.height = 'auto'
               e.target.style.height = `${Math.min(e.target.scrollHeight, 100)}px`
             }}
+            onCompositionStart={() => { composingRef.current = true }}
+            onCompositionEnd={() => { composingRef.current = false }}
             onKeyDown={handleKeyDown}
             placeholder="メッセージを入力..."
             rows={1}
