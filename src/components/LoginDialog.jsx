@@ -255,6 +255,7 @@ export default function LoginDialog({
         : text.login.workerRegisterSuccess
       )
       setWorkerRegisterState({ accessCode: '', furigana: '', name: '', phone: '', email: '', password: '', confirm: '' })
+      setWorkerRegisterOpen(false)
     } catch (exception) {
       const messageKey = exception.code ?? 'unknownOrganization'
       setInfo(text.login.errors[messageKey] ?? text.login.errors.unknownOrganization ?? exception.message)
