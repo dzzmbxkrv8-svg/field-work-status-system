@@ -178,7 +178,7 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
   }
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); handleSend() }
   }
 
   const canSend = (input.trim() || attachFile) && !sending && !uploading
