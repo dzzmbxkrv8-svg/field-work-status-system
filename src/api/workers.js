@@ -24,3 +24,14 @@ export const createWorker = async (data) => {
     body: JSON.stringify(data),
   });
 };
+
+export const updateWorker = async (id, data) => {
+  return apiClient(`/api/workers/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+};
+
+export const deleteWorker = async (id) => {
+  return apiClient(`/api/workers/${id}`, { method: 'DELETE' });
+};
