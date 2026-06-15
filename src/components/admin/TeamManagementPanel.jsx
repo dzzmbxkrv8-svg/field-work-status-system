@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getTeams, createTeam, updateTeam, deleteTeam, updateWorkerTeam } from '@/api/teams'
 import { getWorkers, createWorker, getPendingWorkers, approveWorker } from '@/api/workers'
+import { getAccessCode } from '@/api/settings'
 import { AppIcon } from '@/utils/iconMap'
 import { useAppContext } from '@/contexts/AppContext'
 import AdminManagementSection from './AdminManagementSection'
@@ -210,6 +211,25 @@ export default function TeamManagementPanel() {
   const [savingWorker, setSavingWorker] = useState(false)
   const [workerSectionOpen, setWorkerSectionOpen] = useState(false)
 
+  // 会社アクセスコード
+  const [accessCodeText, setAccessCodeText] = useState('')
+  const [accessCodeCopied, setAccessCodeCopied] = useState(false)
+
+  useEffect(() => {
+    getAccessCode().then(res => setAccessCodeText(res.value ?? '')).catch(() => {})
+  }, [])
+
+  const handleAccessCodeCopy = async () => {
+    if (!accessCodeText) return
+    try {
+      await navigator.clipboard.writeText(accessCodeText)
+      setAccessCodeCopied(true)
+      setTimeout(() => setAccessCodeCopied(false), 2500)
+    } catch {
+      // ignore
+    }
+  }
+
   // 承認待ち作業員
   const [pendingWorkers, setPendingWorkers] = useState([])
   const [approvingId, setApprovingId] = useState(null)
@@ -291,6 +311,43 @@ export default function TeamManagementPanel() {
 
   return (
     <>
+    {/* ── 会社アクセスコード ── */}
+    <section className="fws-panel" style={{ marginBottom: '1rem' }}>
+      <header className="fws-panel-header" style={{ marginBottom: '0.75rem' }}>
+        <h3 style={{ margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <AppIcon name="Bookmark" size={16} style={{ color: '#4f46e5' }} />
+          会社アクセスコード
+        </h3>
+        <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>新規作業員登録に使用するコード</span>
+      </header>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <span style={{
+            flex: 1, boxSizing: 'border-box',
+            border: '1.5px solid #ebebf5', borderRadius: '10px',
+            padding: '0.7rem 0.9rem', fontSize: '1rem',
+            fontFamily: 'monospace', fontWeight: 700, letterSpacing: '0.1em',
+            background: '#fafafa', color: '#1e1b4b',
+          }}>
+            {accessCodeText || '―'}
+          </span>
+          <button
+            type="button"
+            className="fws-button"
+            onClick={handleAccessCodeCopy}
+            disabled={!accessCodeText}
+            style={{ padding: '0.6rem 1.25rem', fontSize: '0.85rem', flexShrink: 0 }}
+          >
+            {accessCodeCopied ? 'コピーしました' : 'コピー'}
+          </button>
+        </div>
+        <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.6 }}>
+          このコードはFieldo運営が会社ごとに発行する固有のコードです。
+          作業員がアカウント作成時にこのコードを入力すると、貴社にチーム未所属で登録されます。
+        </p>
+      </div>
+    </section>
+
     {/* ── 承認待ち作業員パネル ── */}
     {pendingWorkers.length > 0 && (
       <div className="fws-panel" style={{ marginBottom: '1rem', border: '1.5px solid #fde68a', background: '#fffbeb' }}>
