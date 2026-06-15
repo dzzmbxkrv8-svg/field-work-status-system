@@ -90,9 +90,15 @@ exports.sendMessage = async (req, res, next) => {
 
 exports.markAsRead = async (req, res, next) => {
   try {
+    const isAdmin = req.user.role === 'admin';
     const { rows } = await db.query(
-      'UPDATE messages SET is_read=true WHERE id=$1 AND receiver_id=$2 RETURNING *',
-      [req.params.id, req.user.id]
+      `UPDATE messages SET is_read=true
+       WHERE id=$1 AND (
+         receiver_id=$2
+         OR (receiver_id IS NULL AND team_id IS NULL AND $3)
+         OR (receiver_id IS NULL AND team_id IS NOT NULL AND NOT $3)
+       ) RETURNING *`,
+      [req.params.id, req.user.id, isAdmin]
     );
     if (rows.length === 0) return res.status(404).json({ success: false, message: 'Not found' });
     res.status(200).json({ success: true, data: rows[0] });
