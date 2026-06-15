@@ -80,7 +80,7 @@ function FileCard({ url, fileName, isMine }) {
 
 export default function MessagePanel({ workers: propWorkers }) {
     const { state } = useAppContext()
-    const { messages: apiMessages, send: sendMessageApi, loading: messagesLoading } = useMessages()
+    const { messages: apiMessages, send: sendMessageApi, loading: messagesLoading, markRead } = useMessages()
     const [workers, setWorkers] = useState(propWorkers || [])
     const [loading, setLoading] = useState(!(propWorkers && propWorkers.length > 0))
     const [selectedUser, setSelectedUser] = useState(null)
@@ -120,6 +120,7 @@ export default function MessagePanel({ workers: propWorkers }) {
             fileName: msg.file_name,
             ts: msg.created_at,
             isMine: msg.sender_id === myId,
+            isRead: msg.is_read,
         })).sort((a, b) => new Date(a.ts) - new Date(b.ts))
     }, [apiMessages, myId])
 
@@ -127,13 +128,15 @@ export default function MessagePanel({ workers: propWorkers }) {
         const map = {}
         const allMsgs = messages.filter(m => m.teamId != null || (!m.receiverId && !m.teamId))
         if (allMsgs.length > 0) {
-            map['all'] = { id: 'all', name: '全員', latest: allMsgs[allMsgs.length - 1] }
+            const unread = allMsgs.filter(m => !m.isMine && !m.isRead).length
+            map['all'] = { id: 'all', name: '全員', latest: allMsgs[allMsgs.length - 1], unreadCount: unread }
         }
         workers.forEach(w => {
             const conv = messages.filter(m =>
                 (m.senderId === w.id || m.receiverId === w.id) && !m.teamId
             )
-            map[w.id] = { id: w.id, name: w.name, teamName: w.team_name, latest: conv[conv.length - 1] || null }
+            const unread = conv.filter(m => !m.isMine && !m.isRead).length
+            map[w.id] = { id: w.id, name: w.name, teamName: w.team_name, latest: conv[conv.length - 1] || null, unreadCount: unread }
         })
         return Object.values(map)
     }, [messages, workers])
@@ -147,6 +150,13 @@ export default function MessagePanel({ workers: propWorkers }) {
             (m.senderId === selectedUser.id || m.receiverId === selectedUser.id) && !m.teamId
         )
     }, [messages, selectedUser])
+
+    // 会話を開いたとき相手からの未読メッセージを既読にする
+    useEffect(() => {
+        if (!selectedUser || !myId) return
+        const unread = chatMessages.filter(m => !m.isMine && !m.isRead)
+        unread.forEach(m => markRead(m.id))
+    }, [selectedUser?.id, chatMessages.length])
 
     // ひらがな↔カタカナを統一してふりがな検索に対応
     const toHiragana = (str) => str.replace(/[\u30A1-\u30F6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60))
@@ -436,30 +446,43 @@ export default function MessagePanel({ workers: propWorkers }) {
             </div>
 
             {/* 全員宛（検索でフィルターされる） */}
-            {showAll && (
-                <div
-                    onClick={() => setSelectedUser({ id: 'all', name: '全員' })}
-                    style={{
-                        display: 'flex', alignItems: 'center', gap: '0.75rem',
-                        padding: '0.85rem 1rem', cursor: 'pointer',
-                        borderBottom: '1px solid #f8fafc', background: '#fff',
-                    }}
-                >
-                    <div style={{
-                        width: 48, height: 48, borderRadius: '50%', flexShrink: 0,
-                        background: '#4f46e5',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#fff', fontWeight: 700, fontSize: '1.1rem',
-                    }}>全</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ margin: 0, fontWeight: 700, fontSize: '0.92rem', color: '#0f172a' }}>全員</p>
-                        <p style={{ margin: '0.1rem 0 0', fontSize: '0.78rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            全作業員へ一斉送信
-                        </p>
+            {showAll && (() => {
+                const allConv = conversations.find(c => c.id === 'all')
+                const allUnread = allConv?.unreadCount || 0
+                return (
+                    <div
+                        onClick={() => setSelectedUser({ id: 'all', name: '全員' })}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: '0.75rem',
+                            padding: '0.85rem 1rem', cursor: 'pointer',
+                            borderBottom: '1px solid #f8fafc', background: '#fff',
+                        }}
+                    >
+                        <div style={{
+                            width: 48, height: 48, borderRadius: '50%', flexShrink: 0,
+                            background: '#4f46e5',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: '#fff', fontWeight: 700, fontSize: '1.1rem',
+                        }}>全</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ margin: 0, fontWeight: 700, fontSize: '0.92rem', color: '#0f172a' }}>全員</p>
+                            <p style={{ margin: '0.1rem 0 0', fontSize: '0.78rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                全作業員へ一斉送信
+                            </p>
+                        </div>
+                        {allUnread > 0 ? (
+                            <span style={{
+                                background: '#ef4444', color: '#fff',
+                                borderRadius: '999px', fontSize: '0.72rem', fontWeight: 700,
+                                minWidth: 20, height: 20, lineHeight: '20px',
+                                textAlign: 'center', padding: '0 5px', flexShrink: 0,
+                            }}>{allUnread > 99 ? '99+' : allUnread}</span>
+                        ) : (
+                            <AppIcon name="ChevronRight" size={16} strokeWidth={2} style={{ color: '#cbd5e1', flexShrink: 0 }} />
+                        )}
                     </div>
-                    <AppIcon name="ChevronRight" size={16} strokeWidth={2} style={{ color: '#cbd5e1', flexShrink: 0 }} />
-                </div>
-            )}
+                )
+            })()}
 
             {/* 作業員リスト */}
             {filteredWorkers.length === 0 && search ? (
@@ -469,6 +492,7 @@ export default function MessagePanel({ workers: propWorkers }) {
             ) : filteredWorkers.map(worker => {
                 const conv = conversations.find(c => c.id === worker.id)
                 const latest = conv?.latest
+                const unread = conv?.unreadCount || 0
                 const latestText = latest
                     ? (latest.photoUrl ? '[写真]' : latest.fileUrl ? `[ファイル] ${latest.fileName || ''}` : latest.content)
                     : 'メッセージなし'
@@ -479,20 +503,30 @@ export default function MessagePanel({ workers: propWorkers }) {
                         style={{
                             display: 'flex', alignItems: 'center', gap: '0.75rem',
                             padding: '0.85rem 1rem', cursor: 'pointer',
-                            borderBottom: '1px solid #f8fafc', background: '#fff',
+                            borderBottom: '1px solid #f8fafc',
+                            background: unread > 0 ? '#fef2f2' : '#fff',
                         }}
                     >
                         <Avatar name={worker.name} id={worker.id} size={48} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                                <p style={{ margin: 0, fontWeight: 700, fontSize: '0.92rem', color: '#0f172a' }}>{worker.name}</p>
+                                <p style={{ margin: 0, fontWeight: unread > 0 ? 800 : 700, fontSize: '0.92rem', color: '#0f172a' }}>{worker.name}</p>
                                 {latest && <span style={{ fontSize: '0.68rem', color: '#94a3b8', flexShrink: 0 }}>{fmtTime(latest.ts)}</span>}
                             </div>
-                            <p style={{ margin: '0.1rem 0 0', fontSize: '0.78rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <p style={{ margin: '0.1rem 0 0', fontSize: '0.78rem', color: unread > 0 ? '#374151' : '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: unread > 0 ? 600 : 400 }}>
                                 {latestText}
                             </p>
                         </div>
-                        <AppIcon name="ChevronRight" size={16} strokeWidth={2} style={{ color: '#cbd5e1', flexShrink: 0 }} />
+                        {unread > 0 ? (
+                            <span style={{
+                                background: '#ef4444', color: '#fff',
+                                borderRadius: '999px', fontSize: '0.72rem', fontWeight: 700,
+                                minWidth: 20, height: 20, lineHeight: '20px',
+                                textAlign: 'center', padding: '0 5px', flexShrink: 0,
+                            }}>{unread > 99 ? '99+' : unread}</span>
+                        ) : (
+                            <AppIcon name="ChevronRight" size={16} strokeWidth={2} style={{ color: '#cbd5e1', flexShrink: 0 }} />
+                        )}
                     </div>
                 )
             })}

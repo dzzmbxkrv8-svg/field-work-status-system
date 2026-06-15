@@ -24,12 +24,10 @@ export default function AdminView() {
   const [assignError, setAssignError] = useState(null)
   const [dbWorkers, setDbWorkers] = useState([])
 
-  // メッセージ未読バッジ（state.messages はMessagePanel初回レンダー時にセットされる）
+  // メッセージ未読バッジ（is_read ベース）
   const unreadMessages = useMemo(() => {
-    const lastViewed = parseInt(localStorage.getItem('lastViewedMessagesAt') || '0', 10)
     return allMessages.filter(m =>
-      m.sender_id !== session?.id &&
-      new Date(m.created_at).getTime() > lastViewed
+      m.sender_id !== session?.id && !m.is_read
     ).length
   }, [allMessages, session?.id])
 

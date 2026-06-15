@@ -80,9 +80,11 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
 
   const conversations = useMemo(() => {
     const adminMsgs = messages.filter(adminConvFilter)
+    const adminUnread = adminMsgs.filter(m => !m.isMine && !m.isRead).length
     const adminEntry = {
       id: 'admin', name: '管理者', teamName: null,
       latest: adminMsgs[adminMsgs.length - 1] || null,
+      unreadCount: adminUnread,
     }
 
     const workerEntries = workers
@@ -92,7 +94,8 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
           (msg.senderId === myId && msg.receiverId === w.id) ||
           (msg.senderId === w.id && msg.receiverId === myId)
         )
-        return { id: w.id, name: w.name, teamName: w.team_name, latest: conv[conv.length - 1] || null }
+        const unread = conv.filter(m => !m.isMine && !m.isRead).length
+        return { id: w.id, name: w.name, teamName: w.team_name, latest: conv[conv.length - 1] || null, unreadCount: unread }
       })
 
     return [adminEntry, ...workerEntries]
@@ -389,6 +392,7 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
 
       {conversations.map(conv => {
         const latest = conv.latest
+        const unread = conv.unreadCount || 0
         const latestText = latest
           ? (latest.photoUrl ? '[写真]' : latest.fileUrl ? `[ファイル] ${latest.fileName || ''}` : latest.content || '')
           : 'メッセージなし'
@@ -399,20 +403,30 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
             style={{
               display: 'flex', alignItems: 'center', gap: '0.75rem',
               padding: '0.85rem 1rem', cursor: 'pointer',
-              borderBottom: '1px solid #f8fafc', background: '#fff',
+              borderBottom: '1px solid #f8fafc',
+              background: unread > 0 ? '#fef2f2' : '#fff',
             }}
           >
             <Avatar name={conv.name} id={conv.id} size={48} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <p style={{ margin: 0, fontWeight: 700, fontSize: '0.92rem', color: '#0f172a' }}>{conv.name}</p>
+                <p style={{ margin: 0, fontWeight: unread > 0 ? 800 : 700, fontSize: '0.92rem', color: '#0f172a' }}>{conv.name}</p>
                 {latest && <span style={{ fontSize: '0.68rem', color: '#94a3b8', flexShrink: 0 }}>{fmtTime(latest.ts)}</span>}
               </div>
-              <p style={{ margin: '0.1rem 0 0', fontSize: '0.78rem', color: '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <p style={{ margin: '0.1rem 0 0', fontSize: '0.78rem', color: unread > 0 ? '#374151' : '#94a3b8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: unread > 0 ? 600 : 400 }}>
                 {latestText}
               </p>
             </div>
-            <AppIcon name="ChevronRight" size={16} strokeWidth={2} style={{ color: '#cbd5e1', flexShrink: 0 }} />
+            {unread > 0 ? (
+              <span style={{
+                background: '#ef4444', color: '#fff',
+                borderRadius: '999px', fontSize: '0.72rem', fontWeight: 700,
+                minWidth: 20, height: 20, lineHeight: '20px',
+                textAlign: 'center', padding: '0 5px', flexShrink: 0,
+              }}>{unread > 99 ? '99+' : unread}</span>
+            ) : (
+              <AppIcon name="ChevronRight" size={16} strokeWidth={2} style={{ color: '#cbd5e1', flexShrink: 0 }} />
+            )}
           </div>
         )
       })}
