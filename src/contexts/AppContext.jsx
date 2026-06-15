@@ -5,7 +5,7 @@ import { ROLE_TABS } from '@/utils/constants'
 
 const AppContext = createContext()
 
-const STORAGE_KEY = 'fws_app_state_v3'
+const STORAGE_KEY = 'fws_app_state_v4'
 
 function createInitialState() {
   const language = getCurrentLanguage() || 'ja'
