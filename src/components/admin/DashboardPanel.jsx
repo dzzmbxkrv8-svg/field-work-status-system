@@ -108,13 +108,13 @@ export default function DashboardPanel() {
   })), [workers, attendance])
 
   const teams = useMemo(() =>
-    Array.from(new Set(workers.map(w => w.team_name || w.team || `Team ${w.team_id}`))),
+    Array.from(new Set(workers.map(w => w.team_name || w.team || (w.team_id ? `Team ${w.team_id}` : '未所属')))),
   [workers])
 
   const filteredWorkers = useMemo(() => {
     const search = filters.search.trim().toLowerCase()
     return workersWithAttendance.filter(w => {
-      const team = w.team_name || w.team || `Team ${w.team_id}`
+      const team = w.team_name || w.team || (w.team_id ? `Team ${w.team_id}` : '未所属')
       const matchTeam   = teamFilter === 'All' || team === teamFilter
       const matchSearch = !search || [w.name, team, w.employee_id].join(' ').toLowerCase().includes(search)
       return matchTeam && matchSearch
@@ -303,7 +303,7 @@ export default function DashboardPanel() {
                     <span className={`status-pill ${statusVariant}`}>{STATUS_LABELS[status] || status}</span>
                   </div>
                   <p style={{ margin: '0.1rem 0 0', fontSize: '0.72rem', color: '#94a3b8', fontWeight: 500 }}>
-                    {worker.team_name || worker.team || `Team ${worker.team_id}`}
+                    {worker.team_name || worker.team || (worker.team_id ? `Team ${worker.team_id}` : '未所属')}
                   </p>
                 </div>
 
