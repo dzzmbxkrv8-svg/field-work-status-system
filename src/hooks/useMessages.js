@@ -73,11 +73,19 @@ export function useMessages() {
     return result
   }, [state.session, fetchMessages])
 
+  // 複数メッセージをまとめて既読にする（fetchMessages は1回だけ）
+  const markAllRead = useCallback(async (ids) => {
+    if (!state.session || !ids.length) return
+    await Promise.all(ids.map(id => messagesApi.markAsRead(id, state.session.id)))
+    fetchMessages()
+  }, [state.session, fetchMessages])
+
   return {
     messages,
     loading,
     send,
     markRead,
+    markAllRead,
     refresh: fetchMessages
   }
 }

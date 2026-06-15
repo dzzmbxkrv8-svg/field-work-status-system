@@ -33,7 +33,7 @@ function fmtTime(ts) {
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
 
-export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, showToast, markRead }) {
+export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, showToast, markRead, markAllRead }) {
   const [workers, setWorkers] = useState([])
   const [selectedUser, setSelectedUser] = useState(null)
   const [input, setInput] = useState('')
@@ -115,14 +115,14 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages])
 
-  // チャットを開いたとき、相手から来た未読メッセージを既読にする
+  // 会話を開いたとき未読メッセージをまとめて既読にする（1回のみfetch）
   useEffect(() => {
-    if (!selectedUser || !markRead || !myId) return
-    const unread = chatMessages.filter(
-      msg => !msg.isMine && msg.receiverId === myId && !msg.isRead
-    )
-    unread.forEach(msg => markRead(msg.id))
-  }, [selectedUser, chatMessages, markRead, myId])
+    if (!selectedUser || !myId) return
+    const ids = chatMessages
+      .filter(msg => !msg.isMine && !msg.isRead)
+      .map(msg => msg.id)
+    if (ids.length && markAllRead) markAllRead(ids)
+  }, [selectedUser?.id])
 
   const handleFileSelect = (e, forImage) => {
     const file = e.target.files?.[0]

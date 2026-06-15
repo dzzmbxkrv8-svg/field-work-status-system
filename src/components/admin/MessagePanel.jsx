@@ -80,7 +80,7 @@ function FileCard({ url, fileName, isMine }) {
 
 export default function MessagePanel({ workers: propWorkers }) {
     const { state } = useAppContext()
-    const { messages: apiMessages, send: sendMessageApi, loading: messagesLoading, markRead } = useMessages()
+    const { messages: apiMessages, send: sendMessageApi, loading: messagesLoading, markAllRead } = useMessages()
     const [workers, setWorkers] = useState(propWorkers || [])
     const [loading, setLoading] = useState(!(propWorkers && propWorkers.length > 0))
     const [selectedUser, setSelectedUser] = useState(null)
@@ -152,12 +152,12 @@ export default function MessagePanel({ workers: propWorkers }) {
         )
     }, [messages, selectedUser])
 
-    // 会話を開いたとき相手からの未読メッセージを既読にする
+    // 会話を開いたとき相手からの未読メッセージをまとめて既読にする（1回のみfetch）
     useEffect(() => {
         if (!selectedUser || !myId) return
-        const unread = chatMessages.filter(m => !m.isMine && !m.isRead)
-        unread.forEach(m => markRead(m.id))
-    }, [selectedUser?.id, chatMessages.length])
+        const ids = chatMessages.filter(m => !m.isMine && !m.isRead).map(m => m.id)
+        if (ids.length) markAllRead(ids)
+    }, [selectedUser?.id])
 
     // ひらがな↔カタカナを統一してふりがな検索に対応
     const toHiragana = (str) => str.replace(/[\u30A1-\u30F6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60))

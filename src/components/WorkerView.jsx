@@ -22,7 +22,7 @@ export default function WorkerView() {
     clearNewAssignments,
   } = useReports()
   const { todayAttendance, updateStatus: updateAttendance, refreshToday } = useTimeEntries()
-  const { messages: apiMessages, send: sendMessageApi, refresh: refreshMessages, markRead } = useMessages()
+  const { messages: apiMessages, send: sendMessageApi, refresh: refreshMessages, markRead, markAllRead } = useMessages()
   const { text, formatDate, getStatusLabel } = useI18n(state.language)
 
   const [clockLoading, setClockLoading] = useState(false)
@@ -209,6 +209,7 @@ export default function WorkerView() {
             sendMessageApi={sendMessageApi}
             showToast={showToast}
             markRead={markRead}
+            markAllRead={markAllRead}
           />
         )}
         <WorkerBottomNav
