@@ -97,10 +97,18 @@ export default function WorkerCalendarTab({
     assignments.filter(o => !isCompleted(o.id, o.status) && o.raw_status !== 'cancelled' && o.status?.toLowerCase() !== 'cancelled'),
   [assignments, completedIds])
 
-  // 完了済みの案件（履歴）
-  const completedAssignments = useMemo(() =>
-    assignments.filter(o => isCompleted(o.id, o.status)),
-  [assignments, completedIds])
+  // 完了済みの案件（当日分のみ）
+  const completedAssignments = useMemo(() => {
+    const todayStr = new Date().toDateString()
+    return assignments.filter(o => {
+      if (!isCompleted(o.id, o.status)) return false
+      // このセッションで完了した（楽観的更新）は常に当日
+      if (completedIds.has(o.id)) return true
+      // DBのupdated_atが今日なら表示
+      if (o.updated_at) return new Date(o.updated_at).toDateString() === todayStr
+      return false
+    })
+  }, [assignments, completedIds])
 
   const AssignmentCard = ({ entry, showCompleteButton }) => (
     <article key={entry.id} className="worker-assignment-card">

@@ -82,7 +82,8 @@ exports.registerCompany = async (req, res, next) => {
 
     await client.query('COMMIT');
 
-    const approveUrl = `${req.protocol}://${req.get('host')}/api/companies/approve?token=${approvalToken}`;
+    const serverUrl = process.env.SERVER_URL || `${req.protocol}://${req.get('host')}`;
+    const approveUrl = `${serverUrl}/api/companies/approve?token=${approvalToken}`;
     await sendOperatorApprovalEmail({
       companyName: company.name,
       adminName: admin_name.trim(),

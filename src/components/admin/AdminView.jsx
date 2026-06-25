@@ -83,7 +83,14 @@ export default function AdminView() {
     <div className="field-work-app">
       <header className="fws-header admin">
         <div className="fws-header-brand">
-          <h1>{text.header.title}</h1>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <h1 style={{ margin: 0 }}>{text.header.title}</h1>
+            {session?.company_name && (
+              <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500 }}>
+                {session.company_name}
+              </span>
+            )}
+          </div>
           <p>{text.header.subtitle}</p>
         </div>
 

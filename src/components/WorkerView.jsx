@@ -40,10 +40,11 @@ export default function WorkerView() {
       if (now !== lastCheckedDate) {
         setLastCheckedDate(now)
         refreshToday()
+        refreshAssignments()
       }
     }, 60000)
     return () => clearInterval(timer)
-  }, [lastCheckedDate, refreshToday])
+  }, [lastCheckedDate, refreshToday, refreshAssignments])
 
   const showToast = useCallback((type, message, duration = 3500) => {
     setToast({ type, text: message })

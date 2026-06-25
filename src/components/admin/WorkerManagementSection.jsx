@@ -170,7 +170,7 @@ export default function WorkerManagementSection() {
           登録済みの作業員はいません
         </p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '390px', overflowY: 'auto' }}>
           {workers.map(worker => {
             const teamName = worker.team_name || '未所属'
             const isEditing = editingId === worker.id

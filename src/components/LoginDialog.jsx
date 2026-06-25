@@ -50,20 +50,23 @@ export default function LoginDialog({
 }) {
   const { text } = useI18n()
   const [role, setRole] = useState('worker')
-  // Remember Me: localStorage から ID を復元
+  // Remember Me: localStorage から ID・パスワードを復元
   const [workerCode, setWorkerCode] = useState(() => localStorage.getItem('remembered_worker_id') || '')
-  const [workerPassword, setWorkerPassword] = useState('')
+  const [workerPassword, setWorkerPassword] = useState(() => localStorage.getItem('remembered_worker_password') || '')
   const [rememberMe, setRememberMe] = useState(() => !!localStorage.getItem('remembered_worker_id'))
   const [adminCode, setAdminCode] = useState(() => localStorage.getItem('remembered_admin_email') || '')
-  const [adminPassword, setAdminPassword] = useState('')
+  const [adminPassword, setAdminPassword] = useState(() => localStorage.getItem('remembered_admin_password') || '')
   const [adminRememberMe, setAdminRememberMe] = useState(() => !!localStorage.getItem('remembered_admin_email'))
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
 
   const [workerRegisterOpen, setWorkerRegisterOpen] = useState(false)
   const [workerResetOpen, setWorkerResetOpen] = useState(false)
+  const [workerRegisterInfo, setWorkerRegisterInfo] = useState('')
+  const [workerResetInfo, setWorkerResetInfo] = useState('')
   const [companyRegisterOpen, setCompanyRegisterOpen] = useState(false)
   const [companyRegisterDone, setCompanyRegisterDone] = useState(false)
+  const [companyRegisterInfo, setCompanyRegisterInfo] = useState('')
 
   const [workerRegisterState, setWorkerRegisterState] = useState({
     accessCode: '',
@@ -120,8 +123,10 @@ export default function LoginDialog({
       // Remember Me の保存・削除
       if (rememberMe) {
         localStorage.setItem('remembered_worker_id', workerCode)
+        localStorage.setItem('remembered_worker_password', workerPassword)
       } else {
         localStorage.removeItem('remembered_worker_id')
+        localStorage.removeItem('remembered_worker_password')
       }
       setWorkerPassword('')
     } catch (exception) {
@@ -142,8 +147,10 @@ export default function LoginDialog({
     try {
       if (adminRememberMe) {
         localStorage.setItem('remembered_admin_email', adminCode.trim())
+        localStorage.setItem('remembered_admin_password', adminPassword)
       } else {
         localStorage.removeItem('remembered_admin_email')
+        localStorage.removeItem('remembered_admin_password')
       }
       await onAdminLogin({ code: adminCode, password: adminPassword })
       setAdminPassword('')
@@ -155,33 +162,33 @@ export default function LoginDialog({
 
   const handleCompanyRegisterSubmit = async (event) => {
     event.preventDefault()
-    setInfo('')
+    setCompanyRegisterInfo('')
     if (!companyRegisterState.companyName.trim()) {
-      setInfo('会社名を入力してください')
+      setCompanyRegisterInfo('会社名を入力してください')
       return
     }
     if (!companyRegisterState.adminName.trim()) {
-      setInfo('管理者の氏名を入力してください')
+      setCompanyRegisterInfo('管理者の氏名を入力してください')
       return
     }
     if (!companyRegisterState.furigana.trim()) {
-      setInfo('フリガナを入力してください')
+      setCompanyRegisterInfo('フリガナを入力してください')
       return
     }
     if (!isKatakana(companyRegisterState.furigana)) {
-      setInfo('フリガナはカタカナで入力してください')
+      setCompanyRegisterInfo('フリガナはカタカナで入力してください')
       return
     }
     if (!companyRegisterState.email.trim()) {
-      setInfo('メールアドレスを入力してください')
+      setCompanyRegisterInfo('メールアドレスを入力してください')
       return
     }
     if (!companyRegisterState.password || !isPasswordValid(companyRegisterState.password)) {
-      setInfo('パスワードは大文字・小文字・数字を含む8文字以上で設定してください')
+      setCompanyRegisterInfo('パスワードは大文字・小文字・数字を含む8文字以上で設定してください')
       return
     }
     if (companyRegisterState.password !== companyRegisterState.confirm) {
-      setInfo(text.login.errors.passwordMismatch)
+      setCompanyRegisterInfo(text.login.errors.passwordMismatch)
       return
     }
     try {
@@ -194,10 +201,11 @@ export default function LoginDialog({
         password: companyRegisterState.password,
       })
       setCompanyRegisterState({ companyName: '', furigana: '', adminName: '', phone: '', email: '', password: '', confirm: '' })
+      setCompanyRegisterInfo('')
       setCompanyRegisterOpen(false)
       setCompanyRegisterDone(true)
     } catch (exception) {
-      setInfo(exception.message || 'エラーが発生しました。しばらく待ってから再試行してください。')
+      setCompanyRegisterInfo(exception.message || 'エラーが発生しました。しばらく待ってから再試行してください。')
     }
   }
 
@@ -214,29 +222,29 @@ export default function LoginDialog({
 
   const handleWorkerRegisterSubmit = async (event) => {
     event.preventDefault()
-    setInfo('')
+    setWorkerRegisterInfo('')
     if (!workerRegisterState.accessCode.trim()) {
-      setInfo(text.login.errors.accessCodeRequired)
+      setWorkerRegisterInfo(text.login.errors.accessCodeRequired)
       return
     }
     if (!workerRegisterState.name.trim()) {
-      setInfo(text.login.workerNameLabel)
+      setWorkerRegisterInfo(text.login.workerNameLabel)
       return
     }
     if (!workerRegisterState.password || !isPasswordValid(workerRegisterState.password)) {
-      setInfo('パスワードは大文字・小文字・数字を含む8文字以上で設定してください')
+      setWorkerRegisterInfo('パスワードは大文字・小文字・数字を含む8文字以上で設定してください')
       return
     }
     if (workerRegisterState.password !== workerRegisterState.confirm) {
-      setInfo(text.login.errors.passwordMismatch)
+      setWorkerRegisterInfo(text.login.errors.passwordMismatch)
       return
     }
     if (!workerRegisterState.furigana.trim()) {
-      setInfo('フリガナを入力してください')
+      setWorkerRegisterInfo('フリガナを入力してください')
       return
     }
     if (!isKatakana(workerRegisterState.furigana)) {
-      setInfo('フリガナはカタカナで入力してください')
+      setWorkerRegisterInfo('フリガナはカタカナで入力してください')
       return
     }
     try {
@@ -248,33 +256,31 @@ export default function LoginDialog({
         email: workerRegisterState.email,
         password: workerRegisterState.password,
       })
-      // 自動採番された作業員IDと承認待ちメッセージを表示
       const assignedId = result?.employeeId || result?.data?.employee_id
-      setInfo(assignedId
-        ? `登録申請が完了しました。あなたの作業員IDは「${assignedId}」です。\n管理者の承認後にログインできるようになります。`
+      setWorkerRegisterInfo(assignedId
+        ? `登録が完了しました。あなたの作業員IDは「${assignedId}」です。\n管理者の承認後にログインできるようになります。`
         : text.login.workerRegisterSuccess
       )
       setWorkerRegisterState({ accessCode: '', furigana: '', name: '', phone: '', email: '', password: '', confirm: '' })
-      setWorkerRegisterOpen(false)
     } catch (exception) {
       const messageKey = exception.code ?? 'unknownOrganization'
-      setInfo(text.login.errors[messageKey] ?? text.login.errors.unknownOrganization ?? exception.message)
+      setWorkerRegisterInfo(text.login.errors[messageKey] ?? text.login.errors.unknownOrganization ?? exception.message)
     }
   }
 
   const handleWorkerResetSubmit = async (event) => {
     event.preventDefault()
-    setInfo('')
+    setWorkerResetInfo('')
     if (!workerResetState.employeeId.trim()) {
-      setInfo('メールアドレスを入力してください')
+      setWorkerResetInfo('メールアドレスを入力してください')
       return
     }
     if (!workerResetState.password || !isPasswordValid(workerResetState.password)) {
-      setInfo('パスワードは大文字・小文字・数字を含む8文字以上で設定してください')
+      setWorkerResetInfo('パスワードは大文字・小文字・数字を含む8文字以上で設定してください')
       return
     }
     if (workerResetState.password !== workerResetState.confirm) {
-      setInfo(text.login.errors.passwordMismatch)
+      setWorkerResetInfo(text.login.errors.passwordMismatch)
       return
     }
     try {
@@ -282,10 +288,10 @@ export default function LoginDialog({
         email: workerResetState.employeeId,
         password: workerResetState.password,
       })
-      setInfo('確認メールを送信しました。メールに記載のURLをクリックしてパスワードを更新してください。')
+      setWorkerResetInfo('確認メールを送信しました。メールに記載のURLをクリックしてパスワードを更新してください。')
       setWorkerResetState({ employeeId: '', name: '', password: '', confirm: '' })
     } catch (exception) {
-      setInfo(exception.message || 'エラーが発生しました。しばらく待ってから再試行してください。')
+      setWorkerResetInfo(exception.message || 'エラーが発生しました。しばらく待ってから再試行してください。')
     }
   }
 
@@ -498,6 +504,12 @@ export default function LoginDialog({
                   onChange={(event) => setWorkerRegisterState((prev) => ({ ...prev, confirm: event.target.value }))}
                 />
               </label>
+              {workerRegisterInfo && (
+                <p className="fws-login-info" style={{
+                  color: workerRegisterInfo.includes('完了') ? '#059669' : '#dc2626',
+                  whiteSpace: 'pre-line',
+                }}>{workerRegisterInfo}</p>
+              )}
               <div className="fws-reset-actions">
                 <button type="submit" className="fws-button secondary">
                   {text.login.workerRegisterSubmit}
@@ -596,6 +608,9 @@ export default function LoginDialog({
                   onChange={(event) => setCompanyRegisterState((prev) => ({ ...prev, confirm: event.target.value }))}
                 />
               </label>
+              {companyRegisterInfo && (
+                <p className="fws-login-info" style={{ color: '#dc2626' }}>{companyRegisterInfo}</p>
+              )}
               <div className="fws-reset-actions">
                 <button type="submit" className="fws-button secondary">
                   登録を申請する
@@ -641,6 +656,12 @@ export default function LoginDialog({
                   onChange={(event) => setWorkerResetState((prev) => ({ ...prev, confirm: event.target.value }))}
                 />
               </label>
+              {workerResetInfo && (
+                <p className="fws-login-info" style={{
+                  color: workerResetInfo.includes('送信しました') ? '#059669' : '#dc2626',
+                  whiteSpace: 'pre-line',
+                }}>{workerResetInfo}</p>
+              )}
               <div className="fws-reset-actions">
                 <button type="submit" className="fws-button secondary">
                   確認メールを送信する

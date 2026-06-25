@@ -200,12 +200,6 @@ function DateRangePicker({ startDate, endDate, onChangeStart, onChangeEnd }) {
   )
 }
 
-const PRIORITY_OPTIONS = [
-  { value: 'high',   label: '高', color: '#ef4444' },
-  { value: 'medium', label: '中', color: '#f59e0b' },
-  { value: 'low',    label: '低', color: '#22c55e' },
-]
-
 function AvatarCircle({ name, selected, onClick }) {
   const initial = name ? name[0] : '?'
   return (
@@ -290,7 +284,6 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
     location: '',
     startDate: '',
     dueDate: '',
-    priority: 'medium',
   })
   const [attachments, setAttachments] = useState([])
   const [dragOver, setDragOver] = useState(false)
@@ -357,7 +350,6 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
         location: form.location,
         startDate: form.startDate,
         dueDate: form.dueDate,
-        priority: form.priority,
         leaderId,
         memberIds: selectedWorkerIds,
         attachments,
@@ -462,33 +454,6 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
               onChangeStart={v => handleFormChange('startDate', v)}
               onChangeEnd={v => handleFormChange('dueDate', v)}
             />
-          </div>
-
-          <div>
-            <p style={{ margin: '0 0 0.5rem', fontSize: '0.9rem', color: '#374151' }}>優先度</p>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              {PRIORITY_OPTIONS.map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => handleFormChange('priority', opt.value)}
-                  style={{
-                    flex: 1,
-                    padding: '0.5rem',
-                    borderRadius: 8,
-                    border: `2px solid ${form.priority === opt.value ? opt.color : '#e2e8f0'}`,
-                    background: form.priority === opt.value ? `${opt.color}18` : '#f8fafc',
-                    color: form.priority === opt.value ? opt.color : '#94a3b8',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: '0.9rem',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* 資料・図面 */}
@@ -718,15 +683,6 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
                 <span style={{ color: '#64748b' }}>終了日</span>
                 <span style={{ color: '#1e293b', fontWeight: 500 }}>{form.dueDate ? `${parseInt(form.dueDate.slice(0,4))}年${parseInt(form.dueDate.slice(5,7))}月${parseInt(form.dueDate.slice(8,10))}日` : '—'}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.88rem' }}>
-                <span style={{ color: '#64748b' }}>優先度</span>
-                <span style={{
-                  fontWeight: 600,
-                  color: PRIORITY_OPTIONS.find(p => p.value === form.priority)?.color,
-                }}>
-                  {PRIORITY_OPTIONS.find(p => p.value === form.priority)?.label}
-                </span>
               </div>
               <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '0.6rem', fontSize: '0.88rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>

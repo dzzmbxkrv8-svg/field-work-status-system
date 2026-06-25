@@ -33,8 +33,7 @@ function createInitialState() {
           selectedTab: restoredTab,
           filters: parsed.filters || {
             status: 'All',
-            priority: 'All',
-            search: '',
+                        search: '',
             worker: 'All',
             overdueOnly: false,
           },
@@ -70,8 +69,7 @@ function createInitialState() {
     selectedTab: ROLE_TABS[0].id,
     filters: {
       status: 'All',
-      priority: 'All',
-      search: '',
+            search: '',
       worker: 'All',
       overdueOnly: false,
     },

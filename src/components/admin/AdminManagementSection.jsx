@@ -166,7 +166,7 @@ export default function AdminManagementSection({ currentUserId }) {
       )}
 
       {/* 管理者一覧 */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '390px', overflowY: 'auto' }}>
         {admins.map(admin => (
           <div
             key={admin.id}

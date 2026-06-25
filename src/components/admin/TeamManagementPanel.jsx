@@ -291,9 +291,9 @@ export default function TeamManagementPanel() {
           チームがありません。「+ チームを追加」から作成してください。
         </p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '360px', overflowY: 'auto' }}>
           {teams.map(team => (
-            <div key={team.id} className="fws-card" style={{ padding: '1rem 1.25rem' }}>
+            <div key={team.id} className="fws-card" style={{ padding: '0.55rem 1rem', minHeight: 'auto' }}>
               {editingId === team.id ? (
                 <TeamForm
                   initial={team}

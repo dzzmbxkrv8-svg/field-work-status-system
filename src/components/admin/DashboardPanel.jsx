@@ -23,8 +23,6 @@ const STATUS_VARIANT = {
   finished: 'completed',
 }
 
-const PRIORITY_MAP = { high: 1, medium: 2, low: 3 }
-
 const ORDER_STATUS_LABELS = {
   pending: '未着手', in_progress: '進行中',
   completed: '完了', cancelled: 'キャンセル',
@@ -33,7 +31,7 @@ const ORDER_STATUS_LABELS = {
 export default function DashboardPanel() {
   const { state } = useAppContext()
   const { filters } = state
-  const { text, formatNumber, formatDue, formatPriorityTag } = useI18n(state.language)
+  const { text, formatNumber, formatDue } = useI18n(state.language)
 
   const [workers, setWorkers]         = useState([])
   const [attendance, setAttendance]   = useState([])
@@ -107,6 +105,29 @@ export default function DashboardPanel() {
     attendance: attendance.find(a => a.worker_id === w.id || a.employee_id === w.employee_id),
   })), [workers, attendance])
 
+  // 本日案件がある作業員ID・チームIDのセット
+  const todayAssignedWorkerIds = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0]
+    const ids = new Set()
+    orders.forEach(o => {
+      if (!o.start_date || o.status === 'cancelled') return
+      if (!String(o.start_date).startsWith(today)) return
+      if (o.assigned_worker_id) ids.add(o.assigned_worker_id)
+    })
+    return ids
+  }, [orders])
+
+  const todayAssignedTeamIds = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0]
+    const ids = new Set()
+    orders.forEach(o => {
+      if (!o.start_date || o.status === 'cancelled') return
+      if (!String(o.start_date).startsWith(today)) return
+      if (o.team_id) ids.add(o.team_id)
+    })
+    return ids
+  }, [orders])
+
   const teams = useMemo(() =>
     Array.from(new Set(workers.map(w => w.team_name || w.team || (w.team_id ? `Team ${w.team_id}` : '未所属')))),
   [workers])
@@ -114,12 +135,17 @@ export default function DashboardPanel() {
   const filteredWorkers = useMemo(() => {
     const search = filters.search.trim().toLowerCase()
     return workersWithAttendance.filter(w => {
+      // 本日案件あり（直接アサイン or チームアサイン）または本日出退勤報告済み
+      const hasAssignment = todayAssignedWorkerIds.has(w.id) || (w.team_id && todayAssignedTeamIds.has(w.team_id))
+      const hasAttendance = !!w.attendance
+      if (!hasAssignment && !hasAttendance) return false
+
       const team = w.team_name || w.team || (w.team_id ? `Team ${w.team_id}` : '未所属')
       const matchTeam   = teamFilter === 'All' || team === teamFilter
       const matchSearch = !search || [w.name, team, w.employee_id].join(' ').toLowerCase().includes(search)
       return matchTeam && matchSearch
     })
-  }, [workersWithAttendance, teamFilter, filters.search])
+  }, [workersWithAttendance, teamFilter, filters.search, todayAssignedWorkerIds, todayAssignedTeamIds])
 
   // 案件サマリー
   const summary = useMemo(() => {
@@ -147,11 +173,7 @@ export default function DashboardPanel() {
   const topOrders = useMemo(() =>
     [...orders]
       .filter(o => o.status?.toLowerCase() !== 'completed' && o.status?.toLowerCase() !== 'cancelled')
-      .sort((a, b) => {
-        const pA = PRIORITY_MAP[a.priority?.toLowerCase()] || 99
-        const pB = PRIORITY_MAP[b.priority?.toLowerCase()] || 99
-        return pA !== pB ? pA - pB : new Date(a.end_date) - new Date(b.end_date)
-      })
+      .sort((a, b) => new Date(a.end_date) - new Date(b.end_date))
       .slice(0, 3),
   [orders])
 
@@ -216,7 +238,7 @@ export default function DashboardPanel() {
           <header className="fws-panel-header">
             <h3 style={{ margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <AppIcon name="ClipboardList" size={16} style={{ color: '#4f46e5' }} />
-              進行中の案件（優先度順）
+              進行中の案件
             </h3>
             <span style={{ fontSize: '0.82rem', color: '#64748b' }}>{topOrders.length}件</span>
           </header>
@@ -228,9 +250,6 @@ export default function DashboardPanel() {
                   <p>{order.location}</p>
                 </div>
                 <div className="fws-priority-meta">
-                  <span className={`fws-tag fws-tag-${(order.priority || 'medium').toLowerCase()}`}>
-                    {formatPriorityTag(order.priority || 'Medium')}
-                  </span>
                   <span>{ORDER_STATUS_LABELS[order.status?.toLowerCase()] || order.status}</span>
                   <span>{formatDue(order.end_date || order.start_date)}</span>
                 </div>

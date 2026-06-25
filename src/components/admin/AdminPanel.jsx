@@ -41,7 +41,6 @@ export default function AdminPanel({ onAssignWorkers, workers = [] }) {
           team: o.team_name || `Team ${o.team_id}`,
           supervisor: o.supervisor_name || '—',
           status: o.status,
-          priority: o.priority ? o.priority.charAt(0).toUpperCase() + o.priority.slice(1) : 'Medium',
           crewCount: o.crew_count || 1,
           startDate: o.start_date,
           endDate: o.end_date,
@@ -70,7 +69,7 @@ export default function AdminPanel({ onAssignWorkers, workers = [] }) {
     setFormState((previous) => ({ ...previous, [field]: value }))
   }
 
-  const handleWizardCreate = async ({ title, location, startDate, dueDate, priority, leaderId, memberIds, attachments }) => {
+  const handleWizardCreate = async ({ title, location, startDate, dueDate, leaderId, memberIds, attachments }) => {
     // leaderまたは最初のメンバーのteam_idを使用、なければnull
     const leaderWorker = workers.find(w => w.id === leaderId)
     const firstMemberWorker = memberIds?.length > 0 ? workers.find(w => w.id === memberIds[0]) : null
@@ -83,7 +82,6 @@ export default function AdminPanel({ onAssignWorkers, workers = [] }) {
       team_id: resolvedTeamId,
       start_date: startDate,
       end_date: dueDate,
-      priority: priority.toLowerCase(),
       status: 'pending',
     })
 

@@ -70,6 +70,10 @@ export const uploadAttachments = async (assignmentDbId, files) => {
   }
 };
 
+export const getMembers = async (assignmentDbId) => {
+  return apiClient(`/api/assignments/${assignmentDbId}/members`, { method: 'GET' });
+};
+
 export const setMembers = async (assignmentDbId, memberIds) => {
   return apiClient(`/api/assignments/${assignmentDbId}/members`, {
     method: 'POST',

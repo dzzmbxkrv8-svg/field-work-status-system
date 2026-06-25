@@ -4,18 +4,11 @@ import { AppIcon } from '@/utils/iconMap'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-const priorityOptions = [
-  { value: 'high',   label: '高' },
-  { value: 'medium', label: '中' },
-  { value: 'low',    label: '低' },
-]
-
 export default function EditOrderDialog({ order, onSave, onCancel }) {
   const [title, setTitle]         = useState(order.projectName || '')
   const [location, setLocation]   = useState(order.location || '')
   const [startDate, setStartDate] = useState(order.startDate?.slice(0, 10) || '')
   const [endDate, setEndDate]     = useState(order.dueDate?.slice(0, 10) || '')
-  const [priority, setPriority]   = useState((order.priority || 'medium').toLowerCase())
   const [description, setDescription] = useState(order.description || '')
   const [newFiles, setNewFiles]   = useState([])
   const [saving, setSaving]       = useState(false)
@@ -56,7 +49,6 @@ export default function EditOrderDialog({ order, onSave, onCancel }) {
         location: location.trim(),
         start_date: startDate || null,
         end_date: endDate || null,
-        priority,
         description: description.trim(),
       }, newFiles)
     } catch (err) {
@@ -145,20 +137,6 @@ export default function EditOrderDialog({ order, onSave, onCancel }) {
                 onChange={e => setEndDate(e.target.value)}
               />
             </div>
-          </div>
-
-          {/* 優先度 */}
-          <div>
-            <label style={labelStyle}>優先度</label>
-            <select
-              style={inputStyle}
-              value={priority}
-              onChange={e => setPriority(e.target.value)}
-            >
-              {priorityOptions.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
           </div>
 
           {/* 備考・作業内容 */}

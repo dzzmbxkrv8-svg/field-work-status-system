@@ -3,13 +3,6 @@ import { useAppContext } from '@/contexts/AppContext'
 import { formatAdminDate } from '@/utils/format'
 import { AppIcon } from '@/utils/iconMap'
 
-const priorityStyles = {
-  high:   { background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' },
-  medium: { background: '#fffbeb', color: '#d97706', border: '1px solid #fde68a' },
-  low:    { background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' },
-}
-const priorityLabels = { high: '高', medium: '中', low: '低' }
-
 const statusStyles = {
   pending:     { background: '#f1f5f9', color: '#64748b', border: '1px solid #e2e8f0' },
   in_progress: { background: '#eef2ff', color: '#4f46e5', border: '1px solid #c7c7f0' },
@@ -29,6 +22,7 @@ export default function WorkOrdersTable({
   onCancel,
   onAssignWorkers,
   onEdit,
+  onSelect,
 }) {
   const { state } = useAppContext()
   const { text } = useI18n(state.language)
@@ -40,10 +34,6 @@ export default function WorkOrdersTable({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
       {orders.map((order) => {
-        const pKey = (order.priority || 'medium').toLowerCase()
-        const pStyle = priorityStyles[pKey] || priorityStyles.medium
-        const pLabel = priorityLabels[pKey] || order.priority
-
         const sKey = (order.status || 'pending').toLowerCase()
         const sStyle = statusStyles[sKey] || statusStyles.pending
         const sLabel = statusLabels[sKey] || order.status
@@ -51,25 +41,22 @@ export default function WorkOrdersTable({
         const isCancellable = !readOnly && sKey !== 'cancelled' && sKey !== 'completed'
 
         return (
-          <div key={order.id} style={{
-            background: 'white',
-            border: '1px solid #e2e8f0',
-            borderRadius: '12px',
-            padding: '0.9rem 1rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.6rem',
-            opacity: sKey === 'cancelled' ? 0.6 : 1,
-          }}>
-            {/* 1行目：案件名・優先度・ステータスバッジ */}
+          <div key={order.id}
+            onClick={() => onSelect && onSelect(order)}
+            style={{
+              background: 'white',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              padding: '0.9rem 1rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.6rem',
+              opacity: sKey === 'cancelled' ? 0.6 : 1,
+              cursor: onSelect ? 'pointer' : 'default',
+            }}>
+            {/* 1行目：案件名・ステータスバッジ */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0f172a' }}>{order.projectName || order.id}</span>
-              <span style={{
-                fontSize: '0.68rem', fontWeight: 700, padding: '0.15rem 0.5rem',
-                borderRadius: '999px', ...pStyle,
-              }}>
-                優先度: {pLabel}
-              </span>
               <span style={{
                 marginLeft: 'auto',
                 fontSize: '0.72rem', fontWeight: 700, padding: '0.2rem 0.6rem',

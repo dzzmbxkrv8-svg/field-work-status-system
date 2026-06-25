@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useEffect, useRef, useState } from 'react'
 import { useAppContext } from '@/contexts/AppContext'
-import { PRIORITY_OPTIONS, STATUS_ORDER } from '@/utils/constants'
+import { STATUS_ORDER } from '@/utils/constants'
 import * as assignmentsApi from '@/api/assignments'
 
 function summarizeWorkOrders(orders) {
@@ -82,7 +82,6 @@ export function useReports() {
           dueDate: o.end_date || o.start_date,
           raw_status: o.status,
           status: normalizedStatus,
-          priority: o.priority ? o.priority.charAt(0).toUpperCase() + o.priority.slice(1) : 'Medium',
           progress: normalizedStatus === 'Completed' ? 100 : (normalizedStatus === 'In Progress' ? 50 : 0)
         }
       })
@@ -144,9 +143,6 @@ export function useReports() {
     return [...workOrders].sort((a, b) => {
       const statusComparison = (STATUS_ORDER[a.status] || 99) - (STATUS_ORDER[b.status] || 99)
       if (statusComparison !== 0) return statusComparison
-      if (a.priority !== b.priority) {
-        return PRIORITY_OPTIONS.indexOf(a.priority) - PRIORITY_OPTIONS.indexOf(b.priority)
-      }
       return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
     })
   }, [workOrders])
@@ -155,14 +151,13 @@ export function useReports() {
     const searchTerm = filters.search.trim().toLowerCase()
     return sortedOrders.filter((order) => {
       const matchesStatus = filters.status === 'All' || order.status === filters.status
-      const matchesPriority = filters.priority === 'All' || order.priority === filters.priority
       const matchesSearch =
         searchTerm.length === 0 ||
         [order.id, order.team, order.supervisor, order.location, order.notes]
           .join(' ')
           .toLowerCase()
           .includes(searchTerm)
-      return matchesStatus && matchesPriority && matchesSearch
+      return matchesStatus && matchesSearch
     })
   }, [sortedOrders, filters])
 
@@ -246,12 +241,7 @@ export function useReports() {
   const topPriorityOrders = useMemo(() => {
     return [...sortedOrders]
       .filter((order) => order.status !== 'Completed')
-      .sort((a, b) => {
-        if (a.priority !== b.priority) {
-          return PRIORITY_OPTIONS.indexOf(a.priority) - PRIORITY_OPTIONS.indexOf(b.priority)
-        }
-        return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
-      })
+      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
       .slice(0, 3)
   }, [sortedOrders])
 

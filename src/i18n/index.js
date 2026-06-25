@@ -360,7 +360,7 @@ const translationPacks = {
       orders: '作業指示',
       messages: 'メッセージ',
       reports: 'レポート',
-      teams: 'チーム管理',
+      teams: '管理',
     },
     filters: {
       searchLabel: '検索',
