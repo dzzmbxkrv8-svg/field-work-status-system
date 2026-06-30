@@ -21,6 +21,8 @@ const adminRoutes = require('./routes/admins');
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
   : ['http://localhost:5173', 'http://localhost:3000'];
