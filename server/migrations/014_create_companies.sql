@@ -1,6 +1,14 @@
 -- 014_create_companies.sql
 -- マルチテナント対応: 会社テーブルを新設し、各データを会社単位に分離する
 
+-- settings テーブルが未作成の場合に備えて先に作成（016番と重複するがIF NOT EXISTSで安全）
+CREATE TABLE IF NOT EXISTS settings (
+  key         TEXT PRIMARY KEY,
+  value       TEXT NOT NULL DEFAULT '',
+  updated_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_by  INTEGER REFERENCES users(id) ON DELETE SET NULL
+);
+
 CREATE TABLE IF NOT EXISTS companies (
   id             SERIAL PRIMARY KEY,
   name           VARCHAR(100) NOT NULL,
