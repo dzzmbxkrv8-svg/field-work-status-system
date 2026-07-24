@@ -84,14 +84,17 @@ exports.registerCompany = async (req, res, next) => {
 
     const serverUrl = process.env.SERVER_URL || `${req.protocol}://${req.get('host')}`;
     const approveUrl = `${serverUrl}/api/companies/approve?token=${approvalToken}`;
-    await sendOperatorApprovalEmail({
+
+    // メール送信はfire-and-forget（失敗しても登録は成功とする）
+    sendOperatorApprovalEmail({
       companyName: company.name,
       adminName: admin_name.trim(),
       email: emailTrimmed,
       phone: phone?.trim(),
       approveUrl,
-    });
-    await sendCompanyReceivedEmail({ to: emailTrimmed, name: admin_name.trim(), companyName: company.name });
+    }).catch(err => console.error('[mail] operator approval:', err.message));
+    sendCompanyReceivedEmail({ to: emailTrimmed, name: admin_name.trim(), companyName: company.name })
+      .catch(err => console.error('[mail] company received:', err.message));
 
     res.status(201).json({
       success: true,
