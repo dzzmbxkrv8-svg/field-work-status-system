@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { AppIcon } from '@/utils/iconMap'
-import { getAvailableWorkers } from '@/api/shifts'
 import { useI18n } from '@/i18n'
+import { useShiftAvailability } from '@/hooks/useShiftAvailability'
 
 const STEPS = ['案件情報', 'メンバーを選ぶ', '確認']
 
@@ -296,29 +296,7 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   // 作業期間中にシフトで○(出勤可)と回答した作業員のみを判定する（未取得時はnull=全員表示）
-  const [availabilityMap, setAvailabilityMap] = useState(null)
-  const [availabilityLoading, setAvailabilityLoading] = useState(false)
-
-  useEffect(() => {
-    if (!form.startDate) {
-      setAvailabilityMap(null)
-      return
-    }
-    const end = form.dueDate || form.startDate
-    let cancelled = false
-    setAvailabilityLoading(true)
-    getAvailableWorkers(form.startDate, end).then(res => {
-      if (cancelled) return
-      if (res.success) {
-        const map = {}
-        res.data.forEach(a => { map[a.worker_id] = a.available })
-        setAvailabilityMap(map)
-      } else {
-        setAvailabilityMap(null)
-      }
-    }).finally(() => { if (!cancelled) setAvailabilityLoading(false) })
-    return () => { cancelled = true }
-  }, [form.startDate, form.dueDate])
+  const { availabilityMap, loading: availabilityLoading } = useShiftAvailability(form.startDate, form.dueDate)
 
   // 日付変更等でシフト×の人が判明したら、既に選択済みでも自動的に外す
   useEffect(() => {

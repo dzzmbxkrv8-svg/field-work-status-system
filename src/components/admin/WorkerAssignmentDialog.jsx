@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useI18n } from '@/i18n'
 import { AppIcon } from '@/utils/iconMap'
-import { getAvailableWorkers } from '@/api/shifts'
+import { useShiftAvailability } from '@/hooks/useShiftAvailability'
 
 export default function WorkerAssignmentDialog({ order, workers, onSave, onClose, error }) {
     const { text } = useI18n()
@@ -9,27 +9,11 @@ export default function WorkerAssignmentDialog({ order, workers, onSave, onClose
     // DBのassigned_worker_idに合わせて単一選択（ラジオボタン）
     const [selectedWorkerId, setSelectedWorkerId] = useState(order.assigned_worker_id || null)
     const [saving, setSaving] = useState(false)
-    // 作業期間中にシフトで明示的に×の回答をした作業員は候補から外す（未取得時はnull=全員表示）
-    const [availabilityMap, setAvailabilityMap] = useState(null)
 
     const startDate = order.startDate || order.start_date
     const endDate = order.endDate || order.end_date || order.dueDate || startDate
-
-    useEffect(() => {
-        if (!startDate) { setAvailabilityMap(null); return }
-        let cancelled = false
-        getAvailableWorkers(startDate, endDate).then(res => {
-            if (cancelled) return
-            if (res.success) {
-                const map = {}
-                res.data.forEach(a => { map[a.worker_id] = a.available })
-                setAvailabilityMap(map)
-            } else {
-                setAvailabilityMap(null)
-            }
-        })
-        return () => { cancelled = true }
-    }, [startDate, endDate])
+    // 作業期間中にシフトで明示的に×の回答をした作業員は候補から外す（未取得時はnull=全員表示）
+    const { availabilityMap } = useShiftAvailability(startDate, endDate)
 
     // 明示的な×の人は除外。未回答・△(応相談)はまだ「出勤不可」と決まっていないので候補に残す。
     // ただし既に割り当て済みの担当者は、外れていても状況が分かるよう表示は残す
