@@ -32,22 +32,10 @@ const validateRegister = [
   }
 ];
 
-const validateResetPassword = [
-  body('employee_id').notEmpty().isString().withMessage('社員IDは必須です'),
-  body('name').notEmpty().isString().withMessage('氏名は必須です'),
-  body('new_password').isLength({ min: 6 }).withMessage('パスワードは6文字以上で入力してください'),
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
-    next();
-  }
-];
-
 router.post('/login', validateLogin, authController.login);
 router.post('/register', validateRegister, authController.register);
 router.post('/forgot-password', authController.forgotPassword);   // 新フロー: メール送信
 router.post('/reset-confirm', authController.resetConfirm);        // 新フロー: トークン確認
-router.post('/reset-password', validateResetPassword, authController.resetPassword); // 旧互換
 router.post('/logout', auth, authController.logout);
 router.get('/me', auth, authController.me);
 

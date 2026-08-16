@@ -42,10 +42,3 @@ export const resetConfirm = async ({ token }) => {
   });
 };
 
-// 旧互換
-export const resetPassword = async ({ employee_id, name, new_password }) => {
-  return apiClient('/api/auth/reset-password', {
-    method: 'POST',
-    body: JSON.stringify({ employee_id, name, new_password }),
-  });
-};

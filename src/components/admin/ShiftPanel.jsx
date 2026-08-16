@@ -26,9 +26,13 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10)
 }
 
+// 注意: Date#getDate/setDate は端末のタイムゾーンに依存するため、
+// 文字列パース(UTC 0時として解釈される)と混ぜると環境によって日付が1日ずれる
+// （server/src/controllers/shiftsController.js の dateRange と同じ問題）。
+// UTC のメソッドだけで日付を進めることでその影響を避ける。
 function addDays(dateStr, days) {
-  const d = new Date(dateStr)
-  d.setDate(d.getDate() + days)
+  const d = new Date(`${dateStr}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
   return d.toISOString().slice(0, 10)
 }
 
@@ -80,9 +84,11 @@ export default function ShiftPanel() {
   })), [t])
 
   const fmtDate = useCallback((d) => {
-    const date = new Date(d)
-    const w = text.weekdaysShort[date.getDay()]
-    return `${date.getMonth() + 1}/${date.getDate()}(${w})`
+    // 'YYYY-MM-DD' はUTC 0時として解釈されるため、表示もUTCのgetterで揃える
+    // （ローカルのgetDate/getDay/getMonthを使うと端末のタイムゾーンによって日付がずれる）
+    const date = new Date(`${d}T00:00:00Z`)
+    const w = text.weekdaysShort[date.getUTCDay()]
+    return `${date.getUTCMonth() + 1}/${date.getUTCDate()}(${w})`
   }, [text])
 
   const formEnd = useMemo(() => {

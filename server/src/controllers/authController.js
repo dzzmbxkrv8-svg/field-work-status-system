@@ -11,12 +11,18 @@ exports.login = async (req, res, next) => {
 
     // メールアドレス（@含む）か従業員IDかを判定してどちらでもログイン可能にする
     const isEmail = identifier && identifier.includes('@');
+    // 注意: employee_id は会社単位でしか一意でない(UNIQUE(company_id, employee_id))ため、
+    // 複数社に同じ employee_id が存在する場合はこのクエリだけでは一意に決まらない。
+    // ORDER BY で結果を決定的にはしているが、これは会社をまたいだ衝突そのものの解決には
+    // なっていない点に注意（本来は登録時の会社識別子など追加の絞り込みが必要）。
     const { rows } = await db.query(`
       SELECT u.*, t.name as team_name, c.status as company_status, c.name as company_name
       FROM users u
       LEFT JOIN teams t ON u.team_id = t.id
       LEFT JOIN companies c ON u.company_id = c.id
       WHERE ${isEmail ? 'LOWER(u.email) = LOWER($1)' : 'u.employee_id = $1'}
+      ORDER BY u.id ASC
+      LIMIT 1
     `, [identifier]);
     const user = rows[0];
 
@@ -229,9 +235,6 @@ exports.resetConfirm = async (req, res, next) => {
     next(error);
   }
 };
-
-// 旧 resetPassword は互換のため残す（employee_id + name 方式）
-exports.resetPassword = exports.forgotPassword;
 
 exports.logout = async (req, res, next) => {
   try {

@@ -39,11 +39,21 @@ describe('GET /api/workers', () => {
     expect(res.body.data.length).toBeGreaterThan(0);
   });
 
-  test('作業員トークンでは403エラー', async () => {
+  // 作業員同士のメッセージ送信先一覧としても使われるため、作業員トークンでも
+  // 一覧自体は取得できる（workerController.getWorkers参照）。
+  // ただし電話番号・メールアドレス等の個人情報は管理者にのみ返される。
+  test('作業員トークンでも一覧は取得できるが、個人情報は含まれない', async () => {
     const res = await request(app)
       .get('/api/workers')
       .set('Authorization', `Bearer ${workerToken}`);
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    res.body.data.forEach(worker => {
+      expect(worker).not.toHaveProperty('phone');
+      expect(worker).not.toHaveProperty('email');
+      expect(worker).not.toHaveProperty('status');
+    });
   });
 
   test('トークンなしで401エラー', async () => {

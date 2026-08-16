@@ -2,10 +2,10 @@ const request = require('supertest');
 const app = require('../src/app');
 const db = require('../src/config/db');
 
-const TEST_EMPLOYEE_ID = 'TEST_AUTH_001';
+const TEST_REGISTER_EMAIL = 'test-auth-register@shift-test.local';
 
 afterAll(async () => {
-  await db.query('DELETE FROM users WHERE employee_id = $1', [TEST_EMPLOYEE_ID]);
+  await db.query('DELETE FROM users WHERE LOWER(email) = LOWER($1)', [TEST_REGISTER_EMAIL]);
 });
 
 describe('POST /api/auth/login', () => {
@@ -63,24 +63,27 @@ describe('POST /api/auth/login', () => {
 });
 
 describe('POST /api/auth/register', () => {
-  test('正しいアクセスコードで作業員登録成功', async () => {
+  // employee_id はクライアントが指定しても使われず、会社内で自動採番される(W001, W002, ...)。
+  // 重複判定も employee_id ではなく、全社を通してユニークな email で行われる。
+  test('正しいアクセスコードで作業員登録成功（employee_idは自動採番・承認待ちになる）', async () => {
     const res = await request(app).post('/api/auth/register').send({
-      access_code: 'ABCD1234',
-      employee_id: TEST_EMPLOYEE_ID,
+      access_code: 'FIELDO2024',
       name: 'テスト作業員',
-      password: 'testpass123',
+      email: TEST_REGISTER_EMAIL,
+      password: 'TestPass123',
     });
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.employee_id).toBe(TEST_EMPLOYEE_ID);
+    expect(res.body.data.employee_id).toMatch(/^W\d+$/);
+    expect(res.body.data.status).toBe('pending');
   });
 
-  test('同じ社員IDで重複登録は失敗', async () => {
+  test('同じメールアドレスで重複登録は失敗', async () => {
     const res = await request(app).post('/api/auth/register').send({
-      access_code: 'ABCD1234',
-      employee_id: TEST_EMPLOYEE_ID,
+      access_code: 'FIELDO2024',
       name: 'テスト作業員2',
-      password: 'testpass123',
+      email: TEST_REGISTER_EMAIL,
+      password: 'TestPass123',
     });
     expect(res.status).toBe(409);
     expect(res.body.success).toBe(false);
@@ -89,33 +92,11 @@ describe('POST /api/auth/register', () => {
   test('不正なアクセスコードで登録失敗', async () => {
     const res = await request(app).post('/api/auth/register').send({
       access_code: 'INVALID000',
-      employee_id: 'TEST_AUTH_002',
       name: 'テスト',
-      password: 'testpass123',
+      email: 'test-auth-invalid-code@shift-test.local',
+      password: 'TestPass123',
     });
     expect(res.status).toBe(400);
-    expect(res.body.success).toBe(false);
-  });
-});
-
-describe('POST /api/auth/reset-password', () => {
-  test('正しい社員IDと氏名でパスワードリセット成功', async () => {
-    const res = await request(app).post('/api/auth/reset-password').send({
-      employee_id: TEST_EMPLOYEE_ID,
-      name: 'テスト作業員',
-      new_password: 'newpass456',
-    });
-    expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-  });
-
-  test('存在しない社員IDでリセット失敗', async () => {
-    const res = await request(app).post('/api/auth/reset-password').send({
-      employee_id: 'NONEXISTENT',
-      name: '存在しない',
-      new_password: 'newpass456',
-    });
-    expect(res.status).toBe(404);
     expect(res.body.success).toBe(false);
   });
 });

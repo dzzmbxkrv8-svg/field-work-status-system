@@ -58,14 +58,23 @@ function buildShiftAssignmentCode(shiftId, date, workerId) {
   return `SFT${shiftId}-${date.replace(/-/g, '')}-${workerId}`;
 }
 
-// period_start〜period_end の日付配列（両端含む）を生成
+// period_start〜period_end の日付配列（両端含む）を生成。
+// 同じロジックが src/components/admin/ShiftPanel.jsx の addDays と
+// src/components/worker/ShiftRequestCard.jsx の dateRange にもあるため、
+// 日付の扱いを変える場合はそちらも合わせて直すこと。
+//
+// 注意: Date#getDate/setDate はサーバーの実行タイムゾーンに依存するため、
+// 文字列パース(UTC 0時として解釈される)と混ぜると環境によって日付が
+// 1日ずれる。ここでは UTC のメソッドだけで日付を進めることでその影響を避ける。
 function dateRange(start, end) {
+  const startStr = toDateStr(start);
+  const endStr = toDateStr(end);
   const dates = [];
-  const cur = new Date(start);
-  const last = new Date(end);
+  const cur = new Date(`${startStr}T00:00:00Z`);
+  const last = new Date(`${endStr}T00:00:00Z`);
   while (cur <= last) {
     dates.push(cur.toISOString().slice(0, 10));
-    cur.setDate(cur.getDate() + 1);
+    cur.setUTCDate(cur.getUTCDate() + 1);
   }
   return dates;
 }
@@ -393,9 +402,15 @@ exports.confirmShiftDate = async (req, res, next) => {
 
 // 管理者: 期間全体を一括確定（○と回答した作業員をまとめて確定する）
 // 既存の確定は上書きしない（追加のみ）ので、個別に確定済みの日程に影響しない
+//
+// 対象人数×日数ぶんのINSERTを1件ずつ発行すると（例: 20人×30日で数百〜千件超の
+// ラウンドトリップ）リクエスト1回のレイテンシがロースター規模に比例して増えるため、
+// 複数行VALUESでまとめて発行する。あわせて、確定(shift_confirmed)と
+// 作業指示(assignments)が半端な状態で食い違わないようトランザクションでくくる。
 exports.confirmAllDates = async (req, res, next) => {
+  const client = await db.pool.connect();
   try {
-    const { rows: shiftRows } = await db.query(
+    const { rows: shiftRows } = await client.query(
       `SELECT * FROM shift_requests WHERE id=$1 AND company_id=$2`,
       [req.params.id, req.user.company_id]
     );
@@ -405,7 +420,7 @@ exports.confirmAllDates = async (req, res, next) => {
     const shift = shiftRows[0];
 
     // ○(available)と回答した会社所属の在籍中の作業員のみが対象
-    const { rows: responses } = await db.query(
+    const { rows: responses } = await client.query(
       `SELECT r.worker_id, r.date, r.shift_type, r.note, u.team_id
        FROM shift_responses r
        JOIN users u ON r.worker_id = u.id AND u.role='worker' AND u.is_active=true AND u.company_id=$2
@@ -417,7 +432,7 @@ exports.confirmAllDates = async (req, res, next) => {
     }
 
     // 既に確定済みの(日付, 作業員)は対象から除外し、まだ確定していない分だけ追加する
-    const { rows: existingConfirmed } = await db.query(
+    const { rows: existingConfirmed } = await client.query(
       `SELECT worker_id, date FROM shift_confirmed WHERE shift_request_id=$1`,
       [shift.id]
     );
@@ -430,34 +445,51 @@ exports.confirmAllDates = async (req, res, next) => {
       return res.status(200).json({ success: true, message: '新しく確定できる回答はありませんでした（既に確定済みです）', confirmedCount: 0 });
     }
 
-    await Promise.all(newlyConfirmed.map(r =>
-      db.query(
-        `INSERT INTO shift_confirmed (shift_request_id, worker_id, date) VALUES ($1, $2, $3)
-         ON CONFLICT (shift_request_id, worker_id, date) DO NOTHING`,
-        [shift.id, r.worker_id, r.date]
-      )
-    ));
+    await client.query('BEGIN');
 
-    await Promise.all(newlyConfirmed.map(r => {
-      const code = buildShiftAssignmentCode(shift.id, r.date, r.worker_id);
-      return db.query(
+    // shift_confirmed をまとめて1クエリでINSERT
+    {
+      const values = [];
+      const rows = newlyConfirmed.map((r, i) => {
+        const base = i * 3;
+        values.push(shift.id, r.worker_id, r.date);
+        return `($${base + 1}, $${base + 2}, $${base + 3})`;
+      });
+      await client.query(
+        `INSERT INTO shift_confirmed (shift_request_id, worker_id, date)
+         VALUES ${rows.join(', ')}
+         ON CONFLICT (shift_request_id, worker_id, date) DO NOTHING`,
+        values
+      );
+    }
+
+    // assignments も同様にまとめて1クエリでUPSERT
+    {
+      const values = [];
+      const rows = newlyConfirmed.map((r, i) => {
+        const base = i * 9;
+        const code = buildShiftAssignmentCode(shift.id, r.date, r.worker_id);
+        values.push(
+          code, shift.title, r.team_id || null, r.worker_id, r.date,
+          r.note || null, r.shift_type || null, shift.id, req.user.company_id,
+        );
+        return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, 'pending', 'medium', $${base + 5}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9})`;
+      });
+      await client.query(
         `INSERT INTO assignments (
            assignment_code, title, team_id, assigned_worker_id, status, priority,
            start_date, end_date, description, shift_type, shift_request_id, company_id
          )
-         VALUES ($1, $2, $3, $4, 'pending', 'medium', $5, $5, $6, $7, $8, $9)
+         VALUES ${rows.join(', ')}
          ON CONFLICT (shift_request_id, assigned_worker_id, start_date) WHERE shift_request_id IS NOT NULL
          DO UPDATE SET
            shift_type = EXCLUDED.shift_type,
            description = EXCLUDED.description,
            status = 'pending',
            updated_at = NOW()`,
-        [
-          code, shift.title, r.team_id || null, r.worker_id, r.date,
-          r.note || null, r.shift_type || null, shift.id, req.user.company_id,
-        ]
+        values
       );
-    }));
+    }
 
     // 作業員ごとに確定した日程をまとめて1通のメッセージで通知（日ごとに送ると大量になるため）
     const datesByWorker = new Map();
@@ -465,14 +497,24 @@ exports.confirmAllDates = async (req, res, next) => {
       if (!datesByWorker.has(r.worker_id)) datesByWorker.set(r.worker_id, []);
       datesByWorker.get(r.worker_id).push(r.date);
     });
-    await Promise.all(Array.from(datesByWorker.entries()).map(([wid, dates]) => {
-      dates.sort();
-      const content = `シフト「${shift.title}」の以下の日程が確定しました: ${dates.join('、')}`;
-      return db.query(
-        `INSERT INTO messages (sender_id, receiver_id, content, shift_request_id) VALUES ($1, $2, $3, $4)`,
-        [req.user.id, wid, content, shift.id]
+    {
+      const entries = Array.from(datesByWorker.entries());
+      const values = [];
+      const rows = entries.map(([wid, dates], i) => {
+        dates.sort();
+        const content = `シフト「${shift.title}」の以下の日程が確定しました: ${dates.join('、')}`;
+        const base = i * 4;
+        values.push(req.user.id, wid, content, shift.id);
+        return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4})`;
+      });
+      await client.query(
+        `INSERT INTO messages (sender_id, receiver_id, content, shift_request_id) VALUES ${rows.join(', ')}`,
+        values
       );
-    }));
+    }
+
+    await client.query('COMMIT');
+
     sendToWorkers('new_message', { shiftRequestId: shift.id }, req.user.company_id);
     sendToWorkers('new_assignment', { title: shift.title }, req.user.company_id);
 
@@ -482,7 +524,10 @@ exports.confirmAllDates = async (req, res, next) => {
       confirmedCount: newlyConfirmed.length,
     });
   } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
     next(error);
+  } finally {
+    client.release();
   }
 };
 

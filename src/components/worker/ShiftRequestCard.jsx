@@ -11,14 +11,22 @@ const OPTIONS = [
 
 const OPTION_MAP = OPTIONS.reduce((map, o) => { map[o.value] = o; return map }, {})
 
+// 期間内の日付配列(両端含む)を生成。
+// 同じロジックが server/src/controllers/shiftsController.js の dateRange と
+// src/components/admin/ShiftPanel.jsx の addDays にもあるため、
+// 日付の扱いを変える場合はそちらも合わせて直すこと。
+//
+// 注意: Date#getDate/setDate は端末のタイムゾーンに依存するため、
+// 文字列パース(UTC 0時として解釈される)と混ぜると環境によって日付が
+// 1日ずれる。ここでは UTC のメソッドだけで日付を進めることでその影響を避ける。
 function dateRange(start, end) {
     if (!start || !end) return []
     const dates = []
-    const cur = new Date(start)
-    const last = new Date(end)
+    const cur = new Date(`${start}T00:00:00Z`)
+    const last = new Date(`${end}T00:00:00Z`)
     while (cur <= last) {
         dates.push(cur.toISOString().slice(0, 10))
-        cur.setDate(cur.getDate() + 1)
+        cur.setUTCDate(cur.getUTCDate() + 1)
     }
     return dates
 }
@@ -48,15 +56,17 @@ export default function ShiftRequestCard({ shiftRequestId, title, periodStart, p
         return OPTIONS.filter(o => enabled.includes(o.value))
     }, [availabilityOptions])
 
+    // 'YYYY-MM-DD' はUTC 0時として解釈されるため、表示もUTCのgetterで揃える
+    // （ローカルのgetDate/getDay/getMonthを使うと端末のタイムゾーンによって日付がずれる）
     const fmtDate = (d) => {
-        const date = new Date(d)
-        const w = text.weekdaysShort[date.getDay()]
-        return `${date.getMonth() + 1}/${date.getDate()}(${w})`
+        const date = new Date(`${d}T00:00:00Z`)
+        const w = text.weekdaysShort[date.getUTCDay()]
+        return `${date.getUTCMonth() + 1}/${date.getUTCDate()}(${w})`
     }
 
     const fmtDateShort = (d) => {
-        const date = new Date(d)
-        return `${date.getMonth() + 1}/${date.getDate()}`
+        const date = new Date(`${d}T00:00:00Z`)
+        return `${date.getUTCMonth() + 1}/${date.getUTCDate()}`
     }
 
     // 自分の回答済み内容は、カードを開く前でも一目で確認できるよう初回表示時に取得しておく
