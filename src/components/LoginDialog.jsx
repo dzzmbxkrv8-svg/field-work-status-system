@@ -324,7 +324,6 @@ export default function LoginDialog({
               if (role !== 'admin') {
                 setRole('admin')
                 resetPanels()
-                handleLanguageChange('ja')
               }
             }}
           >

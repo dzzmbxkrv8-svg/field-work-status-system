@@ -12,9 +12,9 @@ exports.login = async (req, res, next) => {
     // メールアドレス（@含む）か従業員IDかを判定してどちらでもログイン可能にする
     const isEmail = identifier && identifier.includes('@');
     // 注意: employee_id は会社単位でしか一意でない(UNIQUE(company_id, employee_id))ため、
-    // 複数社に同じ employee_id が存在する場合はこのクエリだけでは一意に決まらない。
-    // ORDER BY で結果を決定的にはしているが、これは会社をまたいだ衝突そのものの解決には
-    // なっていない点に注意（本来は登録時の会社識別子など追加の絞り込みが必要）。
+    // 同じ employee_id を持つ作業員が複数社にまたがって存在しうる。email は全社を通して
+    // ユニークなので1件に絞れるが、employee_id の場合は該当しうる候補を全て取得し、
+    // パスワードが一致した候補だけを本人として扱う（会社を指定させずに安全に一意化する）。
     const { rows } = await db.query(`
       SELECT u.*, t.name as team_name, c.status as company_status, c.name as company_name
       FROM users u
@@ -22,9 +22,20 @@ exports.login = async (req, res, next) => {
       LEFT JOIN companies c ON u.company_id = c.id
       WHERE ${isEmail ? 'LOWER(u.email) = LOWER($1)' : 'u.employee_id = $1'}
       ORDER BY u.id ASC
-      LIMIT 1
     `, [identifier]);
-    const user = rows[0];
+
+    let user;
+    if (isEmail) {
+      user = rows[0];
+    } else {
+      for (const candidate of rows) {
+        // eslint-disable-next-line no-await-in-loop
+        if (await bcrypt.compare(password || '', candidate.password_hash)) {
+          user = candidate;
+          break;
+        }
+      }
+    }
 
     if (!user) {
       return res.status(401).json({
@@ -68,7 +79,9 @@ exports.login = async (req, res, next) => {
       return res.status(401).json({ success: false, message: '権限が一致しません' });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password_hash);
+    // employee_id ログインは上の候補選定で既にパスワード照合済みなので、
+    // ここで再照合が必要なのは email ログインの場合だけ
+    const isMatch = isEmail ? await bcrypt.compare(password || '', user.password_hash) : true;
     if (!isMatch) {
       return res.status(401).json({ success: false, message: 'IDまたはパスワードが正しくありません' });
     }
