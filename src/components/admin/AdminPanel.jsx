@@ -63,6 +63,13 @@ export default function AdminPanel({ onAssignWorkers, workers = [] }) {
 
   useEffect(() => {
     fetchOrders()
+    // 作業員が案件のステータスを変更した際、開きっぱなしの画面にも即時反映する
+    // （DashboardPanel/ReportsPanel/AttendancePanelと同じ配線）
+    const handleAssignmentUpdated = () => fetchOrders()
+    window.addEventListener('fieldo:assignment-updated', handleAssignmentUpdated)
+    return () => {
+      window.removeEventListener('fieldo:assignment-updated', handleAssignmentUpdated)
+    }
   }, [fetchOrders])
 
   const handleFormChange = (field, value) => {
