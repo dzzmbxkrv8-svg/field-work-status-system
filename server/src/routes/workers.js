@@ -4,7 +4,8 @@ const auth = require('../middleware/auth');
 const requireAdmin = require('../middleware/role');
 const workerController = require('../controllers/workerController');
 
-router.get('/', auth, requireAdmin, workerController.getWorkers);
+// 一覧取得は作業員も可（メッセージ送信先の選択に使うため）。個人情報の絞り込みはcontroller側で行う
+router.get('/', auth, workerController.getWorkers);
 router.post('/', auth, requireAdmin, workerController.createWorker);
 // 承認待ち一覧・承認（/:id より先に定義）
 router.get('/pending', auth, requireAdmin, workerController.getPendingWorkers);

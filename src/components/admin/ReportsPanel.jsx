@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useAppContext } from '@/contexts/AppContext'
+import { useI18n } from '@/i18n'
 import { downloadBlob, escapeForCsv, formatAdminDate } from '@/utils/format'
 import WorkOrdersTable from './WorkOrdersTable'
 import { getWorkers } from '@/api/workers'

@@ -146,6 +146,12 @@ export default function WorkerCalendarTab({
           <span className="worker-meta-label" style={{ marginLeft: '1rem' }}>{text.worker.assignmentCrewLabel}:</span>
           <span>{entry.crewCount || '—'}</span>
         </div>
+        {entry.shift_type && (
+          <div className="worker-info-item">
+            <span className="worker-meta-label">勤務区分:</span>
+            <span>{entry.shift_type}</span>
+          </div>
+        )}
         {entry.cautionNote && (
           <div className="worker-info-item">
             <span className="worker-meta-label">{text.worker.assignmentCautionLabel}:</span>
@@ -316,6 +322,12 @@ export default function WorkerCalendarTab({
                     <span className="worker-meta-label" style={{ marginLeft: '1rem' }}>{text.worker.assignmentCrewLabel}:</span>
                     <span>{order.crewCount || '—'}</span>
                   </div>
+                  {order.shift_type && (
+                    <div className="worker-info-item">
+                      <span className="worker-meta-label">勤務区分:</span>
+                      <span>{order.shift_type}</span>
+                    </div>
+                  )}
                   <div className="worker-info-item">
                     <span className="worker-meta-label">{text.worker.assignmentTaskLabel}:</span>
                     <span>{order.notes || '—'}</span>

@@ -9,6 +9,7 @@ import ReportsPanel from './ReportsPanel'
 import WorkerAssignmentDialog from './WorkerAssignmentDialog'
 import BottomNavigation from './BottomNavigation'
 import TeamManagementPanel from './TeamManagementPanel'
+import ShiftPanel from './ShiftPanel'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { assignWorker } from '@/api/assignments'
 import { getWorkers } from '@/api/workers'
@@ -142,6 +143,7 @@ export default function AdminView() {
       )}
       {selectedTab === 'messages' && <MessagePanel workers={dbWorkers} />}
       {selectedTab === 'reports' && <ReportsPanel />}
+      {selectedTab === 'shifts' && <ShiftPanel />}
       {selectedTab === 'teams' && <TeamManagementPanel />}
 
       {assigningOrder && (

@@ -20,6 +20,7 @@ export const ROLE_TABS = [
   { id: 'orders', icon: 'ClipboardList' },
   { id: 'messages', icon: 'MessageSquare' },
   { id: 'reports', icon: 'BarChart2' },
+  { id: 'shifts', icon: 'CalendarDays' },
   { id: 'teams', icon: 'Users' },
 ]
 

@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { AppIcon } from '@/utils/iconMap'
+import { getAvailableWorkers } from '@/api/shifts'
 
 const STEPS = ['案件情報', 'メンバーを選ぶ', '確認']
 
@@ -291,6 +292,50 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
   const [leaderId, setLeaderId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  // 作業期間中にシフトで○(出勤可)と回答した作業員のみを判定する（未取得時はnull=全員表示）
+  const [availabilityMap, setAvailabilityMap] = useState(null)
+  const [availabilityLoading, setAvailabilityLoading] = useState(false)
+
+  useEffect(() => {
+    if (!form.startDate) {
+      setAvailabilityMap(null)
+      return
+    }
+    const end = form.dueDate || form.startDate
+    let cancelled = false
+    setAvailabilityLoading(true)
+    getAvailableWorkers(form.startDate, end).then(res => {
+      if (cancelled) return
+      if (res.success) {
+        const map = {}
+        res.data.forEach(a => { map[a.worker_id] = a.available })
+        setAvailabilityMap(map)
+      } else {
+        setAvailabilityMap(null)
+      }
+    }).finally(() => { if (!cancelled) setAvailabilityLoading(false) })
+    return () => { cancelled = true }
+  }, [form.startDate, form.dueDate])
+
+  // 日付変更等でシフト×の人が判明したら、既に選択済みでも自動的に外す
+  useEffect(() => {
+    if (!availabilityMap) return
+    setSelectedWorkerIds(prev => {
+      const next = prev.filter(id => availabilityMap[id] !== false)
+      if (next.length === prev.length) return prev
+      if (leaderId && !next.includes(leaderId)) setLeaderId(next[0] ?? null)
+      return next
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availabilityMap])
+
+  // 明示的に×を提出した作業員のみ選択肢から除外する。未回答・△(応相談)は
+  // まだ「出勤不可」と決まったわけではないので候補には残し、別途バッジで示す（下記参照）
+  const availableWorkers = useMemo(() => {
+    if (!availabilityMap) return workers
+    return workers.filter(w => availabilityMap[w.id] !== false)
+  }, [workers, availabilityMap])
+  const excludedCount = workers.length - availableWorkers.length
 
   const toggleWorker = (id) => {
     setSelectedWorkerIds(prev => {
@@ -539,6 +584,19 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
             <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>複数選択可・選択後にリーダーを指定してください</p>
           </div>
 
+          {/* シフトによる絞り込み状況 */}
+          {availabilityLoading ? (
+            <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8' }}>シフトの回答状況を確認しています...</p>
+          ) : excludedCount > 0 && (
+            <p style={{
+              margin: 0, fontSize: '0.78rem', color: '#92400e',
+              background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8,
+              padding: '0.5rem 0.75rem',
+            }}>
+              作業期間中にシフトで「×」等の回答をした{excludedCount}名は候補から非表示になっています。
+            </p>
+          )}
+
           {/* 選択済みメンバー一覧 */}
           {selectedWorkerIds.length > 0 && (
             <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 10, padding: '0.6rem 0.75rem' }}>
@@ -583,9 +641,11 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
             overflowY: 'auto',
             paddingRight: '2px',
           }}>
-            {workers.length === 0 ? (
-              <p style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '1rem', textAlign: 'center' }}>作業員が登録されていません</p>
-            ) : workers.map(worker => {
+            {availableWorkers.length === 0 ? (
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '1rem', textAlign: 'center' }}>
+                {workers.length === 0 ? '作業員が登録されていません' : 'この作業期間に出勤可の作業員がいません'}
+              </p>
+            ) : availableWorkers.map(worker => {
               const isSelected = selectedWorkerIds.includes(worker.id)
               const isLeader = leaderId === worker.id
               return (
@@ -620,6 +680,15 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
                           border: '1px solid #c7c7f0', lineHeight: 1.6,
                           position: 'relative', top: '-4px',
                         }}>リーダー</span>
+                      )}
+                      {availabilityMap && availabilityMap[worker.id] === null && (
+                        <span style={{
+                          fontSize: '0.6rem', fontWeight: 700,
+                          color: '#92400e', background: '#fffbeb',
+                          padding: '0.05rem 0.35rem', borderRadius: 4,
+                          border: '1px solid #fde68a', lineHeight: 1.6,
+                          position: 'relative', top: '-4px',
+                        }}>シフト未回答</span>
                       )}
                     </div>
                     <p style={{ margin: 0, fontSize: '0.72rem', color: '#94a3b8' }}>{worker.team_name || worker.team || '—'}</p>

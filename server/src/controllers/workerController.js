@@ -4,13 +4,18 @@ const { sendToAdmins } = require('../events/sseManager');
 
 exports.getWorkers = async (req, res, next) => {
   try {
+    const isAdmin = req.user.role === 'admin';
+    // 作業員同士のメッセージ送信先一覧としても使われるため作業員にも公開するが、
+    // 電話番号・メールアドレスなど個人情報は管理者にのみ返す
     const { rows } = await db.query(`
-      SELECT u.id, u.employee_id, u.name, u.furigana, u.phone, u.email,
-             u.role, u.team_id, u.status, t.name as team_name
+      SELECT u.id, u.employee_id, u.name, u.furigana,
+             ${isAdmin ? 'u.phone, u.email, u.status,' : ''}
+             u.team_id, t.name as team_name
       FROM users u
       LEFT JOIN teams t ON u.team_id = t.id
       WHERE u.role = 'worker' AND u.is_active = true AND u.company_id = $1
-      ORDER BY u.status DESC, u.created_at DESC
+        ${isAdmin ? '' : "AND u.status = 'active'"}
+      ORDER BY ${isAdmin ? 'u.status DESC, ' : ''}u.created_at DESC
     `, [req.user.company_id]);
     res.status(200).json({ success: true, data: rows, total: rows.length });
   } catch (err) {

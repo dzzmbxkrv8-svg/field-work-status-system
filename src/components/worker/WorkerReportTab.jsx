@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { getWorkers } from '@/api/workers'
 import { uploadFile } from '@/api/messages'
 import { AppIcon } from '@/utils/iconMap'
+import ShiftRequestCard from './ShiftRequestCard'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -63,6 +64,13 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
         photoUrl: msg.photo_url,
         fileUrl: msg.file_url,
         fileName: msg.file_name,
+        shiftRequestId: msg.shift_request_id,
+        shiftTitle: msg.shift_title,
+        shiftPeriodStart: msg.shift_period_start ? String(msg.shift_period_start).slice(0, 10) : null,
+        shiftPeriodEnd: msg.shift_period_end ? String(msg.shift_period_end).slice(0, 10) : null,
+        shiftDeadline: msg.shift_deadline ? String(msg.shift_deadline).slice(0, 10) : null,
+        shiftTypeOptions: Array.isArray(msg.shift_type_options) ? msg.shift_type_options : null,
+        availabilityOptions: Array.isArray(msg.availability_options) ? msg.availability_options : null,
         ts: msg.created_at,
         isMine: msg.sender_id === myId,
         isRead: msg.is_read,
@@ -75,9 +83,12 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
 
   // 管理者との会話に含めるメッセージ
   const adminConvFilter = (msg) =>
-    (msg.isMine && msg.receiverId == null && msg.teamId == null) ||  // 自分→管理者
+    // receiver_id/team_idともにnullなのは「自分→管理者」または「管理者→全員一斉送信」のいずれか
+    // （APIはこのパターンを本人が送ったメッセージか、管理者が送ったメッセージしか返さないため、
+    //   ここに来る時点でどちらか＝管理者との会話に属する）
+    (msg.receiverId == null && msg.teamId == null) ||
     (msg.receiverId === myId) ||                                      // 管理者→自分（直接）
-    (msg.teamId != null && !msg.isMine)                              // 全員宛ブロードキャスト
+    (msg.teamId != null && !msg.isMine)                              // チーム宛ブロードキャスト
 
   const conversations = useMemo(() => {
     const adminMsgs = messages.filter(adminConvFilter)
@@ -245,6 +256,18 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
                     {msg.senderName}
                   </span>
                 )}
+                {msg.shiftRequestId && (
+                  <ShiftRequestCard
+                    shiftRequestId={msg.shiftRequestId}
+                    title={msg.shiftTitle}
+                    periodStart={msg.shiftPeriodStart}
+                    periodEnd={msg.shiftPeriodEnd}
+                    deadline={msg.shiftDeadline}
+                    shiftTypeOptions={msg.shiftTypeOptions}
+                    availabilityOptions={msg.availabilityOptions}
+                    showToast={showToast}
+                  />
+                )}
                 {(msg.content || msg.photoUrl || msg.fileUrl) && (
                   <div style={{
                     padding: (msg.photoUrl && !msg.content) ? 0 : '0.55rem 0.85rem',
@@ -397,7 +420,7 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
         const latest = conv.latest
         const unread = conv.unreadCount || 0
         const latestText = latest
-          ? (latest.photoUrl ? '[写真]' : latest.fileUrl ? `[ファイル] ${latest.fileName || ''}` : latest.content || '')
+          ? (latest.shiftRequestId ? `[シフト調査] ${latest.shiftTitle || ''}` : latest.photoUrl ? '[写真]' : latest.fileUrl ? `[ファイル] ${latest.fileName || ''}` : latest.content || '')
           : 'メッセージなし'
         return (
           <div

@@ -218,10 +218,15 @@ export default function MessagePanel({ workers: propWorkers }) {
             }
         }
 
+        const isBroadcast = selectedUser.id === 'all'
         const payload = {
             content: input.trim(),
-            receiver_id: selectedUser.id === 'all' ? null : selectedUser.id,
-            team_id: selectedUser.id === 'all' ? 1 : null,
+            // 「全員」は receiver_id/team_id ともに未指定にして全作業員への一斉送信として扱う
+            // （以前は存在するとは限らない team_id=1 に固定送信していたため、チームが1つも無い会社だと失敗していた）
+            // broadcast: true は「宛先未指定=全員」が意図的な選択であることをサーバーに明示するためのフラグ
+            receiver_id: isBroadcast ? null : selectedUser.id,
+            team_id: null,
+            ...(isBroadcast ? { broadcast: true } : {}),
             ...(uploadedIsImage ? { photo_url: uploadedUrl } : {}),
             ...(!uploadedIsImage && uploadedUrl ? { file_url: uploadedUrl, file_name: uploadedFileName } : {}),
         }

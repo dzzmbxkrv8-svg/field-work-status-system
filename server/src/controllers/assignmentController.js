@@ -16,7 +16,17 @@ exports.getAssignments = async (req, res, next) => {
       query = baseSelect + ' WHERE a.company_id = $1 ORDER BY a.created_at DESC';
       params = [req.user.company_id];
     } else {
-      query = baseSelect + ' WHERE a.company_id = $1 AND a.team_id = (SELECT team_id FROM users WHERE id=$2) ORDER BY a.created_at DESC';
+      // 個別担当(assigned_worker_id)・assignment_members登録・チーム一致のいずれかで閲覧可能にする。
+      // チーム未所属の作業員(team_idがNULL)だと従来はNULL=NULLが常に不一致になり何も見えなかったため、
+      // 個別担当かどうかも条件に含めて修正
+      query = baseSelect + `
+        WHERE a.company_id = $1 AND (
+          a.assigned_worker_id = $2
+          OR EXISTS (SELECT 1 FROM assignment_members am WHERE am.assignment_id = a.id AND am.user_id = $2)
+          OR (a.team_id IS NOT NULL AND a.team_id = (SELECT team_id FROM users WHERE id=$2))
+        )
+        ORDER BY a.created_at DESC
+      `;
       params = [req.user.company_id, req.user.id];
     }
     const { rows } = await db.query(query, params);
@@ -96,10 +106,15 @@ exports.updateStatus = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'ステータスは pending/in_progress/completed/cancelled のいずれかです' });
     }
 
-    // 作業員は自分が担当する案件のみ更新可能
+    // 作業員が更新できるのは自分が閲覧できる案件のみ。
+    // getAssignments と同じ基準（個別担当・assignment_members登録・チーム一致）に揃える
     if (req.user.role !== 'admin') {
       const check = await db.query(
-        'SELECT id FROM assignments WHERE id=$1 AND assigned_worker_id=$2',
+        `SELECT id FROM assignments a WHERE a.id=$1 AND (
+           a.assigned_worker_id = $2
+           OR EXISTS (SELECT 1 FROM assignment_members am WHERE am.assignment_id = a.id AND am.user_id = $2)
+           OR (a.team_id IS NOT NULL AND a.team_id = (SELECT team_id FROM users WHERE id=$2))
+         )`,
         [req.params.id, req.user.id]
       );
       if (check.rows.length === 0) {

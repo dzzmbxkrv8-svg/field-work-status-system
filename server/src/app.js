@@ -18,6 +18,7 @@ const settingsRoutes = require('./routes/settings');
 const eventsRoutes = require('./routes/events');
 const companyRoutes = require('./routes/companies');
 const adminRoutes = require('./routes/admins');
+const shiftRoutes = require('./routes/shifts');
 
 const app = express();
 
@@ -64,6 +65,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/teams', teamRoutes);
+app.use('/api/shifts', shiftRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/events', eventsRoutes);
 

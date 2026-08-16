@@ -73,10 +73,16 @@ export default function WorkOrdersTable({
               </div>
             )}
 
-            {/* 3行目：チーム・担当者 */}
-            <div style={{ display: 'flex', gap: '1rem', fontSize: '0.78rem', color: '#64748b' }}>
+            {/* 3行目：チーム・担当者・勤務区分（シフト確定から連携された場合） */}
+            <div style={{ display: 'flex', gap: '1rem', fontSize: '0.78rem', color: '#64748b', alignItems: 'center', flexWrap: 'wrap' }}>
               {order.team && <span>チーム: {order.team}</span>}
               {order.assignedWorkerName && <span>担当: {order.assignedWorkerName}</span>}
+              {order.shift_type && (
+                <span style={{
+                  fontSize: '0.7rem', fontWeight: 700, color: '#4338ca',
+                  background: '#eef2ff', borderRadius: 999, padding: '0.1rem 0.55rem',
+                }}>{order.shift_type}</span>
+              )}
             </div>
 
             {/* 4行目：日付・操作ボタン */}
