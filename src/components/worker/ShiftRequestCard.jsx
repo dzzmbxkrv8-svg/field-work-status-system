@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { getShift, respondToShift } from '@/api/shifts'
 import { AppIcon } from '@/utils/iconMap'
+import { useI18n } from '@/i18n'
 
 const OPTIONS = [
     { value: 'available', label: '○', color: '#059669', bg: '#d1fae5' },
@@ -22,23 +23,14 @@ function dateRange(start, end) {
     return dates
 }
 
-function fmtDate(d) {
-    const date = new Date(d)
-    const w = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()]
-    return `${date.getMonth() + 1}/${date.getDate()}(${w})`
-}
-
-function fmtDateShort(d) {
-    const date = new Date(d)
-    return `${date.getMonth() + 1}/${date.getDate()}`
-}
-
 // shiftRequestId: 対象の募集ID
 // shiftTypeOptions: 管理者が定義した勤務区分（例: ["フル","ハーフ"]）。
 //   会社によっては概念自体が無いため、未定義(null/空配列)なら ○/△/× のみで区分選択は表示しない
 // availabilityOptions: 管理者が選んだ回答選択肢（例: ["available","unavailable"]）。
 //   未定義(null/空配列)なら従来通り○/△/×すべてを使う
 export default function ShiftRequestCard({ shiftRequestId, title, periodStart, periodEnd, deadline, shiftTypeOptions, availabilityOptions, showToast }) {
+    const { text } = useI18n()
+    const t = text.worker.shifts
     const [expanded, setExpanded] = useState(false)
     const [loading, setLoading] = useState(true)
     const [loaded, setLoaded] = useState(false)
@@ -55,6 +47,17 @@ export default function ShiftRequestCard({ shiftRequestId, title, periodStart, p
             : OPTIONS.map(o => o.value)
         return OPTIONS.filter(o => enabled.includes(o.value))
     }, [availabilityOptions])
+
+    const fmtDate = (d) => {
+        const date = new Date(d)
+        const w = text.weekdaysShort[date.getDay()]
+        return `${date.getMonth() + 1}/${date.getDate()}(${w})`
+    }
+
+    const fmtDateShort = (d) => {
+        const date = new Date(d)
+        return `${date.getMonth() + 1}/${date.getDate()}`
+    }
 
     // 自分の回答済み内容は、カードを開く前でも一目で確認できるよう初回表示時に取得しておく
     useEffect(() => {
@@ -118,9 +121,9 @@ export default function ShiftRequestCard({ shiftRequestId, title, periodStart, p
         if (res.success) {
             setSubmitted(true)
             setExpanded(false)
-            showToast?.('success', 'シフトの回答を送信しました')
+            showToast?.('success', t.submitSuccess)
         } else {
-            showToast?.('error', res.message || '送信に失敗しました')
+            showToast?.('error', res.message || t.submitFailed)
         }
     }
 
@@ -132,19 +135,19 @@ export default function ShiftRequestCard({ shiftRequestId, title, periodStart, p
         }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.35rem' }}>
                 <AppIcon name="CalendarDays" size={16} strokeWidth={2} style={{ color: '#4f46e5', flexShrink: 0 }} />
-                <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#4f46e5' }}>シフト調査</span>
+                <span style={{ fontWeight: 700, fontSize: '0.8rem', color: '#4f46e5' }}>{t.cardHeading}</span>
                 {submitted && (
                     <span style={{
                         marginLeft: 'auto', fontSize: '0.66rem', fontWeight: 700,
                         color: '#059669', background: '#d1fae5', borderRadius: 999, padding: '0.15rem 0.55rem',
                         flexShrink: 0,
-                    }}>回答済み</span>
+                    }}>{t.answered}</span>
                 )}
             </div>
             <p style={{ margin: '0 0 0.2rem', fontWeight: 700, fontSize: '0.9rem', color: '#0f172a' }}>{title}</p>
             <p style={{ margin: '0 0 0.65rem', fontSize: '0.74rem', color: '#64748b' }}>
-                期間: {periodStart} 〜 {periodEnd}
-                {deadline && <><br />締切: {deadline}</>}
+                {t.periodLabel(periodStart, periodEnd)}
+                {deadline && <><br />{t.deadlineLabel(deadline)}</>}
             </p>
 
             {/* 回答済みの内容は開かなくても一覧で確認できる */}
@@ -183,12 +186,12 @@ export default function ShiftRequestCard({ shiftRequestId, title, periodStart, p
                     onClick={() => setExpanded(true)}
                     disabled={loading}
                 >
-                    {loading ? '読み込み中...' : submitted ? '回答を編集する' : '回答する'}
+                    {loading ? t.loading : submitted ? t.editButton : t.respondButton}
                 </button>
             ) : (
                 <>
                     {loading ? (
-                        <p style={{ fontSize: '0.78rem', color: '#94a3b8', textAlign: 'center', padding: '0.5rem 0' }}>読み込み中...</p>
+                        <p style={{ fontSize: '0.78rem', color: '#94a3b8', textAlign: 'center', padding: '0.5rem 0' }}>{t.loading}</p>
                     ) : (
                         <div style={{
                             display: 'flex', flexDirection: 'column', gap: '0.5rem',
@@ -255,13 +258,13 @@ export default function ShiftRequestCard({ shiftRequestId, title, periodStart, p
                             type="button" className="fws-button tertiary"
                             style={{ flex: 1, fontSize: '0.78rem', padding: '0.4rem' }}
                             onClick={() => setExpanded(false)}
-                        >閉じる</button>
+                        >{t.closeButton}</button>
                         <button
                             type="button" className="fws-button"
                             disabled={!allAnswered || submitting}
                             style={{ flex: 1, fontSize: '0.78rem', padding: '0.4rem', opacity: (!allAnswered || submitting) ? 0.5 : 1 }}
                             onClick={handleSubmit}
-                        >{submitting ? '送信中...' : '回答を送信'}</button>
+                        >{submitting ? t.submitting : t.submitButton}</button>
                     </div>
                 </>
             )}

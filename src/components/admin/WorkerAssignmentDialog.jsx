@@ -5,6 +5,7 @@ import { getAvailableWorkers } from '@/api/shifts'
 
 export default function WorkerAssignmentDialog({ order, workers, onSave, onClose, error }) {
     const { text } = useI18n()
+    const a = text.admin.assignment
     // DBのassigned_worker_idに合わせて単一選択（ラジオボタン）
     const [selectedWorkerId, setSelectedWorkerId] = useState(order.assigned_worker_id || null)
     const [saving, setSaving] = useState(false)
@@ -48,23 +49,20 @@ export default function WorkerAssignmentDialog({ order, workers, onSave, onClose
         <div className="fws-modal-overlay">
             <div className="fws-modal">
                 <header className="fws-modal-header">
-                    <h3>{text.admin.assignment.title}</h3>
+                    <h3>{a.title}</h3>
                     <button type="button" className="fws-close-button" onClick={onClose}>
                         &times;
                     </button>
                 </header>
                 <div className="fws-modal-content">
-                    <p style={{ marginBottom: '0.5rem' }}>{text.admin.assignment.selectWorkers}</p>
-                    <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>
-                        案件「{order.title || order.projectName}」の担当者を1名選択してください
-                    </p>
+                    <p style={{ marginBottom: '0.5rem' }}>{a.selectWorkersFor(order.title || order.projectName)}</p>
                     {excludedCount > 0 && (
                         <p style={{
                             fontSize: '0.78rem', color: '#92400e',
                             background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8,
                             padding: '0.5rem 0.75rem', marginBottom: '0.75rem',
                         }}>
-                            作業期間中にシフトで「×」の回答をした{excludedCount}名は候補から非表示になっています。
+                            {a.excludedNotice(excludedCount)}
                         </p>
                     )}
                     {error && (
@@ -81,7 +79,7 @@ export default function WorkerAssignmentDialog({ order, workers, onSave, onClose
                                 checked={selectedWorkerId === null}
                                 onChange={() => setSelectedWorkerId(null)}
                             />
-                            <span className="fws-worker-name" style={{ color: '#94a3b8' }}>担当者なし（解除）</span>
+                            <span className="fws-worker-name" style={{ color: '#94a3b8' }}>{a.none}</span>
                         </label>
                         {visibleWorkers.map((worker) => {
                             const status = availabilityMap ? availabilityMap[worker.id] : true
@@ -99,12 +97,12 @@ export default function WorkerAssignmentDialog({ order, workers, onSave, onClose
                                     <span className="fws-worker-team">{worker.team_name || worker.team}</span>
                                     {isUnavailable && (
                                         <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', fontWeight: 700, color: '#dc2626' }}>
-                                            シフト×
+                                            {a.unavailableBadge}
                                         </span>
                                     )}
                                     {isUnknown && (
                                         <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', fontWeight: 700, color: '#92400e' }}>
-                                            シフト未回答
+                                            {a.unknownBadge}
                                         </span>
                                     )}
                                 </label>
@@ -114,10 +112,10 @@ export default function WorkerAssignmentDialog({ order, workers, onSave, onClose
                 </div>
                 <footer className="fws-modal-actions">
                     <button type="button" className="fws-button secondary" onClick={onClose} disabled={saving}>
-                        {text.admin.assignment.cancel}
+                        {a.cancel}
                     </button>
                     <button type="button" className="fws-button" onClick={handleSave} disabled={saving}>
-                        {saving ? '保存中...' : text.admin.assignment.save}
+                        {saving ? a.saving : a.save}
                     </button>
                 </footer>
             </div>

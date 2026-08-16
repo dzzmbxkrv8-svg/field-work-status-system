@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import { AppIcon } from '@/utils/iconMap'
 import { getAvailableWorkers } from '@/api/shifts'
+import { useI18n } from '@/i18n'
 
 const STEPS = ['案件情報', 'メンバーを選ぶ', '確認']
 
@@ -279,6 +280,8 @@ const formatBytes = (bytes) => {
 }
 
 export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
+  const { text } = useI18n()
+  const a = text.admin.assignment
   const [step, setStep] = useState(0)
   const [form, setForm] = useState({
     title: '',
@@ -586,14 +589,14 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
 
           {/* シフトによる絞り込み状況 */}
           {availabilityLoading ? (
-            <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8' }}>シフトの回答状況を確認しています...</p>
+            <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8' }}>{text.admin.shiftAvailability.checking}</p>
           ) : excludedCount > 0 && (
             <p style={{
               margin: 0, fontSize: '0.78rem', color: '#92400e',
               background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8,
               padding: '0.5rem 0.75rem',
             }}>
-              作業期間中にシフトで「×」等の回答をした{excludedCount}名は候補から非表示になっています。
+              {a.excludedNotice(excludedCount)}
             </p>
           )}
 
@@ -643,7 +646,7 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
           }}>
             {availableWorkers.length === 0 ? (
               <p style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '1rem', textAlign: 'center' }}>
-                {workers.length === 0 ? '作業員が登録されていません' : 'この作業期間に出勤可の作業員がいません'}
+                {workers.length === 0 ? '作業員が登録されていません' : text.admin.shiftAvailability.noneAvailable}
               </p>
             ) : availableWorkers.map(worker => {
               const isSelected = selectedWorkerIds.includes(worker.id)
@@ -688,7 +691,7 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
                           padding: '0.05rem 0.35rem', borderRadius: 4,
                           border: '1px solid #fde68a', lineHeight: 1.6,
                           position: 'relative', top: '-4px',
-                        }}>シフト未回答</span>
+                        }}>{a.unknownBadge}</span>
                       )}
                     </div>
                     <p style={{ margin: 0, fontSize: '0.72rem', color: '#94a3b8' }}>{worker.team_name || worker.team || '—'}</p>
