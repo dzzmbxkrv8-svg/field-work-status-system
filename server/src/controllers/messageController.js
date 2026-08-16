@@ -1,6 +1,21 @@
 const db = require('../config/db');
 const { sendToUser, sendToWorkers, sendToAdmins } = require('../events/sseManager');
 
+// receiver_id/team_id が両方ともNULLの「宛先なし」メッセージをどう扱うかの規約:
+//   作業員が送った場合 → 管理者への連絡（自社の管理者全員に見える）
+//   管理者が送った場合 → 全作業員への一斉送信（自社の全員に見える）
+// つまり「管理者からは常に見える／作業員からは送信者が管理者の場合だけ見える」。
+// この判定はメッセージの可視性チェック(getMessages, markAsRead)で共通して使うため
+// 関数化しておく。sendMessage()のSSE通知先振り分けも同じ規約に従っているが、
+// あちらは挿入直後の行のroleが既にJS側でわかっているためDB問い合わせは不要。
+// senderIdExpr: SQL上のsender_idを指す式（例: 'm.sender_id'）
+// isAdminParam / companyIdParam: プレースホルダ番号（例: '$2', '$3'）
+function unaddressedMessageVisibilitySQL(senderIdExpr, isAdminParam, companyIdParam) {
+  return `(${senderIdExpr} IN (
+    SELECT id FROM users WHERE company_id = ${companyIdParam} AND (${isAdminParam} OR role = 'admin')
+  ))`;
+}
+
 exports.getMessages = async (req, res, next) => {
   try {
     const isAdmin = req.user.role === 'admin';
@@ -16,7 +31,7 @@ exports.getMessages = async (req, res, next) => {
       WHERE m.sender_id=$1
          OR m.receiver_id=$1
          OR (m.team_id IS NOT NULL AND m.team_id = (SELECT team_id FROM users WHERE id=$1))
-         OR (m.receiver_id IS NULL AND m.team_id IS NULL AND u.company_id=$3 AND ($2 OR u.role='admin'))
+         OR (m.receiver_id IS NULL AND m.team_id IS NULL AND ${unaddressedMessageVisibilitySQL('m.sender_id', '$2', '$3')})
       ORDER BY m.created_at ASC
     `, [req.user.id, isAdmin, req.user.company_id]);
     res.status(200).json({ success: true, data: rows, total: rows.length });
@@ -100,21 +115,17 @@ exports.sendMessage = async (req, res, next) => {
 exports.markAsRead = async (req, res, next) => {
   try {
     const isAdmin = req.user.role === 'admin';
-    // 「宛先なし」メッセージ(receiver_id/team_id共にNULL)は自社の会話にしか属さないはずなので、
-    // sender側の会社チェックも入れて他社のメッセージを誤って既読化しないようにする
+    // getMessages と同じ可視性の規約(unaddressedMessageVisibilitySQL)を使い、
+    // 見えないメッセージを誤って既読化できないようにする。
+    // チーム宛(team_id IS NOT NULL)のメッセージも、以前は自分のチームかどうかを
+    // チェックしておらず他チーム宛のメッセージまで既読化できてしまっていたため、
+    // getMessages と同様に自分の所属チームであることを確認するよう修正。
     const { rows } = await db.query(
       `UPDATE messages SET is_read=true
        WHERE id=$1 AND (
          receiver_id=$2
-         OR (
-           receiver_id IS NULL AND team_id IS NULL AND $3
-           AND sender_id IN (SELECT id FROM users WHERE company_id=$4)
-         )
-         OR (receiver_id IS NULL AND team_id IS NOT NULL AND NOT $3)
-         OR (
-           receiver_id IS NULL AND team_id IS NULL AND NOT $3
-           AND sender_id IN (SELECT id FROM users WHERE role='admin' AND company_id=$4)
-         )
+         OR (team_id IS NOT NULL AND team_id = (SELECT team_id FROM users WHERE id=$2))
+         OR (receiver_id IS NULL AND team_id IS NULL AND ${unaddressedMessageVisibilitySQL('sender_id', '$3', '$4')})
        ) RETURNING *`,
       [req.params.id, req.user.id, isAdmin, req.user.company_id]
     );
