@@ -21,6 +21,8 @@ export default function AdminPanel({ onAssignWorkers, workers = [] }) {
   const [notification, setNotification] = useState(null)
   const [showCompleted, setShowCompleted] = useState(false)
   const [editingOrder, setEditingOrder] = useState(null)
+  const [completedSearch, setCompletedSearch] = useState('')
+  const [completedVisibleCount, setCompletedVisibleCount] = useState(10)
 
   const showNotification = (type, text, duration = 3500) => {
     setNotification({ type, text })
@@ -154,6 +156,24 @@ export default function AdminPanel({ onAssignWorkers, workers = [] }) {
       .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)),
   [orders])
 
+  // 案件名・場所・チーム名で絞り込み（大文字小文字を区別しない）
+  const filteredCompletedOrders = useMemo(() => {
+    const q = completedSearch.trim().toLowerCase()
+    if (!q) return completedOrders
+    return completedOrders.filter(o =>
+      [o.projectName, o.id, o.location, o.team]
+        .filter(Boolean)
+        .some(field => String(field).toLowerCase().includes(q))
+    )
+  }, [completedOrders, completedSearch])
+
+  // 検索条件が変わったら表示件数をリセット（絞り込み直後に「もっと見る」の状態が残らないように）
+  useEffect(() => {
+    setCompletedVisibleCount(10)
+  }, [completedSearch])
+
+  const visibleCompletedOrders = filteredCompletedOrders.slice(0, completedVisibleCount)
+
   if (loading && orders.length === 0) return <div className="fws-panel"><p>読み込み中...</p></div>
   if (error && orders.length === 0) return <div className="fws-panel"><p className="fws-accent">{error}</p></div>
 
@@ -241,8 +261,25 @@ export default function AdminPanel({ onAssignWorkers, workers = [] }) {
               {completedOrders.length === 0 ? (
                 <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>完了した案件はありません</p>
               ) : (
+                <>
+                  <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
+                    <AppIcon name="Search" size={14} strokeWidth={2} style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                    <input
+                      type="text"
+                      value={completedSearch}
+                      onChange={e => setCompletedSearch(e.target.value)}
+                      placeholder="案件名・場所・チーム名で検索"
+                      style={{
+                        width: '100%', padding: '0.55rem 0.75rem 0.55rem 2.1rem', borderRadius: 8,
+                        border: '1px solid #e2e8f0', fontSize: '0.85rem', boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                  {filteredCompletedOrders.length === 0 ? (
+                    <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>「{completedSearch}」に一致する完了済み案件はありません</p>
+                  ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                  {completedOrders.map(order => (
+                  {visibleCompletedOrders.map(order => (
                     <div key={order.id} style={{
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                       padding: '0.65rem 0.9rem',
@@ -271,7 +308,19 @@ export default function AdminPanel({ onAssignWorkers, workers = [] }) {
                       </div>
                     </div>
                   ))}
+                  {filteredCompletedOrders.length > visibleCompletedOrders.length && (
+                    <button
+                      type="button"
+                      className="fws-button tertiary"
+                      onClick={() => setCompletedVisibleCount(c => c + 10)}
+                      style={{ alignSelf: 'center', fontSize: '0.8rem' }}
+                    >
+                      もっと見る（残り{filteredCompletedOrders.length - visibleCompletedOrders.length}件）
+                    </button>
+                  )}
                 </div>
+                  )}
+                </>
               )}
             </div>
           )}
