@@ -88,6 +88,8 @@ export default function WorkerCalendarTab({
   }, [assignments, calendarMonth])
 
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [completedSearch, setCompletedSearch] = useState('')
+  const [completedVisibleCount, setCompletedVisibleCount] = useState(10)
 
   const isCompleted = useCallback((id, status) =>
     completedIds.has(id) || status === 'Completed' || status === 'completed',
@@ -98,18 +100,30 @@ export default function WorkerCalendarTab({
     assignments.filter(o => !isCompleted(o.id, o.status) && o.raw_status !== 'cancelled' && o.status?.toLowerCase() !== 'cancelled'),
   [assignments, isCompleted])
 
-  // 完了済みの案件（当日分のみ）
-  const completedAssignments = useMemo(() => {
-    const todayStr = new Date().toDateString()
-    return assignments.filter(o => {
-      if (!isCompleted(o.id, o.status)) return false
-      // このセッションで完了した（楽観的更新）は常に当日
-      if (completedIds.has(o.id)) return true
-      // DBのupdated_atが今日なら表示
-      if (o.updated_at) return new Date(o.updated_at).toDateString() === todayStr
-      return false
-    })
-  }, [assignments, completedIds, isCompleted])
+  // 完了済みの案件（全期間の履歴。管理者側の完了済み案件一覧と同じ考え方）
+  const completedAssignments = useMemo(() =>
+    assignments
+      .filter(o => isCompleted(o.id, o.status))
+      .sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0)),
+  [assignments, isCompleted])
+
+  // 案件名・場所で絞り込み（管理者側の完了済み案件検索と同じ考え方）
+  const filteredCompletedAssignments = useMemo(() => {
+    const q = completedSearch.trim().toLowerCase()
+    if (!q) return completedAssignments
+    return completedAssignments.filter(o =>
+      [o.projectName, o.title, o.id, o.location]
+        .filter(Boolean)
+        .some(field => String(field).toLowerCase().includes(q))
+    )
+  }, [completedAssignments, completedSearch])
+
+  // 検索条件が変わったら表示件数をリセット
+  useEffect(() => {
+    setCompletedVisibleCount(10)
+  }, [completedSearch])
+
+  const visibleCompletedAssignments = filteredCompletedAssignments.slice(0, completedVisibleCount)
 
   const AssignmentCard = ({ entry, showCompleteButton }) => (
     <article key={entry.id} className="worker-assignment-card">
@@ -385,11 +399,42 @@ export default function WorkerCalendarTab({
 
           {historyOpen && (
             <div style={{ padding: '0 1.25rem 1.25rem', borderTop: '1px solid #f1f5f9' }}>
-              <div className="worker-assignment-grid" style={{ marginTop: '0.75rem' }}>
-                {completedAssignments.map((order) => (
-                  <AssignmentCard key={order.id} entry={order} showCompleteButton={false} />
-                ))}
+              <div style={{ position: 'relative', marginTop: '0.85rem' }}>
+                <AppIcon name="Search" size={14} style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                <input
+                  type="text"
+                  value={completedSearch}
+                  onChange={e => setCompletedSearch(e.target.value)}
+                  placeholder="案件名・場所で検索"
+                  style={{
+                    width: '100%', padding: '0.5rem 0.75rem 0.5rem 2rem', borderRadius: 8,
+                    border: '1px solid #e2e8f0', fontSize: '0.82rem', boxSizing: 'border-box',
+                  }}
+                />
               </div>
+
+              {filteredCompletedAssignments.length === 0 ? (
+                <p style={{ marginTop: '0.85rem', fontSize: '0.82rem', color: '#94a3b8', textAlign: 'center' }}>
+                  「{completedSearch}」に一致する完了した案件はありません
+                </p>
+              ) : (
+                <div className="worker-assignment-grid" style={{ marginTop: '0.75rem' }}>
+                  {visibleCompletedAssignments.map((order) => (
+                    <AssignmentCard key={order.id} entry={order} showCompleteButton={false} />
+                  ))}
+                </div>
+              )}
+
+              {filteredCompletedAssignments.length > visibleCompletedAssignments.length && (
+                <button
+                  type="button"
+                  className="fws-button tertiary"
+                  onClick={() => setCompletedVisibleCount(c => c + 10)}
+                  style={{ alignSelf: 'center', fontSize: '0.8rem', display: 'block', margin: '0.85rem auto 0' }}
+                >
+                  もっと見る（残り{filteredCompletedAssignments.length - visibleCompletedAssignments.length}件）
+                </button>
+              )}
             </div>
           )}
         </section>
