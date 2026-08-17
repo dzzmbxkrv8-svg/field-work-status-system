@@ -4,6 +4,7 @@ import { useI18n } from '@/i18n'
 import { getWorkers } from '@/api/workers'
 import { getTeamTodayAttendance } from '@/api/attendance'
 import { getAssignments } from '@/api/assignments'
+import { getMessages } from '@/api/messages'
 import { getAnnouncement, updateAnnouncement } from '@/api/settings'
 import SummaryCards from './SummaryCards'
 import { AppIcon } from '@/utils/iconMap'
@@ -30,12 +31,13 @@ const ORDER_STATUS_LABELS = {
 
 export default function DashboardPanel() {
   const { state } = useAppContext()
-  const { filters } = state
+  const { filters, session } = state
   const { text, formatNumber, formatDue } = useI18n(state.language)
 
   const [workers, setWorkers]         = useState([])
   const [attendance, setAttendance]   = useState([])
   const [orders, setOrders]           = useState([])
+  const [messages, setMessages]       = useState([])
   const [loading, setLoading]         = useState(true)
   const [error, setError]             = useState(null)
   const [teamFilter, setTeamFilter]   = useState('All')
@@ -66,14 +68,16 @@ export default function DashboardPanel() {
   const fetchData = async (isInitial = false) => {
     if (isInitial) setLoading(true)
     try {
-      const [workersRes, attendanceRes, ordersRes] = await Promise.all([
+      const [workersRes, attendanceRes, ordersRes, messagesRes] = await Promise.all([
         getWorkers(),
         getTeamTodayAttendance(),
         getAssignments(),
+        getMessages(),
       ])
       if (workersRes.success)    setWorkers(workersRes.data || [])
       if (attendanceRes.success) setAttendance(attendanceRes.data || [])
       if (ordersRes.success)     setOrders(ordersRes.data || [])
+      if (messagesRes.success)   setMessages(messagesRes.data || [])
       setLastUpdated(new Date())
       setError(null)
     } catch (err) {
@@ -148,13 +152,18 @@ export default function DashboardPanel() {
   }, [workersWithAttendance, teamFilter, filters.search, todayAssignedWorkerIds, todayAssignedTeamIds])
 
   // 案件サマリー
+  // 「遅延」はstatus固定値ではなく、期限日(end_date)が過ぎているのにcompleted/cancelledに
+  // なっていない案件を動的に判定する（未着手カード=outstandingCountと同じ考え方）
   const summary = useMemo(() => {
-    const s = { total: orders.length, completionRate: 0, inProgress: 0, readyForDispatch: 0, completed: 0 }
+    const s = { total: orders.length, completionRate: 0, inProgress: 0, completed: 0, delayed: 0 }
+    const today = new Date()
     orders.forEach(o => {
       const st = o.status?.toLowerCase()
-      if (st === 'completed')          s.completed++
-      if (st === 'in_progress')        s.inProgress++
-      if (st === 'ready_for_dispatch') s.readyForDispatch++
+      if (st === 'completed')   s.completed++
+      if (st === 'in_progress') s.inProgress++
+      if (o.end_date && st !== 'completed' && st !== 'cancelled' && new Date(o.end_date) < today) {
+        s.delayed++
+      }
     })
     s.completionRate = s.total === 0 ? 0 : Math.round((s.completed / s.total) * 100)
     return s
@@ -165,9 +174,23 @@ export default function DashboardPanel() {
     return orders.filter(o => {
       if (!o.start_date) return false
       const st = o.status?.toLowerCase()
-      return new Date(o.start_date) <= today && (st === 'pending' || st === 'ready_for_dispatch')
+      return new Date(o.start_date) <= today && st === 'pending'
     }).length
   }, [orders])
+
+  // 本日まだ出退勤ステータスを1つも報告していない在籍中の作業員数
+  const notReportedCount = useMemo(() => {
+    const reportedIds = new Set(
+      attendance.filter(a => a.status && a.status !== 'not_reported').map(a => a.worker_id)
+    )
+    return workers.filter(w => !reportedIds.has(w.id)).length
+  }, [workers, attendance])
+
+  // 作業員から届いている未読の連絡数（他の管理者・自分自身からのメッセージは含めない）
+  const unreadWorkerMessageCount = useMemo(() => {
+    const workerIds = new Set(workers.map(w => w.id))
+    return messages.filter(m => !m.is_read && m.sender_id !== session?.id && workerIds.has(m.sender_id)).length
+  }, [messages, workers, session?.id])
 
   const topOrders = useMemo(() =>
     [...orders]
@@ -184,7 +207,12 @@ export default function DashboardPanel() {
   return (
     <>
       {/* ── 案件サマリーカード ── */}
-      <SummaryCards summary={summary} outstandingCount={outstandingCount} />
+      <SummaryCards
+        summary={summary}
+        outstandingCount={outstandingCount}
+        notReportedCount={notReportedCount}
+        unreadWorkerMessageCount={unreadWorkerMessageCount}
+      />
 
       {/* ── 作業員へのお知らせ編集 ── */}
       <section className="fws-panel" style={{ marginBottom: '1rem' }}>
