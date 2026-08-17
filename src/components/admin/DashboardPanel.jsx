@@ -32,7 +32,7 @@ const ORDER_STATUS_LABELS = {
 export default function DashboardPanel() {
   const { state } = useAppContext()
   const { filters, session } = state
-  const { text, formatNumber, formatDue } = useI18n(state.language)
+  const { formatDue } = useI18n(state.language)
 
   const [workers, setWorkers]         = useState([])
   const [attendance, setAttendance]   = useState([])
@@ -58,7 +58,7 @@ export default function DashboardPanel() {
       await updateAnnouncement(announcementText)
       setAnnouncementSaved(true)
       setTimeout(() => setAnnouncementSaved(false), 2500)
-    } catch (e) {
+    } catch {
       // ignore
     } finally {
       setAnnouncementSaving(false)

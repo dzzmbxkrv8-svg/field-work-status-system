@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { getWorkers } from '@/api/workers'
 import { uploadFile } from '@/api/messages'
 import { AppIcon } from '@/utils/iconMap'
@@ -34,7 +34,7 @@ function fmtTime(ts) {
   return `${d.getMonth() + 1}/${d.getDate()}`
 }
 
-export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, showToast, markRead, markAllRead }) {
+export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, showToast, markAllRead }) {
   const [workers, setWorkers] = useState([])
   const [selectedUser, setSelectedUser] = useState(null)
   const [input, setInput] = useState('')
@@ -78,17 +78,15 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
       .sort((a, b) => new Date(a.ts) - new Date(b.ts)),
   [apiMessages, myId])
 
-  // 全作業員IDセット（管理者メッセージ判別用）
-  const workerIdSet = useMemo(() => new Set(workers.map(w => w.id)), [workers])
-
   // 管理者との会話に含めるメッセージ
-  const adminConvFilter = (msg) =>
+  const adminConvFilter = useCallback((msg) =>
     // receiver_id/team_idともにnullなのは「自分→管理者」または「管理者→全員一斉送信」のいずれか
     // （APIはこのパターンを本人が送ったメッセージか、管理者が送ったメッセージしか返さないため、
     //   ここに来る時点でどちらか＝管理者との会話に属する）
     (msg.receiverId == null && msg.teamId == null) ||
     (msg.receiverId === myId) ||                                      // 管理者→自分（直接）
-    (msg.teamId != null && !msg.isMine)                              // チーム宛ブロードキャスト
+    (msg.teamId != null && !msg.isMine),                             // チーム宛ブロードキャスト
+  [myId])
 
   const conversations = useMemo(() => {
     const adminMsgs = messages.filter(adminConvFilter)
@@ -111,7 +109,7 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
       })
 
     return [adminEntry, ...workerEntries]
-  }, [messages, workers, myId])
+  }, [messages, workers, myId, adminConvFilter])
 
   const chatMessages = useMemo(() => {
     if (!selectedUser) return []
@@ -120,19 +118,22 @@ export default function WorkerReportTab({ worker, apiMessages, sendMessageApi, s
       (msg.senderId === myId && msg.receiverId === selectedUser.id) ||
       (msg.senderId === selectedUser.id && msg.receiverId === myId)
     )
-  }, [messages, selectedUser, myId])
+  }, [messages, selectedUser, myId, adminConvFilter])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages])
 
   // 会話を開いたとき未読メッセージをまとめて既読にする（1回のみfetch）
+  // 意図的にselectedUser?.idのみを依存にしている: chatMessages/markAllReadまで含めると
+  // 新着メッセージ受信のたびに再実行され、markAllReadが繰り返し発火してしまう
   useEffect(() => {
     if (!selectedUser || !myId) return
     const ids = chatMessages
       .filter(msg => !msg.isMine && !msg.isRead)
       .map(msg => msg.id)
     if (ids.length && markAllRead) markAllRead(ids)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedUser?.id])
 
   const handleFileSelect = (e, forImage) => {

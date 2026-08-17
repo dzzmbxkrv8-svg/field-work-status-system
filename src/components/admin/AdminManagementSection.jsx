@@ -23,7 +23,7 @@ export default function AdminManagementSection({ currentUserId }) {
         setAdmins(res.data || [])
         setInvitations(res.invitations || [])
       }
-    } catch (e) {
+    } catch {
       // ignore
     } finally {
       setLoading(false)

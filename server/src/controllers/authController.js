@@ -29,7 +29,6 @@ exports.login = async (req, res, next) => {
       user = rows[0];
     } else {
       for (const candidate of rows) {
-        // eslint-disable-next-line no-await-in-loop
         if (await bcrypt.compare(password || '', candidate.password_hash)) {
           user = candidate;
           break;

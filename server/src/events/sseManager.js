@@ -31,7 +31,7 @@ function broadcast(event, data) {
   for (const client of clients.values()) {
     try {
       client.res.write(payload)
-    } catch (_) {
+    } catch {
       // 書き込み失敗は無視（切断済み）
     }
   }
@@ -46,7 +46,9 @@ function sendToUser(userId, event, data) {
     if (client.userId === userId) {
       try {
         client.res.write(payload)
-      } catch (_) {}
+      } catch {
+        // 書き込み失敗は無視（切断済み）
+      }
     }
   }
 }
@@ -60,7 +62,9 @@ function sendToAdmins(event, data, companyId) {
     if (client.role === 'admin' && client.companyId === companyId) {
       try {
         client.res.write(payload)
-      } catch (_) {}
+      } catch {
+        // 書き込み失敗は無視（切断済み）
+      }
     }
   }
 }
@@ -74,7 +78,9 @@ function sendToWorkers(event, data, companyId) {
     if (client.role === 'worker' && client.companyId === companyId) {
       try {
         client.res.write(payload)
-      } catch (_) {}
+      } catch {
+        // 書き込み失敗は無視（切断済み）
+      }
     }
   }
 }

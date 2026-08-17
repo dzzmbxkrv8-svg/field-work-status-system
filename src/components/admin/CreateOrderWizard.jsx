@@ -380,7 +380,7 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
         memberIds: selectedWorkerIds,
         attachments,
       })
-    } catch (e) {
+    } catch {
       setError('作成に失敗しました。もう一度お試しください。')
       setSaving(false)
     }

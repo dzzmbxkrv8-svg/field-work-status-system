@@ -102,7 +102,7 @@ export default function LoginDialog({
     setCompanyRegisterDone(false)
   }
 
-  const isKatakana = (str) => /^[゠-ヿ\s　]+$/.test(str.trim())
+  const isKatakana = (str) => /^[゠-ヿ\s\u3000]+$/.test(str.trim())
 
   const handleLanguageChange = (nextLanguage) => {
     resetPanels()

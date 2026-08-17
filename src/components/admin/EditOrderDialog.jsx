@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { uploadAttachments, getAttachments, deleteAttachment } from '@/api/assignments'
+import { getAttachments, deleteAttachment } from '@/api/assignments'
 import { AppIcon } from '@/utils/iconMap'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'

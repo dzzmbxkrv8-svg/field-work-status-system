@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { getAttachments } from '@/api/assignments'
 import { AppIcon } from '@/utils/iconMap'
 
@@ -89,13 +89,14 @@ export default function WorkerCalendarTab({
 
   const [historyOpen, setHistoryOpen] = useState(false)
 
-  const isCompleted = (id, status) =>
-    completedIds.has(id) || status === 'Completed' || status === 'completed'
+  const isCompleted = useCallback((id, status) =>
+    completedIds.has(id) || status === 'Completed' || status === 'completed',
+  [completedIds])
 
   // アクティブな案件（完了・キャンセル以外）
   const activeAssignments = useMemo(() =>
     assignments.filter(o => !isCompleted(o.id, o.status) && o.raw_status !== 'cancelled' && o.status?.toLowerCase() !== 'cancelled'),
-  [assignments, completedIds])
+  [assignments, isCompleted])
 
   // 完了済みの案件（当日分のみ）
   const completedAssignments = useMemo(() => {
@@ -108,7 +109,7 @@ export default function WorkerCalendarTab({
       if (o.updated_at) return new Date(o.updated_at).toDateString() === todayStr
       return false
     })
-  }, [assignments, completedIds])
+  }, [assignments, completedIds, isCompleted])
 
   const AssignmentCard = ({ entry, showCompleteButton }) => (
     <article key={entry.id} className="worker-assignment-card">

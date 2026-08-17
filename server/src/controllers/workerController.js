@@ -1,6 +1,5 @@
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
-const { sendToAdmins } = require('../events/sseManager');
 
 exports.getWorkers = async (req, res, next) => {
   try {

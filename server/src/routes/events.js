@@ -2,7 +2,7 @@ const express = require('express')
 const router = express.Router()
 const jwt = require('jsonwebtoken')
 const db = require('../config/db')
-const { addClient, removeClient, getClientCount } = require('../events/sseManager')
+const { addClient, removeClient } = require('../events/sseManager')
 
 /**
  * GET /api/events
@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
   let user
   try {
     user = jwt.verify(token, process.env.JWT_SECRET)
-  } catch (_) {
+  } catch {
     return res.status(401).json({ success: false, message: '無効なトークンです' })
   }
 
@@ -29,7 +29,9 @@ router.get('/', async (req, res) => {
     try {
       const { rows } = await db.query('SELECT company_id FROM users WHERE id = $1', [user.id])
       companyId = rows[0]?.company_id
-    } catch (_) {}
+    } catch {
+      // company_id が取得できなければ未所属として扱う
+    }
   }
 
   // SSE ヘッダー設定
@@ -47,7 +49,7 @@ router.get('/', async (req, res) => {
   const heartbeat = setInterval(() => {
     try {
       res.write(':heartbeat\n\n')
-    } catch (_) {
+    } catch {
       clearInterval(heartbeat)
     }
   }, 30000)

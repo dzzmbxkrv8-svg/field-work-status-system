@@ -19,7 +19,7 @@ async function migrate() {
     let files;
     try {
       files = fs.readdirSync(migrationsDir).sort();
-    } catch (err) {
+    } catch {
       console.log('Migrations directory not found, skipping migration phase.');
       return;
     }

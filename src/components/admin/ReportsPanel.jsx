@@ -3,7 +3,6 @@ import { useAppContext } from '@/contexts/AppContext'
 import { useI18n } from '@/i18n'
 import { downloadBlob, escapeForCsv, formatAdminDate } from '@/utils/format'
 import WorkOrdersTable from './WorkOrdersTable'
-import { getWorkers } from '@/api/workers'
 import { getAssignments, getMembers, getAttachments } from '@/api/assignments'
 import { getAttendanceSummary } from '@/api/attendance'
 import { AppIcon } from '@/utils/iconMap'
@@ -31,7 +30,6 @@ export default function ReportsPanel() {
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
     const [startDate, setStartDate] = useState(monthStart.toISOString().split('T')[0])
     const [endDate, setEndDate] = useState(today.toISOString().split('T')[0])
-    const [workers, setWorkers] = useState([])
     const [orders, setOrders] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
@@ -49,12 +47,8 @@ export default function ReportsPanel() {
         const fetchData = async () => {
             setLoading(true)
             try {
-                const [workersRes, assignmentsRes] = await Promise.all([
-                    getWorkers(),
-                    getAssignments()
-                ])
+                const assignmentsRes = await getAssignments()
 
-                if (workersRes.success) setWorkers(workersRes.data || [])
                 if (assignmentsRes.success) {
                     setOrders(assignmentsRes.data.map(o => ({
                         ...o,

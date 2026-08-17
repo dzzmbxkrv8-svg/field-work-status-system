@@ -153,15 +153,17 @@ export default function MessagePanel({ workers: propWorkers }) {
     }, [messages, selectedUser])
 
     // 会話を開いたとき相手からの未読メッセージをまとめて既読にする（1回のみfetch）
+    // 意図的にselectedUser?.idのみを依存にしている: chatMessages/markAllReadまで含めると
+    // 新着メッセージ受信のたびに再実行され、markAllReadが繰り返し発火してしまう
     useEffect(() => {
         if (!selectedUser || !myId) return
         const ids = chatMessages.filter(m => !m.isMine && !m.isRead).map(m => m.id)
         if (ids.length) markAllRead(ids)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedUser?.id])
 
     // ひらがな↔カタカナを統一してふりがな検索に対応
     const toHiragana = (str) => str.replace(/[\u30A1-\u30F6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60))
-    const toKatakana = (str) => str.replace(/[\u3041-\u3096]/g, c => String.fromCharCode(c.charCodeAt(0) + 0x60))
 
     // 検索フィルター済み作業員リスト（条件returnより前に置く必要あり）
     const filteredWorkers = useMemo(() => {

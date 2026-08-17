@@ -10,7 +10,7 @@ async function seed() {
     let files;
     try {
       files = fs.readdirSync(seedsDir).sort();
-    } catch (err) {
+    } catch {
       console.log('Seeds directory not found, skipping seed phase.');
       return;
     }

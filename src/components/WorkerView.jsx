@@ -82,7 +82,7 @@ export default function WorkerView() {
       refreshAssignments()
       showToast('info', `作業指示「${data.title}」が更新されました`, 4000)
     },
-    onAnnouncementUpdated: (data) => {
+    onAnnouncementUpdated: () => {
       setAnnouncementRefreshKey(k => k + 1)
       showToast('info', 'お知らせが更新されました', 3500)
     },

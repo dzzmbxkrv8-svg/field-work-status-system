@@ -1,3 +1,4 @@
+// eslint-disable-next-line no-unused-vars -- Expressはエラーハンドラを引数の数(4つ)で判定するため next は必須
 const errorHandler = (err, req, res, next) => {
   const status = err.status || 500;
 

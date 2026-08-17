@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useI18n } from '@/i18n'
 import { useAppContext } from '@/contexts/AppContext'
-import { defaultFormState } from '@/utils/constants'
 import { formatAdminDate } from '@/utils/format'
 import WorkOrdersTable from './WorkOrdersTable'
 import { getAssignments, createAssignment, updateAssignment, cancelAssignment, assignWorker, setMembers, uploadAttachments } from '@/api/assignments'
@@ -12,11 +11,10 @@ import { AppIcon } from '@/utils/iconMap'
 
 export default function AdminPanel({ onAssignWorkers, workers = [] }) {
   const { state } = useAppContext()
-  const { text, getStatusLabel } = useI18n(state.language)
+  const { text } = useI18n(state.language)
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [formState, setFormState] = useState(defaultFormState)
   const [isAdding, setIsAdding] = useState(false)
   const [notification, setNotification] = useState(null)
   const [showCompleted, setShowCompleted] = useState(false)
@@ -73,10 +71,6 @@ export default function AdminPanel({ onAssignWorkers, workers = [] }) {
       window.removeEventListener('fieldo:assignment-updated', handleAssignmentUpdated)
     }
   }, [fetchOrders])
-
-  const handleFormChange = (field, value) => {
-    setFormState((previous) => ({ ...previous, [field]: value }))
-  }
 
   const handleWizardCreate = async ({ title, location, startDate, dueDate, leaderId, memberIds, attachments }) => {
     // leaderまたは最初のメンバーのteam_idを使用、なければnull
