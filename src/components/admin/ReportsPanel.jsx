@@ -5,7 +5,23 @@ import { downloadBlob, escapeForCsv, formatAdminDate } from '@/utils/format'
 import WorkOrdersTable from './WorkOrdersTable'
 import { getWorkers } from '@/api/workers'
 import { getAssignments, getMembers, getAttachments } from '@/api/assignments'
+import { getAttendanceSummary } from '@/api/attendance'
 import { AppIcon } from '@/utils/iconMap'
+
+const ATTENDANCE_STATUS_LABELS = {
+    not_reported: '未報告',
+    woke_up: '起床済み',
+    departed: '出発済み',
+    arrived: '現場到着',
+    finished: '作業終了',
+}
+
+function fmtTime(value) {
+    if (!value) return '—'
+    const d = new Date(value)
+    if (Number.isNaN(d.getTime())) return '—'
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
 
 export default function ReportsPanel() {
     const { state } = useAppContext()
@@ -19,6 +35,7 @@ export default function ReportsPanel() {
     const [orders, setOrders] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
+    const [exportingAttendance, setExportingAttendance] = useState(false)
 
     const [selectedOrder, setSelectedOrder] = useState(null)
     const [detailMembers, setDetailMembers] = useState([])
@@ -111,6 +128,47 @@ export default function ReportsPanel() {
         downloadBlob(`orders-${startDate}-${endDate}.csv`, blob)
     }
 
+    // 出勤記録CSV: 1人×1日×1案件 = 1行。同じ日に複数案件を担当していた場合は行を分ける。
+    // 対象日に担当していた案件が無い場合は「（担当案件なし）」として出勤ステータスのみ出力する。
+    // ※ その日attendanceに1件も記録が無い(作業員が一度もステータス報告していない)日は対象外
+    //   （出勤記録そのものが存在しないため）。
+    const handleExportAttendanceCsv = async () => {
+        setExportingAttendance(true)
+        try {
+            const res = await getAttendanceSummary(startDate, endDate)
+            if (!res.success) {
+                setError(res.message || '出勤記録の取得に失敗しました')
+                return
+            }
+            const headers = ['日付', '作業員名', '案件名', '現場住所', 'ステータス', '起床', '出発', '到着', '終了']
+            const rows = []
+            for (const a of res.data || []) {
+                const dateStr = String(a.date).slice(0, 10)
+                const matchedOrders = orders.filter(o =>
+                    o.assigned_worker_id === a.worker_id &&
+                    o.startDate && o.startDate <= dateStr &&
+                    (o.dueDate ? o.dueDate >= dateStr : o.startDate === dateStr)
+                )
+                const targets = matchedOrders.length > 0 ? matchedOrders : [null]
+                for (const o of targets) {
+                    rows.push([
+                        dateStr, a.worker_name,
+                        o ? (o.title || o.projectName) : '（担当案件なし）',
+                        o ? o.location : '',
+                        ATTENDANCE_STATUS_LABELS[a.status] || a.status,
+                        fmtTime(a.woke_up_at), fmtTime(a.departed_at), fmtTime(a.arrived_at), fmtTime(a.finished_at),
+                    ].map(escapeForCsv).join(','))
+                }
+            }
+            const blob = new Blob(['﻿' + [headers.join(','), ...rows].join('\n')], {
+                type: 'text/csv;charset=utf-8;',
+            })
+            downloadBlob(`attendance-${startDate}-${endDate}.csv`, blob)
+        } finally {
+            setExportingAttendance(false)
+        }
+    }
+
     if (loading) return <div className="fws-panel"><p>読み込み中...</p></div>
     if (error) return <div className="fws-panel"><p className="fws-accent">{error}</p></div>
 
@@ -133,6 +191,9 @@ export default function ReportsPanel() {
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <button type="button" className="fws-button secondary" onClick={handleExportOrdersCsv}>
                         案件CSV出力
+                    </button>
+                    <button type="button" className="fws-button secondary" onClick={handleExportAttendanceCsv} disabled={exportingAttendance}>
+                        {exportingAttendance ? '出力中...' : '出勤記録CSV出力'}
                     </button>
                 </div>
             </div>
