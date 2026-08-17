@@ -18,10 +18,6 @@ export default function SummaryCards({ summary, outstandingCount }) {
         <span className="fws-card-value">{formatNumber(summary.inProgress)}</span>
       </div>
       <div className="fws-card">
-        <span className="fws-card-label">{text.summary.delayed}</span>
-        <span className="fws-card-value fws-accent">{formatNumber(summary.delayed)}</span>
-      </div>
-      <div className="fws-card">
         <span className="fws-card-label">{text.summary.readyForDispatch}</span>
         <span className="fws-card-value">{formatNumber(summary.readyForDispatch)}</span>
       </div>

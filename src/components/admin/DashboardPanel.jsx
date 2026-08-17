@@ -149,12 +149,11 @@ export default function DashboardPanel() {
 
   // 案件サマリー
   const summary = useMemo(() => {
-    const s = { total: orders.length, completionRate: 0, inProgress: 0, delayed: 0, readyForDispatch: 0, completed: 0 }
+    const s = { total: orders.length, completionRate: 0, inProgress: 0, readyForDispatch: 0, completed: 0 }
     orders.forEach(o => {
       const st = o.status?.toLowerCase()
       if (st === 'completed')          s.completed++
       if (st === 'in_progress')        s.inProgress++
-      if (st === 'delayed')            s.delayed++
       if (st === 'ready_for_dispatch') s.readyForDispatch++
     })
     s.completionRate = s.total === 0 ? 0 : Math.round((s.completed / s.total) * 100)
