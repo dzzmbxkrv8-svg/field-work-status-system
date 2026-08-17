@@ -36,6 +36,7 @@ export default function ReportsPanel() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
     const [exportingAttendance, setExportingAttendance] = useState(false)
+    const [completedSearch, setCompletedSearch] = useState('')
 
     const [selectedOrder, setSelectedOrder] = useState(null)
     const [detailMembers, setDetailMembers] = useState([])
@@ -59,6 +60,7 @@ export default function ReportsPanel() {
                         ...o,
                         db_id: o.id,
                         id: o.assignment_code || o.id,
+                        projectName: o.title,
                         status: o.status,
                         progress: o.status === 'completed' ? 100 : (o.status === 'in_progress' ? 50 : 0),
                         startDate: o.start_date,
@@ -111,6 +113,17 @@ export default function ReportsPanel() {
             return true
         })
     }, [orders, startDate, endDate])
+
+    // 期間で絞り込んだ完了済み案件を、さらに案件名・場所・チーム名で絞り込む
+    const filteredCompletedOrders = useMemo(() => {
+        const q = completedSearch.trim().toLowerCase()
+        if (!q) return completedOrders
+        return completedOrders.filter(o =>
+            [o.projectName, o.id, o.location, o.team_name || o.team]
+                .filter(Boolean)
+                .some(field => String(field).toLowerCase().includes(q))
+        )
+    }, [completedOrders, completedSearch])
 
     const handleExportOrdersCsv = () => {
         const statusLabels = { pending: '未着手', in_progress: '進行中', completed: '完了', cancelled: 'キャンセル' }
@@ -198,11 +211,29 @@ export default function ReportsPanel() {
                 </div>
             </div>
 
+            {completedOrders.length > 0 && (
+                <div style={{ position: 'relative', marginBottom: '1rem', maxWidth: 360 }}>
+                    <AppIcon name="Search" size={14} strokeWidth={2} style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                    <input
+                        type="text"
+                        value={completedSearch}
+                        onChange={(e) => setCompletedSearch(e.target.value)}
+                        placeholder="案件名・場所・チーム名で検索"
+                        style={{
+                            width: '100%', padding: '0.55rem 0.75rem 0.55rem 2.1rem', borderRadius: 8,
+                            border: '1px solid #e2e8f0', fontSize: '0.85rem', boxSizing: 'border-box',
+                        }}
+                    />
+                </div>
+            )}
+
             <div className="fws-card">
                 {completedOrders.length === 0 ? (
                     <p className="fws-empty">完了済みの案件はまだありません。</p>
+                ) : filteredCompletedOrders.length === 0 ? (
+                    <p className="fws-empty">「{completedSearch}」に一致する完了済み案件はありません。</p>
                 ) : (
-                    <WorkOrdersTable orders={completedOrders} readOnly onSelect={handleSelectOrder} />
+                    <WorkOrdersTable orders={filteredCompletedOrders} readOnly onSelect={handleSelectOrder} />
                 )}
             </div>
         </div>
