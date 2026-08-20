@@ -92,28 +92,18 @@ exports.createWorker = async (req, res, next) => {
 exports.updateWorker = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, furigana, phone, email, address, team_id, password } = req.body;
+    const { name, furigana, phone, email, address, team_id } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ success: false, message: '氏名は必須です' });
     }
-    let password_hash;
-    if (password) {
-      const pwRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
-      if (!pwRegex.test(password)) {
-        return res.status(400).json({ success: false, message: 'パスワードは大文字・小文字・数字を含む8文字以上で入力してください' });
-      }
-      password_hash = await bcrypt.hash(password, 10);
-    }
-    const base = `name=$1, furigana=$2, phone=$3, email=$4, address=$5, team_id=$6, updated_at=NOW()`;
-    const updateQuery = password_hash
-      ? `UPDATE users SET ${base}, password_hash=$7 WHERE id=$8 AND role='worker' AND is_active=true AND company_id=$9
-         RETURNING id, employee_id, name, furigana, phone, email, address, role, team_id`
-      : `UPDATE users SET ${base} WHERE id=$7 AND role='worker' AND is_active=true AND company_id=$8
-         RETURNING id, employee_id, name, furigana, phone, email, address, role, team_id`;
-    const params = password_hash
-      ? [name.trim(), furigana?.trim()||null, phone?.trim()||null, email?.trim()||null, address?.trim()||null, team_id||null, password_hash, id, req.user.company_id]
-      : [name.trim(), furigana?.trim()||null, phone?.trim()||null, email?.trim()||null, address?.trim()||null, team_id||null, id, req.user.company_id];
-    const { rows } = await db.query(updateQuery, params);
+    // 作業員のパスワードは管理者が直接設定できないようにする（本人のみが
+    // ログイン画面の「パスワードを忘れた場合」からメール経由で変更可能）
+    const { rows } = await db.query(
+      `UPDATE users SET name=$1, furigana=$2, phone=$3, email=$4, address=$5, team_id=$6, updated_at=NOW()
+       WHERE id=$7 AND role='worker' AND is_active=true AND company_id=$8
+       RETURNING id, employee_id, name, furigana, phone, email, address, role, team_id`,
+      [name.trim(), furigana?.trim()||null, phone?.trim()||null, email?.trim()||null, address?.trim()||null, team_id||null, id, req.user.company_id]
+    );
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: '作業員が見つかりません' });
     }

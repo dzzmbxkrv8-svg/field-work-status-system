@@ -26,7 +26,6 @@ function EditForm({ worker, teams, onSave, onCancel, saving }) {
   const [email, setEmail] = useState(worker.email || '')
   const [address, setAddress] = useState(worker.address || '')
   const [teamId, setTeamId] = useState(worker.team_id ? String(worker.team_id) : '')
-  const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
 
   const fieldStyle = {
@@ -46,7 +45,6 @@ function EditForm({ worker, teams, onSave, onCancel, saving }) {
       email: email.trim() || null,
       address: address.trim() || null,
       team_id: teamId ? parseInt(teamId, 10) : null,
-      ...(password ? { password } : {}),
     })
   }
 
@@ -84,10 +82,6 @@ function EditForm({ worker, teams, onSave, onCancel, saving }) {
             <option value="">未所属</option>
             {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
-        </label>
-        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.82rem', color: '#374151' }}>
-          パスワード変更（任意）
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="変更する場合のみ入力" style={fieldStyle} />
         </label>
       </div>
       <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
