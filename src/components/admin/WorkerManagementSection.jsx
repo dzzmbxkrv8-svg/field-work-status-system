@@ -74,7 +74,23 @@ function EditForm({ worker, teams, onSave, onCancel, saving }) {
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.82rem', color: '#374151', gridColumn: '1 / -1' }}>
           住所
-          <input value={address} onChange={e => setAddress(e.target.value)} placeholder="東京都渋谷区〇〇1-2-3" style={fieldStyle} />
+          <div style={{ position: 'relative' }}>
+            <input value={address} onChange={e => setAddress(e.target.value)} placeholder="東京都渋谷区〇〇1-2-3" style={{ ...fieldStyle, paddingRight: '2.2rem' }} />
+            {address.trim() && (
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address.trim())}`}
+                target="_blank"
+                rel="noreferrer"
+                title="Googleマップで確認"
+                style={{
+                  position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)',
+                  display: 'flex', alignItems: 'center', color: '#4f46e5',
+                }}
+              >
+                <AppIcon name="MapPin" size={16} strokeWidth={2} />
+              </a>
+            )}
+          </div>
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.82rem', color: '#374151' }}>
           チーム
