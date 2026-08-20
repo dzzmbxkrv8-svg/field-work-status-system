@@ -57,7 +57,7 @@ function EditForm({ worker, teams, onSave, onCancel, saving }) {
       )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
         <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.82rem', color: '#374151' }}>
-          氏名 <span style={{ color: '#ef4444', fontSize: '0.7rem', display: 'inline' }}>必須</span>
+          <span>氏名 <span style={{ color: '#ef4444', fontSize: '0.7rem' }}>必須</span></span>
           <input value={name} onChange={e => setName(e.target.value)} style={fieldStyle} />
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.82rem', color: '#374151' }}>
