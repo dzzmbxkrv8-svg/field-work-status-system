@@ -24,6 +24,7 @@ function EditForm({ worker, teams, onSave, onCancel, saving }) {
   const [furigana, setFurigana] = useState(worker.furigana || '')
   const [phone, setPhone] = useState(worker.phone || '')
   const [email, setEmail] = useState(worker.email || '')
+  const [address, setAddress] = useState(worker.address || '')
   const [teamId, setTeamId] = useState(worker.team_id ? String(worker.team_id) : '')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
@@ -43,6 +44,7 @@ function EditForm({ worker, teams, onSave, onCancel, saving }) {
       furigana: furigana.trim() || null,
       phone: phone.trim() || null,
       email: email.trim() || null,
+      address: address.trim() || null,
       team_id: teamId ? parseInt(teamId, 10) : null,
       ...(password ? { password } : {}),
     })
@@ -71,6 +73,10 @@ function EditForm({ worker, teams, onSave, onCancel, saving }) {
         <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.82rem', color: '#374151' }}>
           メールアドレス
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="yamada@example.com" style={fieldStyle} />
+        </label>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.82rem', color: '#374151', gridColumn: '1 / -1' }}>
+          住所
+          <input value={address} onChange={e => setAddress(e.target.value)} placeholder="東京都渋谷区〇〇1-2-3" style={fieldStyle} />
         </label>
         <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.82rem', color: '#374151' }}>
           チーム

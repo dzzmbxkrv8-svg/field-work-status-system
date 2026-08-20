@@ -8,7 +8,7 @@ exports.getWorkers = async (req, res, next) => {
     // 電話番号・メールアドレスなど個人情報は管理者にのみ返す
     const { rows } = await db.query(`
       SELECT u.id, u.employee_id, u.name, u.furigana,
-             ${isAdmin ? 'u.phone, u.email, u.status,' : ''}
+             ${isAdmin ? 'u.phone, u.email, u.address, u.status,' : ''}
              u.team_id, t.name as team_name
       FROM users u
       LEFT JOIN teams t ON u.team_id = t.id
@@ -92,7 +92,7 @@ exports.createWorker = async (req, res, next) => {
 exports.updateWorker = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, furigana, phone, email, team_id, password } = req.body;
+    const { name, furigana, phone, email, address, team_id, password } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ success: false, message: '氏名は必須です' });
     }
@@ -104,15 +104,15 @@ exports.updateWorker = async (req, res, next) => {
       }
       password_hash = await bcrypt.hash(password, 10);
     }
-    const base = `name=$1, furigana=$2, phone=$3, email=$4, team_id=$5, updated_at=NOW()`;
+    const base = `name=$1, furigana=$2, phone=$3, email=$4, address=$5, team_id=$6, updated_at=NOW()`;
     const updateQuery = password_hash
-      ? `UPDATE users SET ${base}, password_hash=$6 WHERE id=$7 AND role='worker' AND is_active=true AND company_id=$8
-         RETURNING id, employee_id, name, furigana, phone, email, role, team_id`
-      : `UPDATE users SET ${base} WHERE id=$6 AND role='worker' AND is_active=true AND company_id=$7
-         RETURNING id, employee_id, name, furigana, phone, email, role, team_id`;
+      ? `UPDATE users SET ${base}, password_hash=$7 WHERE id=$8 AND role='worker' AND is_active=true AND company_id=$9
+         RETURNING id, employee_id, name, furigana, phone, email, address, role, team_id`
+      : `UPDATE users SET ${base} WHERE id=$7 AND role='worker' AND is_active=true AND company_id=$8
+         RETURNING id, employee_id, name, furigana, phone, email, address, role, team_id`;
     const params = password_hash
-      ? [name.trim(), furigana?.trim()||null, phone?.trim()||null, email?.trim()||null, team_id||null, password_hash, id, req.user.company_id]
-      : [name.trim(), furigana?.trim()||null, phone?.trim()||null, email?.trim()||null, team_id||null, id, req.user.company_id];
+      ? [name.trim(), furigana?.trim()||null, phone?.trim()||null, email?.trim()||null, address?.trim()||null, team_id||null, password_hash, id, req.user.company_id]
+      : [name.trim(), furigana?.trim()||null, phone?.trim()||null, email?.trim()||null, address?.trim()||null, team_id||null, id, req.user.company_id];
     const { rows } = await db.query(updateQuery, params);
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: '作業員が見つかりません' });
