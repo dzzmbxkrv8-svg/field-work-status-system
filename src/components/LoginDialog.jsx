@@ -74,6 +74,7 @@ export default function LoginDialog({
     name: '',
     phone: '',
     email: '',
+    address: '',
     password: '',
     confirm: '',
   })
@@ -254,6 +255,7 @@ export default function LoginDialog({
         name: workerRegisterState.name,
         phone: workerRegisterState.phone,
         email: workerRegisterState.email,
+        address: workerRegisterState.address,
         password: workerRegisterState.password,
       })
       const assignedId = result?.employeeId || result?.data?.employee_id
@@ -261,7 +263,7 @@ export default function LoginDialog({
         ? `登録が完了しました。あなたの作業員IDは「${assignedId}」です。\n管理者の承認後にログインできるようになります。`
         : text.login.workerRegisterSuccess
       )
-      setWorkerRegisterState({ accessCode: '', furigana: '', name: '', phone: '', email: '', password: '', confirm: '' })
+      setWorkerRegisterState({ accessCode: '', furigana: '', name: '', phone: '', email: '', address: '', password: '', confirm: '' })
     } catch (exception) {
       const messageKey = exception.code ?? 'unknownOrganization'
       setWorkerRegisterInfo(text.login.errors[messageKey] ?? text.login.errors.unknownOrganization ?? exception.message)
@@ -484,6 +486,14 @@ export default function LoginDialog({
                   value={workerRegisterState.email}
                   placeholder="例：tanaka@example.com"
                   onChange={(event) => setWorkerRegisterState((prev) => ({ ...prev, email: event.target.value }))}
+                />
+              </label>
+              <label>
+                住所
+                <input
+                  value={workerRegisterState.address}
+                  placeholder="例：東京都渋谷区〇〇1-2-3"
+                  onChange={(event) => setWorkerRegisterState((prev) => ({ ...prev, address: event.target.value }))}
                 />
               </label>
               <label>

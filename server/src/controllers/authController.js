@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { sendPasswordResetEmail } = require('../config/mailer');
+const { geocodeAddress } = require('../services/geocodingService');
 
 exports.login = async (req, res, next) => {
   try {
@@ -112,7 +113,7 @@ exports.login = async (req, res, next) => {
 
 exports.register = async (req, res, next) => {
   try {
-    const { access_code, name, furigana, phone, email, password } = req.body;
+    const { access_code, name, furigana, phone, email, address, password } = req.body;
 
     // アクセスコードから所属する会社を特定
     const companyResult = await db.query(
@@ -153,12 +154,24 @@ exports.register = async (req, res, next) => {
 
     const password_hash = await bcrypt.hash(password, 10);
 
+    // 住所からの座標算出はベストエフォート（ジオコーディング失敗でも登録自体は続行する）
+    const trimmedAddress = address?.trim() || null;
+    let lat = null, lng = null;
+    if (trimmedAddress) {
+      try {
+        const coords = await geocodeAddress(trimmedAddress);
+        if (coords) { lat = coords.lat; lng = coords.lng; }
+      } catch (geoErr) {
+        console.warn('[register] ジオコーディングに失敗しました:', geoErr.message);
+      }
+    }
+
     // チーム未所属・承認待ち（status = 'pending'）で登録
     const { rows } = await db.query(
-      `INSERT INTO users (employee_id, name, furigana, phone, email, role, team_id, password_hash, status, company_id)
-       VALUES ($1, $2, $3, $4, $5, 'worker', NULL, $6, 'pending', $7)
-       RETURNING id, employee_id, name, furigana, phone, email, role, team_id, status`,
-      [employee_id, name.trim(), furigana?.trim() || null, phone?.trim() || null, email?.trim() || null, password_hash, company.id]
+      `INSERT INTO users (employee_id, name, furigana, phone, email, address, lat, lng, role, team_id, password_hash, status, company_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'worker', NULL, $9, 'pending', $10)
+       RETURNING id, employee_id, name, furigana, phone, email, address, role, team_id, status`,
+      [employee_id, name.trim(), furigana?.trim() || null, phone?.trim() || null, email?.trim() || null, trimmedAddress, lat, lng, password_hash, company.id]
     );
 
     res.status(201).json({ success: true, data: rows[0], employeeId: employee_id });

@@ -164,7 +164,7 @@ exports.deleteWorker = async (req, res, next) => {
 exports.getPendingWorkers = async (req, res, next) => {
   try {
     const { rows } = await db.query(`
-      SELECT id, employee_id, name, furigana, phone, email, created_at
+      SELECT id, employee_id, name, furigana, phone, email, address, created_at
       FROM users
       WHERE role = 'worker' AND is_active = true AND status = 'pending' AND company_id = $1
       ORDER BY created_at DESC

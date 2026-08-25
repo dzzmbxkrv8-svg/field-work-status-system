@@ -233,6 +233,7 @@ export default function TeamManagementPanel() {
                 <div style={{ display: 'flex', gap: '1rem', marginTop: '0.2rem', fontSize: '0.78rem', color: '#64748b', flexWrap: 'wrap' }}>
                   {w.phone && <span><AppIcon name="User" size={11} strokeWidth={2} style={{ verticalAlign: 'middle' }} /> {w.phone}</span>}
                   {w.email && <span>{w.email}</span>}
+                  {w.address && <span><AppIcon name="MapPin" size={11} strokeWidth={2} style={{ verticalAlign: 'middle' }} /> {w.address}</span>}
                   <span style={{ color: '#94a3b8' }}>{new Date(w.created_at).toLocaleDateString('ja-JP')} 登録</span>
                 </div>
               </div>

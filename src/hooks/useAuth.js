@@ -39,13 +39,14 @@ export function useAuth() {
     [login, dispatch]
   )
 
-  const registerWorker = useCallback(async ({ accessCode, furigana, name, phone, email, password }) => {
+  const registerWorker = useCallback(async ({ accessCode, furigana, name, phone, email, address, password }) => {
     const result = await authApi.registerWorker({
       access_code: accessCode,
       furigana,
       name,
       phone,
       email,
+      address,
       password,
     })
     if (!result.success) {
