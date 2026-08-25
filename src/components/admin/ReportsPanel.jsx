@@ -5,6 +5,7 @@ import { downloadBlob, escapeForCsv, formatAdminDate } from '@/utils/format'
 import WorkOrdersTable from './WorkOrdersTable'
 import { getAssignments, getMembers, getAttachments } from '@/api/assignments'
 import { getAttendanceSummary } from '@/api/attendance'
+import { getReportSummary } from '@/api/reports'
 import { AppIcon } from '@/utils/iconMap'
 
 const ATTENDANCE_STATUS_LABELS = {
@@ -35,6 +36,9 @@ export default function ReportsPanel() {
     const [error, setError] = useState(null)
     const [exportingAttendance, setExportingAttendance] = useState(false)
     const [completedSearch, setCompletedSearch] = useState('')
+    const [summary, setSummary] = useState(null)
+    const [summaryLoading, setSummaryLoading] = useState(false)
+    const [summaryError, setSummaryError] = useState(null)
 
     const [selectedOrder, setSelectedOrder] = useState(null)
     const [detailMembers, setDetailMembers] = useState([])
@@ -107,6 +111,29 @@ export default function ReportsPanel() {
             return true
         })
     }, [orders, startDate, endDate])
+
+    // 期間を変更したら、その期間に対する要約はまだ生成していない状態に戻す
+    useEffect(() => {
+        setSummary(null)
+        setSummaryError(null)
+    }, [startDate, endDate])
+
+    const handleGenerateSummary = async (regenerate) => {
+        setSummaryLoading(true)
+        setSummaryError(null)
+        try {
+            const res = await getReportSummary(startDate, endDate, { regenerate })
+            if (res.success) {
+                setSummary(res.data)
+            } else {
+                setSummaryError(res.message || 'AI要約の生成に失敗しました')
+            }
+        } catch {
+            setSummaryError('AI要約の生成に失敗しました')
+        } finally {
+            setSummaryLoading(false)
+        }
+    }
 
     // 期間で絞り込んだ完了済み案件を、さらに案件名・場所・チーム名で絞り込む
     const filteredCompletedOrders = useMemo(() => {
@@ -203,6 +230,39 @@ export default function ReportsPanel() {
                         {exportingAttendance ? '出力中...' : '出勤記録CSV出力'}
                     </button>
                 </div>
+            </div>
+
+            <div className="fws-card" style={{ marginBottom: '1rem', padding: '1rem 1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.6rem' }}>
+                    <h3 style={{ margin: 0, fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#374151' }}>
+                        <AppIcon name="Sparkles" size={16} strokeWidth={2} style={{ color: '#4f46e5' }} />
+                        AI要約（{startDate} 〜 {endDate}の完了案件）
+                    </h3>
+                    <button
+                        type="button"
+                        className="fws-button secondary"
+                        onClick={() => handleGenerateSummary(!!summary)}
+                        disabled={summaryLoading}
+                    >
+                        {summaryLoading ? '生成中...' : summary ? '再生成' : 'AI要約を生成'}
+                    </button>
+                </div>
+                {summaryError && (
+                    <p style={{ margin: '0.75rem 0 0', fontSize: '0.82rem', color: '#dc2626' }}>{summaryError}</p>
+                )}
+                {summary && !summaryError && (
+                    <div style={{ marginTop: '0.75rem' }}>
+                        <p style={{ margin: 0, fontSize: '0.88rem', color: '#374151', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                            {summary.summary_text}
+                        </p>
+                        {summary.order_count > 0 && (
+                            <p style={{ margin: '0.6rem 0 0', fontSize: '0.72rem', color: '#94a3b8' }}>
+                                {summary.order_count}件を要約対象・{summary.cached ? '前回生成' : '今回生成'}
+                                （{new Date(summary.generated_at).toLocaleString('ja-JP')}）
+                            </p>
+                        )}
+                    </div>
+                )}
             </div>
 
             {completedOrders.length > 0 && (

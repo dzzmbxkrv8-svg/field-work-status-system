@@ -10,7 +10,7 @@ import {
   User, UserCheck, CalendarDays, Flag,
   ArrowLeft, ArrowRight, CircleCheck, CircleX,
   TriangleAlert, Bookmark, Building2,
-  Fingerprint, ShieldCheck,
+  Fingerprint, ShieldCheck, Sparkles,
 } from 'lucide-react'
 
 const ICON_MAP = {
@@ -63,6 +63,7 @@ const ICON_MAP = {
   Building2,
   Fingerprint,
   ShieldCheck,
+  Sparkles,
 }
 
 /**
