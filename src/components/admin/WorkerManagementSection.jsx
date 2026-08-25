@@ -4,6 +4,7 @@ import { getTeams } from '@/api/teams'
 import { AppIcon } from '@/utils/iconMap'
 
 const AVATAR_COLORS = ['#4f46e5', '#7c3aed', '#db2777', '#059669', '#d97706', '#dc2626', '#0891b2']
+const SKILL_LABELS = { 1: '初級', 2: '中級', 3: '上級' }
 const avatarColor = (id) => AVATAR_COLORS[(Number(id) || 0) % AVATAR_COLORS.length]
 
 function Avatar({ name, id, size = 36 }) {
@@ -26,6 +27,7 @@ function EditForm({ worker, teams, onSave, onCancel, saving }) {
   const [email, setEmail] = useState(worker.email || '')
   const [address, setAddress] = useState(worker.address || '')
   const [teamId, setTeamId] = useState(worker.team_id ? String(worker.team_id) : '')
+  const [skillLevel, setSkillLevel] = useState(worker.skill_level ? String(worker.skill_level) : '')
   const [error, setError] = useState(null)
 
   const fieldStyle = {
@@ -45,6 +47,7 @@ function EditForm({ worker, teams, onSave, onCancel, saving }) {
       email: email.trim() || null,
       address: address.trim() || null,
       team_id: teamId ? parseInt(teamId, 10) : null,
+      skill_level: skillLevel ? parseInt(skillLevel, 10) : null,
     })
   }
 
@@ -97,6 +100,15 @@ function EditForm({ worker, teams, onSave, onCancel, saving }) {
           <select value={teamId} onChange={e => setTeamId(e.target.value)} style={fieldStyle}>
             <option value="">未所属</option>
             {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </label>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.82rem', color: '#374151' }}>
+          スキルレベル
+          <select value={skillLevel} onChange={e => setSkillLevel(e.target.value)} style={fieldStyle}>
+            <option value="">未設定</option>
+            <option value="1">初級</option>
+            <option value="2">中級</option>
+            <option value="3">上級</option>
           </select>
         </label>
       </div>
@@ -214,6 +226,7 @@ export default function WorkerManagementSection() {
                     </p>
                     <p style={{ margin: '0.1rem 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>
                       {worker.employee_id} ・ {teamName}
+                      {SKILL_LABELS[worker.skill_level] && ` ・ ${SKILL_LABELS[worker.skill_level]}`}
                     </p>
                   </div>
                   <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>

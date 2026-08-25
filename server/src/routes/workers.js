@@ -10,6 +10,8 @@ router.post('/', auth, requireAdmin, workerController.createWorker);
 // 承認待ち一覧・承認（/:id より先に定義）
 router.get('/pending', auth, requireAdmin, workerController.getPendingWorkers);
 router.patch('/:id/approve', auth, requireAdmin, workerController.approveWorker);
+// AIおまかせ（距離・負荷・スキルバランスを考慮した候補提案）
+router.post('/recommend', auth, requireAdmin, workerController.recommendWorkers);
 router.get('/:id', auth, workerController.getWorker);
 router.put('/:id', auth, requireAdmin, workerController.updateWorker);
 router.delete('/:id', auth, requireAdmin, workerController.deleteWorker);

@@ -35,3 +35,10 @@ export const updateWorker = async (id, data) => {
 export const deleteWorker = async (id) => {
   return apiClient(`/api/workers/${id}`, { method: 'DELETE' });
 };
+
+export const recommendWorkers = async (location, count) => {
+  return apiClient('/api/workers/recommend', {
+    method: 'POST',
+    body: JSON.stringify({ location, count }),
+  });
+};

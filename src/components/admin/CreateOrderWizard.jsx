@@ -2,6 +2,9 @@ import { useState, useMemo, useEffect } from 'react'
 import { AppIcon } from '@/utils/iconMap'
 import { useI18n } from '@/i18n'
 import { useShiftAvailability } from '@/hooks/useShiftAvailability'
+import { recommendWorkers } from '@/api/workers'
+
+const SKILL_LABELS = { 1: '初級', 2: '中級', 3: '上級' }
 
 const STEPS = ['案件情報', 'メンバーを選ぶ', '確認']
 
@@ -295,6 +298,11 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
   const [leaderId, setLeaderId] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  // AIおまかせ（距離・稼働負荷・スキルバランスを考慮した候補提案）
+  const [recommendCount, setRecommendCount] = useState(3)
+  const [recommending, setRecommending] = useState(false)
+  const [recommendError, setRecommendError] = useState(null)
+  const [recommendInfo, setRecommendInfo] = useState(null) // { candidatesById, siteResolved }
   // 作業期間中にシフトで○(出勤可)と回答した作業員のみを判定する（未取得時はnull=全員表示）
   const { availabilityMap, loading: availabilityLoading } = useShiftAvailability(form.startDate, form.dueDate)
 
@@ -329,6 +337,35 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
       if (!leaderId) setLeaderId(id)
       return next
     })
+  }
+
+  // 現場住所・必要人数から、距離・稼働負荷・スキルバランスを考慮した候補をAIに提案してもらう
+  const handleRecommend = async () => {
+    if (!form.location.trim()) {
+      setRecommendError('現場（住所）を入力してから実行してください')
+      return
+    }
+    setRecommending(true)
+    setRecommendError(null)
+    try {
+      const res = await recommendWorkers(form.location.trim(), recommendCount)
+      if (!res.success) {
+        setRecommendError(res.message || 'AIおまかせの取得に失敗しました')
+        return
+      }
+      const candidatesById = {}
+      res.data.candidates.forEach(c => { candidatesById[c.id] = c })
+      setRecommendInfo({ candidatesById, siteResolved: res.data.siteResolved })
+
+      // シフトで×の人は候補から除外し、そのうえで必要人数を選択状態にする
+      const validIds = res.data.recommendedIds.filter(id => availabilityMap ? availabilityMap[id] !== false : true)
+      setSelectedWorkerIds(validIds)
+      setLeaderId(validIds[0] ?? null)
+    } catch {
+      setRecommendError('AIおまかせの取得に失敗しました')
+    } finally {
+      setRecommending(false)
+    }
   }
 
   const handleFormChange = (field, value) => {
@@ -565,6 +602,41 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
             <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>複数選択可・選択後にリーダーを指定してください</p>
           </div>
 
+          {/* AIおまかせ：距離・稼働負荷・スキルバランスを考慮して自動選定 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', background: '#f5f5ff', border: '1px solid #e0e0fa', borderRadius: 10, padding: '0.6rem 0.75rem' }}>
+            <AppIcon name="Sparkles" size={15} strokeWidth={2} style={{ color: '#4f46e5', flexShrink: 0 }} />
+            <span style={{ fontSize: '0.8rem', color: '#374151' }}>必要人数</span>
+            <input
+              type="number"
+              min={1}
+              max={availableWorkers.length || 1}
+              value={recommendCount}
+              onChange={e => setRecommendCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              style={{ width: '3.2rem', padding: '0.3rem 0.4rem', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '0.85rem' }}
+            />
+            <span style={{ fontSize: '0.8rem', color: '#374151' }}>人</span>
+            <button
+              type="button"
+              onClick={handleRecommend}
+              disabled={recommending}
+              style={{
+                marginLeft: 'auto', padding: '0.35rem 0.8rem', borderRadius: 8, border: 'none',
+                background: '#4f46e5', color: '#fff', fontWeight: 700, fontSize: '0.8rem',
+                cursor: recommending ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {recommending ? '選定中...' : '🤖 AIにおまかせ'}
+            </button>
+            {recommendError && (
+              <p style={{ margin: 0, width: '100%', fontSize: '0.76rem', color: '#dc2626' }}>{recommendError}</p>
+            )}
+            {recommendInfo && !recommendInfo.siteResolved && !recommendError && (
+              <p style={{ margin: 0, width: '100%', fontSize: '0.76rem', color: '#92400e' }}>
+                現場住所の位置が特定できなかったため、距離は考慮せず稼働負荷のみで選定しました
+              </p>
+            )}
+          </div>
+
           {/* シフトによる絞り込み状況 */}
           {availabilityLoading ? (
             <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8' }}>{text.admin.shiftAvailability.checking}</p>
@@ -673,6 +745,19 @@ export default function CreateOrderWizard({ workers, onCreate, onCancel }) {
                       )}
                     </div>
                     <p style={{ margin: 0, fontSize: '0.72rem', color: '#94a3b8' }}>{worker.team_name || worker.team || '—'}</p>
+                    {recommendInfo?.candidatesById[worker.id] && (() => {
+                      const c = recommendInfo.candidatesById[worker.id]
+                      const parts = [
+                        c.distance_km != null ? `距離${c.distance_km}km` : '距離不明',
+                        `直近${c.recent_load}件`,
+                        SKILL_LABELS[c.skill_level] || 'スキル未設定',
+                      ]
+                      return (
+                        <p style={{ margin: '0.15rem 0 0', fontSize: '0.68rem', color: '#4f46e5' }}>
+                          {parts.join(' ・ ')}
+                        </p>
+                      )
+                    })()}
                   </div>
 
                   {/* チェック + リーダーボタン */}
