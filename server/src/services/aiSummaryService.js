@@ -1,10 +1,15 @@
-// 完了済み案件データをAI（Anthropic Claude）に要約させるサービス。
-// 利用にはサーバー環境変数 ANTHROPIC_API_KEY の設定が必要。
-// 未設定の場合は AI_NOT_CONFIGURED エラーを投げるので、呼び出し側で
-// 「AI要約機能が未設定です」等のメッセージに変換すること。
+// 完了済み案件データをAIに要約させるサービス。
+//
+// ANTHROPIC_API_KEY が設定されていれば Anthropic Claude（有料・高品質）を、
+// 未設定でGEMINI_API_KEYがあれば Google Gemini（無料枠あり）を使う。
+// どちらも未設定の場合は AI_NOT_CONFIGURED エラーを投げる。
+// 本番移行時はRenderの環境変数にANTHROPIC_API_KEYを追加するだけで、
+// コード変更なしに自動でAnthropic側へ切り替わる。
 
-const MODEL = 'claude-haiku-4-5-20251001';
-const API_URL = 'https://api.anthropic.com/v1/messages';
+const ANTHROPIC_MODEL = 'claude-haiku-4-5-20251001';
+const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 function buildPrompt(orders) {
   const listText = orders.map(o => {
@@ -26,15 +31,8 @@ ${listText}
 `;
 }
 
-async function summarizeCompletedOrders(orders) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    const err = new Error('ANTHROPIC_API_KEY が設定されていません');
-    err.code = 'AI_NOT_CONFIGURED';
-    throw err;
-  }
-
-  const res = await fetch(API_URL, {
+async function summarizeWithAnthropic(orders, apiKey) {
+  const res = await fetch(ANTHROPIC_API_URL, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -42,7 +40,7 @@ async function summarizeCompletedOrders(orders) {
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: MODEL,
+      model: ANTHROPIC_MODEL,
       max_tokens: 600,
       messages: [{ role: 'user', content: buildPrompt(orders) }],
     }),
@@ -63,6 +61,44 @@ async function summarizeCompletedOrders(orders) {
     throw err;
   }
   return text;
+}
+
+async function summarizeWithGemini(orders, apiKey) {
+  const res = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: buildPrompt(orders) }] }],
+    }),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    const err = new Error(`AI要約の生成に失敗しました (status ${res.status}): ${detail}`);
+    err.code = 'AI_REQUEST_FAILED';
+    throw err;
+  }
+
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!text) {
+    const err = new Error('AIからの応答が空でした');
+    err.code = 'AI_EMPTY_RESPONSE';
+    throw err;
+  }
+  return text;
+}
+
+async function summarizeCompletedOrders(orders) {
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (anthropicKey) return summarizeWithAnthropic(orders, anthropicKey);
+
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey) return summarizeWithGemini(orders, geminiKey);
+
+  const err = new Error('ANTHROPIC_API_KEY / GEMINI_API_KEY のいずれも設定されていません');
+  err.code = 'AI_NOT_CONFIGURED';
+  throw err;
 }
 
 module.exports = { summarizeCompletedOrders };

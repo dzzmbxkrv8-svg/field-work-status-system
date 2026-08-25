@@ -44,7 +44,7 @@ exports.getSummary = async (req, res, next) => {
       if (err.code === 'AI_NOT_CONFIGURED') {
         return res.status(503).json({
           success: false,
-          message: 'AI要約機能を利用するには、サーバーにANTHROPIC_API_KEYを設定する必要があります',
+          message: 'AI要約機能を利用するには、サーバーにANTHROPIC_API_KEYまたはGEMINI_API_KEYを設定する必要があります',
         });
       }
       throw err;

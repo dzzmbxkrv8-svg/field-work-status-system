@@ -1,20 +1,15 @@
-// 住所文字列を緯度経度に変換するサービス（Google Maps Geocoding API）。
-// 利用にはサーバー環境変数 GOOGLE_MAPS_API_KEY の設定が必要。
-// 未設定の場合は GEOCODING_NOT_CONFIGURED エラーを投げる。
+// 住所文字列を緯度経度に変換するサービス。
+//
+// GOOGLE_MAPS_API_KEY が設定されていれば Google Maps Geocoding API（有料・高精度）を、
+// 未設定の場合は国土地理院（GSI）住所検索API（無料・キー不要・日本国内向け）を使う。
+// 本番移行時はRenderの環境変数にGOOGLE_MAPS_API_KEYを追加するだけで、
+// コード変更なしに自動でGoogle Maps側へ切り替わる。
 
-const GEOCODE_URL = 'https://maps.googleapis.com/maps/api/geocode/json';
+const GOOGLE_GEOCODE_URL = 'https://maps.googleapis.com/maps/api/geocode/json';
+const GSI_GEOCODE_URL = 'https://msearch.gsi.go.jp/address-search/AddressSearch';
 
-// 住所→{lat, lng} に変換する。該当住所が見つからない場合はnullを返す
-// （エラーではなく「候補ゼロ」として扱う）。
-async function geocodeAddress(address) {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-  if (!apiKey) {
-    const err = new Error('GOOGLE_MAPS_API_KEY が設定されていません');
-    err.code = 'GEOCODING_NOT_CONFIGURED';
-    throw err;
-  }
-
-  const url = `${GEOCODE_URL}?address=${encodeURIComponent(address)}&language=ja&region=jp&key=${apiKey}`;
+async function geocodeWithGoogleMaps(address, apiKey) {
+  const url = `${GOOGLE_GEOCODE_URL}?address=${encodeURIComponent(address)}&language=ja&region=jp&key=${apiKey}`;
   const res = await fetch(url);
   if (!res.ok) {
     const err = new Error(`ジオコーディングAPIの呼び出しに失敗しました (status ${res.status})`);
@@ -33,6 +28,33 @@ async function geocodeAddress(address) {
   const location = data.results?.[0]?.geometry?.location;
   if (!location) return null;
   return { lat: location.lat, lng: location.lng };
+}
+
+// 国土地理院 住所検索API（無料・APIキー不要）。建物名などが含まれると精度が落ちる場合がある。
+async function geocodeWithGsi(address) {
+  const url = `${GSI_GEOCODE_URL}?q=${encodeURIComponent(address)}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const err = new Error(`国土地理院APIの呼び出しに失敗しました (status ${res.status})`);
+    err.code = 'GEOCODING_REQUEST_FAILED';
+    throw err;
+  }
+
+  const data = await res.json();
+  const feature = data?.[0];
+  if (!feature) return null;
+  // GeoJSON形式のため coordinates は [経度, 緯度] の順
+  const [lng, lat] = feature.geometry?.coordinates || [];
+  if (lat == null || lng == null) return null;
+  return { lat, lng };
+}
+
+// 住所→{lat, lng} に変換する。該当住所が見つからない場合はnullを返す
+// （エラーではなく「候補ゼロ」として扱う）。
+async function geocodeAddress(address) {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (apiKey) return geocodeWithGoogleMaps(address, apiKey);
+  return geocodeWithGsi(address);
 }
 
 module.exports = { geocodeAddress };

@@ -187,16 +187,12 @@ exports.recommendWorkers = async (req, res, next) => {
       return res.status(400).json({ success: false, message: '必要人数(count)は1以上の整数で指定してください' });
     }
 
+    // ジオコーディングはGOOGLE_MAPS_API_KEY設定時はGoogle Maps、未設定時は
+    // 国土地理院API（無料・キー不要）を自動選択するため、常に利用可能。
     let site = null;
     try {
       site = await geocodeAddress(location.trim());
     } catch (err) {
-      if (err.code === 'GEOCODING_NOT_CONFIGURED') {
-        return res.status(503).json({
-          success: false,
-          message: '位置情報API(GOOGLE_MAPS_API_KEY)が未設定のため、AIおまかせ機能を利用できません',
-        });
-      }
       return res.status(502).json({ success: false, message: err.message || '現場住所のジオコーディングに失敗しました' });
     }
     // site === null（該当住所なし）の場合は、全員「距離不明」として負荷バランスのみで並べる

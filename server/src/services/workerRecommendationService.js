@@ -48,8 +48,9 @@ function scoreAndSelectWorkers(site, workers, count) {
     };
   });
 
-  // スキル分散を考慮した貪欲選定
-  const pool = [...candidates].sort((a, b) => b.base_score - a.base_score);
+  // スキル分散を考慮した貪欲選定（__pickedはpool内部だけの一時フラグなので、
+  // candidatesとは独立したコピーを操作し、レスポンスに漏れないようにする）
+  const pool = candidates.map(c => ({ ...c })).sort((a, b) => b.base_score - a.base_score);
   const selected = [];
   const skillCounts = {};
   const n = Math.max(0, Math.min(count, pool.length));
