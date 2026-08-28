@@ -10,6 +10,7 @@ import WorkerHomeTab from '@/components/worker/WorkerHomeTab'
 import WorkerCalendarTab from '@/components/worker/WorkerCalendarTab'
 import WorkerMessagesTab from '@/components/worker/WorkerMessagesTab'
 import BiometricSetup from '@/components/worker/BiometricSetup'
+import PushNotificationSetup from '@/components/PushNotificationSetup'
 import { AppIcon } from '@/utils/iconMap'
 
 export default function WorkerView() {
@@ -183,6 +184,7 @@ export default function WorkerView() {
       )}
       <div className="worker-app">
         <BiometricSetup />
+        <PushNotificationSetup />
         {activeTab === 'home' && (
           <WorkerHomeTab
             worker={worker}

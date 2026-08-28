@@ -2,7 +2,12 @@
  * Server-Sent Events (SSE) クライアント管理
  * 接続中のクライアントを管理し、イベントをブロードキャストする
  * 通知は会社（companyId）単位に分離される
+ *
+ * SSEはアプリを開いている間しか届かないため、同じイベントに相乗りする形で
+ * Web Push通知も送信する（VAPIDキー未設定の環境では pushService 側が何もしない）。
  */
+
+const pushService = require('../services/pushService')
 
 let nextId = 1
 const clients = new Map() // clientId → { res, userId, role, companyId }
@@ -51,6 +56,7 @@ function sendToUser(userId, event, data) {
       }
     }
   }
+  pushService.sendPushToUser(userId, event, data).catch(() => {})
 }
 
 /**
@@ -67,6 +73,7 @@ function sendToAdmins(event, data, companyId) {
       }
     }
   }
+  pushService.sendPushToRole(companyId, 'admin', event, data).catch(() => {})
 }
 
 /**
@@ -83,6 +90,7 @@ function sendToWorkers(event, data, companyId) {
       }
     }
   }
+  pushService.sendPushToRole(companyId, 'worker', event, data).catch(() => {})
 }
 
 function getClientCount() {

@@ -29,7 +29,8 @@
     "multer": "^2.1.1",
     "nodemailer": "^9.0.5",
     "pg": "^8.20.0",
-    "resend": "^6.18.0"
+    "resend": "^6.18.0",
+    "web-push": "^3.6.7"
   },
   "jest": {
     "testEnvironment": "node",

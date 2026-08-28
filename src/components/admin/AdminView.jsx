@@ -8,6 +8,7 @@ import DashboardPanel from './DashboardPanel'
 import ReportsPanel from './ReportsPanel'
 import WorkerAssignmentDialog from './WorkerAssignmentDialog'
 import BottomNavigation from './BottomNavigation'
+import PushNotificationSetup from '@/components/PushNotificationSetup'
 import TeamManagementPanel from './TeamManagementPanel'
 import ShiftPanel from './ShiftPanel'
 import { useState, useEffect, useMemo, useCallback } from 'react'
@@ -137,6 +138,7 @@ export default function AdminView() {
       </header>
 
 
+      {selectedTab === 'dashboard' && <PushNotificationSetup />}
       {selectedTab === 'dashboard' && <DashboardPanel onNavigateToTeams={() => handleTabChange('teams')} />}
       {selectedTab === 'orders' && (
         <AdminPanel onAssignWorkers={handleAssignWorkers} workers={dbWorkers} />
