@@ -7,6 +7,7 @@ import { useAppContext } from '@/contexts/AppContext'
 import AdminManagementSection from './AdminManagementSection'
 import WorkerManagementSection from './WorkerManagementSection'
 import AuditLogSection from './AuditLogSection'
+import PlanInfoSection from './PlanInfoSection'
 
 function TeamForm({ initial, onSave, onCancel, saving }) {
   const [name, setName] = useState(initial?.name || '')
@@ -165,6 +166,9 @@ export default function TeamManagementPanel() {
 
   return (
     <>
+    {/* ── ご利用プラン ── */}
+    <PlanInfoSection />
+
     {/* ── 会社アクセスコード ── */}
     <section className="fws-panel" style={{ marginBottom: '1rem' }}>
       <header className="fws-panel-header" style={{ marginBottom: '0.75rem' }}>

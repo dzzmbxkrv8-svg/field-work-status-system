@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { geocodeAddress } = require('../services/geocodingService');
 const { scoreAndSelectWorkers } = require('../services/workerRecommendationService');
 const { logAction } = require('../services/auditLogService');
+const { getPlanInfo } = require('../config/plans');
 
 exports.getWorkers = async (req, res, next) => {
   try {
@@ -336,6 +337,24 @@ exports.recommendWorkers = async (req, res, next) => {
 exports.approveWorker = async (req, res, next) => {
   try {
     const { id } = req.params;
+
+    // プランの作業員上限チェック（実際の決済は未接続のため、上限に達した場合は
+    // Fieldo運営への問い合わせを案内するにとどめる）
+    const companyResult = await db.query('SELECT plan FROM companies WHERE id = $1', [req.user.company_id]);
+    const planInfo = getPlanInfo(companyResult.rows[0]?.plan || 'free');
+    if (planInfo.workerLimit != null) {
+      const countResult = await db.query(
+        `SELECT COUNT(*) AS cnt FROM users WHERE role = 'worker' AND is_active = true AND status = 'active' AND company_id = $1`,
+        [req.user.company_id]
+      );
+      if (Number(countResult.rows[0].cnt) >= planInfo.workerLimit) {
+        return res.status(403).json({
+          success: false,
+          message: `現在のプラン（${planInfo.label}）の作業員上限（${planInfo.workerLimit}名）に達しています。プランのアップグレードについてはFieldo運営にお問い合わせください。`,
+        });
+      }
+    }
+
     const { rows } = await db.query(
       `UPDATE users SET status = 'active', updated_at = NOW()
        WHERE id = $1 AND role = 'worker' AND status = 'pending' AND company_id = $2
