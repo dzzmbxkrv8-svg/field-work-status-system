@@ -83,6 +83,44 @@ function TodayAssignmentCard({ assignments }) {
   )
 }
 
+// 作業員自身が自分の稼働状況を振り返れるように、今月・直近30日の完了件数を表示する
+function WorkStatsCard({ assignments }) {
+  const stats = (() => {
+    const now = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const thirtyDaysAgo = new Date(now)
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+    const completed = assignments.filter(a => (a.raw_status || a.status)?.toString().toLowerCase() === 'completed')
+    const isDone = (a) => {
+      const ts = a.updated_at ? new Date(a.updated_at) : null
+      return ts
+    }
+    const thisMonth = completed.filter(a => { const ts = isDone(a); return ts && ts >= monthStart }).length
+    const last30Days = completed.filter(a => { const ts = isDone(a); return ts && ts >= thirtyDaysAgo }).length
+    return { thisMonth, last30Days }
+  })()
+
+  return (
+    <section className="worker-card" style={{ background: '#ffffff', border: '1px solid #ebebf5' }}>
+      <p className="worker-section-label" style={{ color: '#4f46e5', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.82rem', letterSpacing: '0.03em' }}>
+        <AppIcon name="CheckCircle" size={14} />
+        自分の稼働状況
+      </p>
+      <div style={{ display: 'flex', gap: '1.5rem' }}>
+        <div>
+          <p style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800, color: '#0f172a' }}>{stats.thisMonth}</p>
+          <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8' }}>今月の完了件数</p>
+        </div>
+        <div>
+          <p style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800, color: '#0f172a' }}>{stats.last30Days}</p>
+          <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8' }}>直近30日の完了件数</p>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 export default function WorkerHomeTab({
   worker,
   text,
@@ -204,6 +242,8 @@ export default function WorkerHomeTab({
       </section>
 
       <TodayAssignmentCard assignments={assignments} />
+
+      <WorkStatsCard assignments={assignments} />
 
       <section className="safety-ticker">
         <span className="safety-icon"><AppIcon name="AlertTriangle" size={16} strokeWidth={2} /></span>
