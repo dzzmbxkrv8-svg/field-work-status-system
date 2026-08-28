@@ -29,7 +29,7 @@ const ORDER_STATUS_LABELS = {
   completed: '完了', cancelled: 'キャンセル',
 }
 
-export default function DashboardPanel() {
+export default function DashboardPanel({ onNavigateToTeams }) {
   const { state } = useAppContext()
   const { filters, session } = state
   const { formatDue } = useI18n(state.language)
@@ -192,6 +192,12 @@ export default function DashboardPanel() {
     return messages.filter(m => !m.is_read && m.sender_id !== session?.id && workerIds.has(m.sender_id)).length
   }, [messages, workers, session?.id])
 
+  // AI自動アサインの精度は住所・スキルレベルの登録状況に左右されるため、
+  // 未登録の在籍中作業員がいれば管理者に入力を促す
+  const missingProfileDataCount = useMemo(() =>
+    workers.filter(w => !w.address || !w.skill_level).length,
+  [workers])
+
   const topOrders = useMemo(() =>
     [...orders]
       .filter(o => o.status?.toLowerCase() !== 'completed' && o.status?.toLowerCase() !== 'cancelled')
@@ -213,6 +219,33 @@ export default function DashboardPanel() {
         notReportedCount={notReportedCount}
         unreadWorkerMessageCount={unreadWorkerMessageCount}
       />
+
+      {/* ── AI機能の精度向上のためのデータ入力促進 ── */}
+      {missingProfileDataCount > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap',
+          background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10,
+          padding: '0.75rem 1rem', marginBottom: '1rem',
+        }}>
+          <AppIcon name="Sparkles" size={16} strokeWidth={2} style={{ color: '#92400e', flexShrink: 0 }} />
+          <p style={{ margin: 0, fontSize: '0.82rem', color: '#92400e', flex: 1, minWidth: 200 }}>
+            住所またはスキルレベルが未登録の作業員が{missingProfileDataCount}名います。登録するとAI自動アサインの精度が上がります。
+          </p>
+          {onNavigateToTeams && (
+            <button
+              type="button"
+              onClick={onNavigateToTeams}
+              style={{
+                padding: '0.35rem 0.8rem', borderRadius: 8, border: '1px solid #f5c359',
+                background: '#fff', color: '#92400e', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              作業員の管理へ
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── 作業員へのお知らせ編集 ── */}
       <section className="fws-panel" style={{ marginBottom: '1rem' }}>

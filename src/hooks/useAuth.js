@@ -33,7 +33,7 @@ export function useAuth() {
       localStorage.setItem('token', result.token)
       localStorage.setItem('user', JSON.stringify(result.user))
       login(result.user)
-      dispatch({ type: 'SET_TAB', payload: 'overview' })
+      dispatch({ type: 'SET_TAB', payload: 'dashboard' })
       return result.user
     },
     [login, dispatch]

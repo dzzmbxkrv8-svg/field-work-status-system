@@ -137,7 +137,7 @@ export default function AdminView() {
       </header>
 
 
-      {selectedTab === 'dashboard' && <DashboardPanel />}
+      {selectedTab === 'dashboard' && <DashboardPanel onNavigateToTeams={() => handleTabChange('teams')} />}
       {selectedTab === 'orders' && (
         <AdminPanel onAssignWorkers={handleAssignWorkers} workers={dbWorkers} />
       )}
