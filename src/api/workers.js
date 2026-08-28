@@ -42,3 +42,14 @@ export const recommendWorkers = async (location, count) => {
     body: JSON.stringify({ location, count }),
   });
 };
+
+export const getMyProfile = async () => {
+  return apiClient('/api/workers/me', { method: 'GET' });
+};
+
+export const updateMyProfile = async (data) => {
+  return apiClient('/api/workers/me', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+};

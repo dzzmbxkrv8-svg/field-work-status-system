@@ -94,22 +94,41 @@ exports.createWorker = async (req, res, next) => {
 exports.updateWorker = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, furigana, phone, email, address, team_id, skill_level } = req.body;
-    if (!name || !name.trim()) {
-      return res.status(400).json({ success: false, message: '氏名は必須です' });
-    }
-    if (skill_level !== undefined && skill_level !== null && ![1, 2, 3].includes(Number(skill_level))) {
+    const body = req.body;
+    if (body.skill_level !== undefined && body.skill_level !== null && ![1, 2, 3].includes(Number(body.skill_level))) {
       return res.status(400).json({ success: false, message: 'スキルレベルは1〜3で指定してください' });
     }
+
+    // 部分更新に対応: リクエストボディに含まれていない項目は既存値をそのまま維持する。
+    // （以前は未指定の項目を無条件でNULLにしてしまい、一部フィールドだけを送るAPI呼び出しで
+    //   他の項目が意図せず消えてしまう問題があったため、既存行を取得したうえでマージする）
+    const existing = await db.query(
+      `SELECT name, furigana, phone, email, address, team_id, skill_level, lat, lng
+       FROM users WHERE id=$1 AND role='worker' AND is_active=true AND company_id=$2`,
+      [id, req.user.company_id]
+    );
+    const previous = existing.rows[0];
+    if (!previous) {
+      return res.status(404).json({ success: false, message: '作業員が見つかりません' });
+    }
+
+    const has = (key) => Object.prototype.hasOwnProperty.call(body, key);
+    const name = has('name') ? body.name?.trim() || '' : previous.name;
+    if (!name) {
+      return res.status(400).json({ success: false, message: '氏名は必須です' });
+    }
+    const furigana = has('furigana') ? (body.furigana?.trim() || null) : previous.furigana;
+    const phone = has('phone') ? (body.phone?.trim() || null) : previous.phone;
+    const email = has('email') ? (body.email?.trim() || null) : previous.email;
+    const trimmedAddress = has('address') ? (body.address?.trim() || null) : previous.address;
+    const team_id = has('team_id') ? (body.team_id || null) : previous.team_id;
+    const skill_level = has('skill_level') ? (body.skill_level != null ? Number(body.skill_level) : null) : previous.skill_level;
 
     // 住所からの座標算出はベストエフォート（ジオコーディングAPI未設定・失敗でも
     // 住所自体の保存は妨げない。自動アサイン機能ではlat/lng未設定として扱われる）。
     // 住所が変更されていない場合は既存のlat/lngをそのまま使い、無駄なAPI呼び出しを避ける。
-    const trimmedAddress = address?.trim() || null;
     let lat = null, lng = null;
-    const existing = await db.query('SELECT address, lat, lng FROM users WHERE id=$1', [id]);
-    const previous = existing.rows[0];
-    if (trimmedAddress && previous && previous.address === trimmedAddress) {
+    if (trimmedAddress && previous.address === trimmedAddress) {
       lat = previous.lat;
       lng = previous.lng;
     } else if (trimmedAddress) {
@@ -129,14 +148,98 @@ exports.updateWorker = async (req, res, next) => {
        WHERE id=$10 AND role='worker' AND is_active=true AND company_id=$11
        RETURNING id, employee_id, name, furigana, phone, email, address, skill_level, role, team_id`,
       [
-        name.trim(), furigana?.trim()||null, phone?.trim()||null, email?.trim()||null, trimmedAddress,
-        team_id||null, skill_level != null ? Number(skill_level) : null, lat, lng,
+        name, furigana, phone, email, trimmedAddress,
+        team_id, skill_level, lat, lng,
         id, req.user.company_id,
       ]
     );
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: '作業員が見つかりません' });
     }
+    res.status(200).json({ success: true, data: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// 作業員本人によるプロフィール自己編集。氏名・フリガナ・電話番号・メール・住所のみ変更可能で、
+// スキルレベル・チーム所属・パスワードは管理者側の編集画面でのみ変更できる（本人には触らせない）。
+// 作業員本人の編集可能なプロフィールを取得する。
+// ログイン時のJWT/セッションには氏名・チーム程度しか含まれておらず、電話番号・メール・
+// 住所は含まれないため、自己編集フォームを開く際は必ずこのAPIから最新値を取得すること
+// （セッション情報を初期値に使うと、未取得の項目が空のまま保存され消えてしまう）。
+exports.getMyProfile = async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, employee_id, name, furigana, phone, email, address, skill_level, team_id
+       FROM users WHERE id=$1 AND role='worker' AND is_active=true AND company_id=$2`,
+      [req.user.id, req.user.company_id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'アカウントが見つかりません' });
+    }
+    res.status(200).json({ success: true, data: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateMyProfile = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const body = req.body;
+
+    const existing = await db.query(
+      `SELECT name, furigana, phone, email, address, lat, lng
+       FROM users WHERE id=$1 AND role='worker' AND is_active=true AND company_id=$2`,
+      [userId, req.user.company_id]
+    );
+    const previous = existing.rows[0];
+    if (!previous) {
+      return res.status(404).json({ success: false, message: 'アカウントが見つかりません' });
+    }
+
+    const has = (key) => Object.prototype.hasOwnProperty.call(body, key);
+    const name = has('name') ? (body.name?.trim() || '') : previous.name;
+    if (!name) {
+      return res.status(400).json({ success: false, message: '氏名は必須です' });
+    }
+    const furigana = has('furigana') ? (body.furigana?.trim() || null) : previous.furigana;
+    const phone = has('phone') ? (body.phone?.trim() || null) : previous.phone;
+    const email = has('email') ? (body.email?.trim() || null) : previous.email;
+    const trimmedAddress = has('address') ? (body.address?.trim() || null) : previous.address;
+
+    // メールアドレスは全社共通で一意（ログインIDのため）
+    if (email && email.toLowerCase() !== (previous.email || '').toLowerCase()) {
+      const dup = await db.query(
+        'SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND is_active = true AND id != $2',
+        [email, userId]
+      );
+      if (dup.rows.length > 0) {
+        return res.status(409).json({ success: false, message: 'このメールアドレスは既に使用されています' });
+      }
+    }
+
+    // 住所からの座標算出はベストエフォート（管理者編集時と同じロジック）
+    let lat = null, lng = null;
+    if (trimmedAddress && previous.address === trimmedAddress) {
+      lat = previous.lat;
+      lng = previous.lng;
+    } else if (trimmedAddress) {
+      try {
+        const coords = await geocodeAddress(trimmedAddress);
+        if (coords) { lat = coords.lat; lng = coords.lng; }
+      } catch (geoErr) {
+        console.warn('[updateMyProfile] ジオコーディングに失敗しました:', geoErr.message);
+      }
+    }
+
+    const { rows } = await db.query(
+      `UPDATE users SET name=$1, furigana=$2, phone=$3, email=$4, address=$5, lat=$6, lng=$7, updated_at=NOW()
+       WHERE id=$8 AND role='worker' AND is_active=true AND company_id=$9
+       RETURNING id, employee_id, name, furigana, phone, email, address, role, team_id`,
+      [name, furigana, phone, email, trimmedAddress, lat, lng, userId, req.user.company_id]
+    );
     res.status(200).json({ success: true, data: rows[0] });
   } catch (err) {
     next(err);

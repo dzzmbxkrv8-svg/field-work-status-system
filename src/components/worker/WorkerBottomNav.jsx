@@ -6,7 +6,7 @@ export default function WorkerBottomNav({ activeTab, setActiveTab, text, incomin
   const tabs = [
     { id: 'home',     icon: 'Home',     label: text.worker.navHome },
     { id: 'calendar', icon: 'Calendar', label: text.worker.navCalendar },
-    { id: 'report',   icon: 'Send',     label: text.worker.navReport },
+    { id: 'messages',   icon: 'Send',     label: text.worker.navReport },
   ]
 
   return (
@@ -22,7 +22,7 @@ export default function WorkerBottomNav({ activeTab, setActiveTab, text, incomin
           <span className="worker-nav-icon">
             <AppIcon name={tab.icon} size={22} strokeWidth={1.8} />
           </span>
-          {tab.id === 'report' && unreadCount > 0 && (
+          {tab.id === 'messages' && unreadCount > 0 && (
             <span style={{
               position: 'absolute', top: '6px', left: '50%', transform: 'translateX(6px)',
               background: '#ef4444', color: '#fff',

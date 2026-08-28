@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { STATUS_QUICK_ACTIONS } from '@/utils/constants'
 import { AppIcon } from '@/utils/iconMap'
 import { getAnnouncement } from '@/api/settings'
+import WorkerProfileModal from './WorkerProfileModal'
 
 function getGreeting(text) {
   const hour = new Date().getHours()
@@ -94,9 +95,11 @@ export default function WorkerHomeTab({
   logout,
   assignments = [],
   announcementRefreshKey = 0,
+  onProfileUpdated,
 }) {
   const quickLabels = text.worker.statusQuickLabels ?? {}
   const avatarContent = <span>{worker.name.slice(0, 1).toUpperCase()}</span>
+  const [profileModalOpen, setProfileModalOpen] = useState(false)
 
   // お知らせをAPIから取得（SSEでキーが変わるたびに再取得）
   // refreshKeyRef を使って依存配列サイズを常に1に固定（HMR警告を防ぐ）
@@ -146,13 +149,31 @@ export default function WorkerHomeTab({
             <div className="worker-avatar">{avatarContent}</div>
             <div>
               <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: '0' }}>{getGreeting(text)}</p>
-              <h2 style={{ margin: '0', fontSize: '1.4rem' }}>{worker.name}</h2>
+              <h2 style={{ margin: '0', fontSize: '1.4rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                {worker.name}
+                <button
+                  type="button"
+                  onClick={() => setProfileModalOpen(true)}
+                  title="プロフィール編集"
+                  style={{ border: 'none', background: 'none', padding: '0.2rem', cursor: 'pointer', color: '#94a3b8', display: 'flex' }}
+                >
+                  <AppIcon name="Pencil" size={15} strokeWidth={2} />
+                </button>
+              </h2>
             </div>
           </div>
           <button type="button" className="worker-logout" onClick={logout}>
             {text.actions.logout}
           </button>
         </div>
+
+        {profileModalOpen && (
+          <WorkerProfileModal
+            worker={worker}
+            onClose={() => setProfileModalOpen(false)}
+            onSaved={(updated) => onProfileUpdated?.(updated)}
+          />
+        )}
 
         <div className="worker-info-block">
           <div className="worker-info-row">

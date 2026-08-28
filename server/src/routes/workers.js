@@ -12,6 +12,9 @@ router.get('/pending', auth, requireAdmin, workerController.getPendingWorkers);
 router.patch('/:id/approve', auth, requireAdmin, workerController.approveWorker);
 // AIおまかせ（距離・負荷・スキルバランスを考慮した候補提案）
 router.post('/recommend', auth, requireAdmin, workerController.recommendWorkers);
+// 作業員本人によるプロフィール自己編集（/:id より先に定義）
+router.get('/me', auth, workerController.getMyProfile);
+router.put('/me', auth, workerController.updateMyProfile);
 router.get('/:id', auth, workerController.getWorker);
 router.put('/:id', auth, requireAdmin, workerController.updateWorker);
 router.delete('/:id', auth, requireAdmin, workerController.deleteWorker);

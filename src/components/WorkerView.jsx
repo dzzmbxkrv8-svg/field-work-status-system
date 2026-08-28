@@ -8,12 +8,12 @@ import { useI18n } from '@/i18n'
 import WorkerBottomNav from '@/components/worker/WorkerBottomNav'
 import WorkerHomeTab from '@/components/worker/WorkerHomeTab'
 import WorkerCalendarTab from '@/components/worker/WorkerCalendarTab'
-import WorkerReportTab from '@/components/worker/WorkerReportTab'
+import WorkerMessagesTab from '@/components/worker/WorkerMessagesTab'
 import BiometricSetup from '@/components/worker/BiometricSetup'
 import { AppIcon } from '@/utils/iconMap'
 
 export default function WorkerView() {
-  const { state, logout } = useAppContext()
+  const { state, logout, login } = useAppContext()
   const {
     sortedOrders: assignments,
     updateStatus: updateAssignmentStatus,
@@ -139,6 +139,12 @@ export default function WorkerView() {
     }
   }, [updateAssignmentStatus, refreshAssignments, showToast])
 
+  // プロフィール自己編集の保存後、セッション情報（氏名・連絡先等）を即座に反映する
+  const handleProfileUpdated = useCallback((updated) => {
+    login({ ...state.session, ...updated })
+    showToast('success', 'プロフィールを更新しました')
+  }, [login, state.session, showToast])
+
   if (!worker) return null
 
   const toastColors = {
@@ -190,6 +196,7 @@ export default function WorkerView() {
             logout={logout}
             assignments={assignments}
             announcementRefreshKey={announcementRefreshKey}
+            onProfileUpdated={handleProfileUpdated}
           />
         )}
         {activeTab === 'calendar' && (
@@ -203,8 +210,8 @@ export default function WorkerView() {
             formatDate={formatDate}
           />
         )}
-        {activeTab === 'report' && (
-          <WorkerReportTab
+        {activeTab === 'messages' && (
+          <WorkerMessagesTab
             worker={worker}
             apiMessages={apiMessages}
             sendMessageApi={sendMessageApi}
