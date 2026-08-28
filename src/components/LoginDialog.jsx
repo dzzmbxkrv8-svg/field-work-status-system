@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useI18n } from '@/i18n'
+import LegalDocumentModal from '@/components/LegalDocumentModal'
 
 /** パスワード強度チェック */
 function checkPassword(pw) {
@@ -59,6 +60,7 @@ export default function LoginDialog({
   const [adminRememberMe, setAdminRememberMe] = useState(() => !!localStorage.getItem('remembered_admin_email'))
   const [error, setError] = useState('')
   const [info, setInfo] = useState('')
+  const [legalDoc, setLegalDoc] = useState(null) // 'terms' | 'privacy' | null
 
   const [workerRegisterOpen, setWorkerRegisterOpen] = useState(false)
   const [workerResetOpen, setWorkerResetOpen] = useState(false)
@@ -700,7 +702,26 @@ export default function LoginDialog({
             </select>
           </div>
         )}
+
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1rem' }}>
+          <button
+            type="button"
+            onClick={() => setLegalDoc('terms')}
+            style={{ border: 'none', background: 'none', color: '#94a3b8', fontSize: '0.72rem', cursor: 'pointer', padding: 0 }}
+          >
+            利用規約
+          </button>
+          <button
+            type="button"
+            onClick={() => setLegalDoc('privacy')}
+            style={{ border: 'none', background: 'none', color: '#94a3b8', fontSize: '0.72rem', cursor: 'pointer', padding: 0 }}
+          >
+            プライバシーポリシー
+          </button>
+        </div>
       </div>
+
+      {legalDoc && <LegalDocumentModal doc={legalDoc} onClose={() => setLegalDoc(null)} />}
     </div>
   )
 }
