@@ -2,6 +2,7 @@ const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { sendAdminInviteEmail } = require('../config/mailer');
+const { logAction } = require('../services/auditLogService');
 
 // GET /api/admins — 自社の管理者一覧+未承諾の招待一覧
 exports.getAdmins = async (req, res, next) => {
@@ -81,6 +82,7 @@ exports.inviteAdmin = async (req, res, next) => {
       inviteUrl,
     });
 
+    logAction(req, 'admin.invite', 'admin_invitation', null, { email: emailTrimmed, name: name.trim() });
     res.status(201).json({ success: true, message: `${emailTrimmed} に招待メールを送信しました。` });
   } catch (err) {
     next(err);
@@ -186,6 +188,7 @@ exports.deactivateAdmin = async (req, res, next) => {
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: '管理者が見つかりません' });
     }
+    logAction(req, 'admin.deactivate', 'admin', rows[0].id, { name: rows[0].name });
     res.status(200).json({ success: true, message: `${rows[0].name} さんの管理者アカウントを無効化しました` });
   } catch (err) {
     next(err);

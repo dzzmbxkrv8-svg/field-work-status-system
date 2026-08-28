@@ -6,6 +6,7 @@ import { AppIcon } from '@/utils/iconMap'
 import { useAppContext } from '@/contexts/AppContext'
 import AdminManagementSection from './AdminManagementSection'
 import WorkerManagementSection from './WorkerManagementSection'
+import AuditLogSection from './AuditLogSection'
 
 function TeamForm({ initial, onSave, onCancel, saving }) {
   const [name, setName] = useState(initial?.name || '')
@@ -353,6 +354,9 @@ export default function TeamManagementPanel() {
 
     {/* ── 管理者の管理 ── */}
     <AdminManagementSection currentUserId={state.session?.id} />
+
+    {/* ── 操作履歴（監査ログ） ── */}
+    <AuditLogSection />
     </>
   )
 }

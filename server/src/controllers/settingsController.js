@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { sendToWorkers } = require('../events/sseManager');
+const { logAction } = require('../services/auditLogService');
 
 // ── お知らせ ──────────────────────────────────────────────────────────────
 
@@ -35,6 +36,7 @@ const updateAnnouncement = async (req, res, next) => {
       [req.user.company_id, value, req.user.id]
     );
     sendToWorkers('announcement_updated', { value: result.rows[0].value }, req.user.company_id);
+    logAction(req, 'announcement.update', 'announcement', null, { value: result.rows[0].value });
     res.json({ success: true, value: result.rows[0].value, updatedAt: result.rows[0].updated_at });
   } catch (err) {
     next(err);

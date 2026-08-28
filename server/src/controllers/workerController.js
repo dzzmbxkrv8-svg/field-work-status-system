@@ -2,6 +2,7 @@ const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const { geocodeAddress } = require('../services/geocodingService');
 const { scoreAndSelectWorkers } = require('../services/workerRecommendationService');
+const { logAction } = require('../services/auditLogService');
 
 exports.getWorkers = async (req, res, next) => {
   try {
@@ -85,6 +86,7 @@ exports.createWorker = async (req, res, next) => {
        RETURNING id, employee_id, name, furigana, role, team_id`,
       [employee_id.trim(), name.trim(), furigana?.trim() || null, team_id || null, password_hash, req.user.company_id]
     );
+    logAction(req, 'worker.create', 'worker', rows[0].id, { name: rows[0].name, employee_id: rows[0].employee_id });
     res.status(201).json({ success: true, data: rows[0] });
   } catch (err) {
     next(err);
@@ -156,6 +158,7 @@ exports.updateWorker = async (req, res, next) => {
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: '作業員が見つかりません' });
     }
+    logAction(req, 'worker.update', 'worker', rows[0].id, { name: rows[0].name });
     res.status(200).json({ success: true, data: rows[0] });
   } catch (err) {
     next(err);
@@ -257,6 +260,7 @@ exports.deleteWorker = async (req, res, next) => {
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: '作業員が見つかりません' });
     }
+    logAction(req, 'worker.deactivate', 'worker', rows[0].id);
     res.status(200).json({ success: true, message: '作業員を無効化しました' });
   } catch (err) {
     next(err);
@@ -341,6 +345,7 @@ exports.approveWorker = async (req, res, next) => {
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: '対象の作業員が見つかりません' });
     }
+    logAction(req, 'worker.approve', 'worker', rows[0].id, { name: rows[0].name });
     res.status(200).json({ success: true, data: rows[0] });
   } catch (err) {
     next(err);

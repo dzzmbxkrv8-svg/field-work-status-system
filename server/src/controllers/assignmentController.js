@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { sendToWorkers, sendToAdmins } = require('../events/sseManager');
+const { logAction } = require('../services/auditLogService');
 
 exports.getAssignments = async (req, res, next) => {
   try {
@@ -68,6 +69,7 @@ exports.createAssignment = async (req, res, next) => {
     `, [assignment_code.trim(), title.trim(), location || null, team_id || null, priority || 'medium', start_date || null, end_date || null, description || null, req.user.company_id]);
     // 新規案件作成 → 作業員にSSEプッシュ
     sendToWorkers('new_assignment', { id: rows[0].id, title: rows[0].title }, req.user.company_id)
+    logAction(req, 'assignment.create', 'assignment', rows[0].id, { title: rows[0].title });
     res.status(201).json({ success: true, data: rows[0] });
   } catch (error) {
     next(error);
@@ -92,6 +94,7 @@ exports.updateAssignment = async (req, res, next) => {
     if (rows.length === 0) return res.status(404).json({ success: false, message: '案件が見つかりません' });
     // 案件更新 → 作業員にSSEプッシュ
     sendToWorkers('assignment_updated', { id: rows[0].id, title: rows[0].title }, req.user.company_id)
+    logAction(req, 'assignment.update', 'assignment', rows[0].id, { title: rows[0].title });
     res.status(200).json({ success: true, data: rows[0] });
   } catch (error) {
     next(error);
@@ -136,6 +139,10 @@ exports.updateStatus = async (req, res, next) => {
         workerName: req.user.name || req.user.employee_id,
       }, req.user.company_id)
     }
+    // 管理者による変更のみ監査ログに残す（作業員自身の日常的なステータス報告は対象外）
+    if (req.user.role === 'admin') {
+      logAction(req, 'assignment.status_change', 'assignment', rows[0].id, { title: rows[0].title, status });
+    }
     res.status(200).json({ success: true, data: rows[0] });
   } catch (error) {
     next(error);
@@ -159,6 +166,7 @@ exports.assignWorker = async (req, res, next) => {
       [worker_id || null, req.params.id, req.user.company_id]
     );
     if (rows.length === 0) return res.status(404).json({ success: false, message: '案件が見つかりません' });
+    logAction(req, 'assignment.assign_worker', 'assignment', rows[0].id, { title: rows[0].title, worker_id: worker_id || null });
     res.status(200).json({ success: true, data: rows[0] });
   } catch (error) {
     next(error);
@@ -190,6 +198,7 @@ exports.setMembers = async (req, res, next) => {
         [assignmentId, ...member_ids]
       );
     }
+    logAction(req, 'assignment.set_members', 'assignment', Number(assignmentId), { member_ids });
     res.status(200).json({ success: true });
   } catch (error) {
     next(error);

@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { sendToWorkers, sendToAdmins } = require('../events/sseManager');
+const { logAction } = require('../services/auditLogService');
 
 const ALL_AVAILABILITY = ['available', 'maybe', 'unavailable'];
 const VALID_AVAILABILITY = new Set(ALL_AVAILABILITY);
@@ -135,6 +136,7 @@ exports.createShiftRequest = async (req, res, next) => {
       `シフト調査「${shift.title}」が届きました。回答をお願いします。`
     );
 
+    logAction(req, 'shift.create', 'shift_request', shift.id, { title: shift.title });
     res.status(201).json({ success: true, data: shift });
   } catch (error) {
     next(error);
@@ -673,6 +675,7 @@ exports.deleteShiftRequest = async (req, res, next) => {
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'シフト調査が見つかりません' });
     }
+    logAction(req, 'shift.delete', 'shift_request', rows[0].id, { title: rows[0].title });
     res.status(200).json({ success: true, message: `「${rows[0].title}」を削除しました` });
   } catch (error) {
     next(error);

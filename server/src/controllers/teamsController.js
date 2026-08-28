@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { logAction } = require('../services/auditLogService');
 
 exports.getTeams = async (req, res, next) => {
   try {
@@ -30,6 +31,7 @@ exports.createTeam = async (req, res, next) => {
       'INSERT INTO teams (name, description, company_id) VALUES ($1, $2, $3) RETURNING id, name, description, created_at',
       [name.trim(), description?.trim() || null, req.user.company_id]
     );
+    logAction(req, 'team.create', 'team', rows[0].id, { name: rows[0].name });
     res.status(201).json({ success: true, data: rows[0] });
   } catch (err) {
     next(err);
@@ -63,6 +65,7 @@ exports.updateTeam = async (req, res, next) => {
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'チームが見つかりません' });
     }
+    logAction(req, 'team.update', 'team', rows[0].id, { name: rows[0].name });
     res.status(200).json({ success: true, data: rows[0] });
   } catch (err) {
     next(err);
@@ -72,13 +75,14 @@ exports.updateTeam = async (req, res, next) => {
 exports.deleteTeam = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { rowCount } = await db.query(
-      'DELETE FROM teams WHERE id = $1 AND company_id = $2',
+    const { rows } = await db.query(
+      'DELETE FROM teams WHERE id = $1 AND company_id = $2 RETURNING id, name',
       [id, req.user.company_id]
     );
-    if (rowCount === 0) {
+    if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'チームが見つかりません' });
     }
+    logAction(req, 'team.delete', 'team', rows[0].id, { name: rows[0].name });
     res.status(200).json({ success: true, message: 'チームを削除しました' });
   } catch (err) {
     next(err);
