@@ -169,10 +169,34 @@ async function sendAdminInviteEmail({ to, name, companyName, inviterName, invite
   });
 }
 
+async function sendErrorAlertEmail({ message, path, method, count }) {
+  const operatorEmail = process.env.OPERATOR_EMAIL || process.env.SMTP_USER || 'operator@fieldo.local';
+  const html = wrapHtml('サーバーエラーが発生しています', `
+    <p style="color:#475569;font-size:0.9rem;margin:0 0 16px;">
+      本番環境でサーバーエラー(5xx)が発生しました。内容を確認してください。
+    </p>
+    <table style="width:100%;font-size:0.85rem;color:#0f0e2e;border-collapse:collapse;margin:0 0 16px;">
+      <tr><td style="padding:6px 0;color:#64748b;width:100px;">リクエスト</td><td>${method} ${path}</td></tr>
+      <tr><td style="padding:6px 0;color:#64748b;">エラー内容</td><td style="word-break:break-all;">${message}</td></tr>
+      ${count > 1 ? `<tr><td style="padding:6px 0;color:#64748b;">直近の発生回数</td><td>${count}件（クールダウン期間中に抑制）</td></tr>` : ''}
+    </table>
+    <p style="color:#94a3b8;font-size:0.78rem;margin:0;">
+      詳細はRenderのログをご確認ください。同様のアラートは一定時間抑制されます。
+    </p>
+  `);
+  return sendOrLog({
+    to: operatorEmail,
+    subject: `【Fieldo】サーバーエラー通知: ${method} ${path}`,
+    html,
+    devNote: `Error: ${message}`,
+  });
+}
+
 module.exports = {
   sendPasswordResetEmail,
   sendOperatorApprovalEmail,
   sendCompanyReceivedEmail,
   sendCompanyApprovedEmail,
   sendAdminInviteEmail,
+  sendErrorAlertEmail,
 };
